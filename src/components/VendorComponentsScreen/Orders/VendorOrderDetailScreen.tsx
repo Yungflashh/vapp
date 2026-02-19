@@ -1,5 +1,5 @@
 // ============================================================
-// PREMIUM VENDOR ORDER DETAIL SCREEN
+// PREMIUM VENDOR ORDER DETAIL SCREEN - WITH WEBHOOK SIMULATOR
 // File: screens/vendor/VendorOrderDetailScreen.tsx
 // Clean, spacious design with refined visual hierarchy
 // ============================================================
@@ -23,6 +23,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import api from '@/services/api';
 import { RootStackParamList } from '@/navigation/index';
+
+// ✅ TypeScript declaration for __DEV__
+declare const __DEV__: boolean;
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type ScreenRoute = RouteProp<RootStackParamList, 'VendorOrderDetail'>;
@@ -322,7 +325,6 @@ const VendorOrderDetailScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<ScreenRoute>();
   
-  // ✅ Safe extraction with fallback
   const orderId = route.params?.orderId;
 
   const [order, setOrder] = useState<OrderDetail | null>(null);
@@ -330,8 +332,10 @@ const VendorOrderDetailScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState('');
+  
+  // ✅ Development mode detection
+  const isSandbox = __DEV__;
 
-  // ✅ Check if orderId is missing
   useEffect(() => {
     if (!orderId) {
       setError('Order ID is missing');
@@ -342,7 +346,6 @@ const VendorOrderDetailScreen: React.FC = () => {
   // ── Fetch Order ──
   const fetchOrder = useCallback(
     async (isRefresh = false) => {
-      // ✅ Guard clause for missing orderId
       if (!orderId) {
         setError('Order ID is missing');
         setLoading(false);
@@ -387,6 +390,8 @@ const VendorOrderDetailScreen: React.FC = () => {
       if (res.data?.success) {
         setOrder(prev => (prev ? { ...prev, status: newStatus } : prev));
         Alert.alert('Success', `Order marked as ${fmt(newStatus)}`);
+        // Refresh to get updated tracking info
+        setTimeout(() => fetchOrder(true), 1000);
       }
     } catch (err: any) {
       Alert.alert('Error', err?.response?.data?.message || 'Failed to update status');
@@ -404,6 +409,31 @@ const VendorOrderDetailScreen: React.FC = () => {
         { text: 'Confirm', onPress: () => handleUpdate(newStatus) },
       ]
     );
+  };
+
+  // ✅ Simulate Webhook (Sandbox only)
+  const simulateWebhook = async (statusCode: string) => {
+    if (!order) return;
+
+    try {
+      Alert.alert('Simulating...', 'Updating shipment status');
+      
+      const res = await api.post('/webhooks/vendor/simulate', {
+        orderId: order._id,
+        statusCode,
+      });
+
+      if (res.data?.success) {
+        Alert.alert('Success', 'Status updated! Refreshing order...');
+        // Wait for webhook to process
+        setTimeout(() => fetchOrder(true), 2000);
+      }
+    } catch (err: any) {
+      Alert.alert(
+        'Error',
+        err?.response?.data?.message || 'Failed to simulate webhook'
+      );
+    }
   };
 
   const callCustomer = () => {
@@ -945,6 +975,7 @@ const VendorOrderDetailScreen: React.FC = () => {
               <InfoRow label="Shipping Cost" value={fmtPrice(shipment.shippingCost)} />
             </View>
 
+            {/* ✅ Track Shipment Button */}
             {shipment.trackingUrl && (
               <TouchableOpacity
                 onPress={() => Linking.openURL(shipment.trackingUrl!)}
@@ -976,6 +1007,67 @@ const VendorOrderDetailScreen: React.FC = () => {
                   </Text>
                 </LinearGradient>
               </TouchableOpacity>
+            )}
+
+            {/* ✅ Sandbox Webhook Simulator for Vendors */}
+            {isSandbox && shipment.trackingNumber && (
+              <View className="mt-4">
+                <TouchableOpacity
+                  onPress={() => {
+                    Alert.alert(
+                      'Simulate Status Update',
+                      'Test shipment status changes (Sandbox only)',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: '✅ Confirmed',
+                          onPress: () => simulateWebhook('confirmed')
+                        },
+                        {
+                          text: '📦 Picked Up',
+                          onPress: () => simulateWebhook('picked_up')
+                        },
+                        {
+                          text: '🚚 In Transit',
+                          onPress: () => simulateWebhook('in_transit')
+                        },
+                        {
+                          text: '🎉 Delivered',
+                          onPress: () => simulateWebhook('completed')
+                        },
+                      ],
+                      { cancelable: true }
+                    );
+                  }}
+                  activeOpacity={0.8}
+                  style={{
+                    shadowColor: '#8B5CF6',
+                    shadowOffset: { width: 0, height: 3 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 6,
+                    elevation: 4,
+                  }}
+                >
+                  <LinearGradient
+                    colors={['#8B5CF6', '#7C3AED']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={{
+                      paddingVertical: 12,
+                      paddingHorizontal: 20,
+                      borderRadius: 14,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Ionicons name="flask" size={18} color="#fff" />
+                    <Text className="text-white text-sm font-bold ml-2">
+                      Simulate Status Change (Dev)
+                    </Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
             )}
           </Section>
         )}

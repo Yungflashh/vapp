@@ -1,22 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '@/navigation/AuthNavigator';
 import Icon from 'react-native-vector-icons/Ionicons';
-import MaterialIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Toast from 'react-native-toast-message';
 import { login as apiLogin } from '@/services/api';
-import { googleLogin, appleLogin } from '@/services/Oauth.service';
+import { appleLogin } from '@/services/Oauth.service';
 import { useAuth } from '@/context/AuthContext';
 import api from '@/services/api';
-import * as Google from 'expo-auth-session/providers/google';
 import * as AppleAuthentication from 'expo-apple-authentication';
-import * as WebBrowser from 'expo-web-browser';
-import Constants from 'expo-constants';
-
-// Required for expo-auth-session to work properly
-WebBrowser.maybeCompleteAuthSession();
 
 type LoginScreenProps = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
@@ -27,14 +20,6 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isAppleAvailable, setIsAppleAvailable] = useState(false);
   const { login } = useAuth();
-
-  // Google OAuth setup
-  const googleConfig = Constants.expoConfig?.extra?.google;
-  const [googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
-    androidClientId: googleConfig?.androidClientId,
-    webClientId: googleConfig?.webClientId,
-    scopes: ['profile', 'email'],
-  });
 
   // Check if Apple Sign In is available
   useEffect(() => {
@@ -47,23 +32,6 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
       checkAppleAuth();
     }
   }, []);
-
-  // Handle Google OAuth response
-  useEffect(() => {
-    if (googleResponse?.type === 'success') {
-      const { authentication } = googleResponse;
-      handleGoogleLogin(authentication);
-    } else if (googleResponse?.type === 'error') {
-      Toast.show({
-        type: 'error',
-        text1: 'Google Sign In Failed',
-        text2: googleResponse.error?.message || 'Unable to authenticate with Google',
-      });
-      setIsLoading(false);
-    } else if (googleResponse?.type === 'dismiss' || googleResponse?.type === 'cancel') {
-      setIsLoading(false);
-    }
-  }, [googleResponse]);
 
   const checkVendorSetupStatus = async (userRole: string) => {
     if (userRole !== 'vendor') {
@@ -187,56 +155,6 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
     }
   };
 
-  const handleGoogleLogin = async (authentication: any) => {
-    try {
-      if (!authentication?.idToken) {
-        throw new Error('No ID token received from Google');
-      }
-      
-      const response = await googleLogin({ 
-        idToken: authentication.idToken,
-        role: 'customer'
-      });
-      
-      if (response.success) {
-        const user = response.data.user;
-        
-        Toast.show({
-          type: 'success',
-          text1: 'Welcome!',
-          text2: `${user.firstName} ${user.lastName}`,
-        });
-        
-        const isVendorSetupComplete = await checkVendorSetupStatus(user.role);
-        
-        if (user.role === 'vendor' && !isVendorSetupComplete) {
-          Toast.show({
-            type: 'info',
-            text1: 'Complete Your Setup',
-            text2: 'Please complete your vendor profile to continue',
-            visibilityTime: 4000,
-          });
-          
-          setTimeout(() => {
-            login();
-          }, 1000);
-        } else {
-          setTimeout(() => {
-            login();
-          }, 500);
-        }
-      }
-    } catch (error: any) {
-      Toast.show({
-        type: 'error',
-        text1: 'Google Login Failed',
-        text2: error.response?.data?.message || error.message || 'Unable to login with Google',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleAppleLogin = async () => {
     setIsLoading(true);
 
@@ -308,16 +226,6 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleGoogleButtonPress = () => {
-    if (!googleRequest) {
-      Alert.alert('Error', 'Google Sign-In is not ready yet. Please wait a moment and try again.');
-      return;
-    }
-    
-    setIsLoading(true);
-    promptGoogleAsync();
   };
 
   return (
@@ -399,42 +307,26 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
             )}
           </TouchableOpacity>
 
-          <View className="flex-row items-center mb-6">
-            <View className="flex-1 h-px bg-gray-200" />
-            <Text className="text-sm text-gray-400 mx-4">or sign in with</Text>
-            <View className="flex-1 h-px bg-gray-200" />
-          </View>
-
-          <TouchableOpacity 
-            className="flex-row items-center justify-center border border-gray-200 rounded-lg py-3 mb-3"
-            activeOpacity={0.8}
-            disabled={isLoading || !googleRequest}
-            onPress={handleGoogleButtonPress}
-          >
-            {isLoading ? (
-              <ActivityIndicator size="small" color="#DB4437" />
-            ) : (
-              <>
-                <MaterialIcon name="google" size={20} color="#DB4437" />
-                <Text className="text-base text-gray-900 font-medium ml-3">
-                  Sign in with Google
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
-
           {Platform.OS === 'ios' && isAppleAvailable && (
-            <TouchableOpacity 
-              className="flex-row items-center justify-center border border-gray-200 rounded-lg py-3 mb-6"
-              activeOpacity={0.8}
-              disabled={isLoading}
-              onPress={handleAppleLogin}
-            >
-              <Icon name="logo-apple" size={20} color="#000000" />
-              <Text className="text-base text-gray-900 font-medium ml-3">
-                Sign in with Apple
-              </Text>
-            </TouchableOpacity>
+            <>
+              <View className="flex-row items-center mb-6">
+                <View className="flex-1 h-px bg-gray-200" />
+                <Text className="text-sm text-gray-400 mx-4">or sign in with</Text>
+                <View className="flex-1 h-px bg-gray-200" />
+              </View>
+
+              <TouchableOpacity 
+                className="flex-row items-center justify-center border border-gray-200 rounded-lg py-3 mb-6"
+                activeOpacity={0.8}
+                disabled={isLoading}
+                onPress={handleAppleLogin}
+              >
+                <Icon name="logo-apple" size={20} color="#000000" />
+                <Text className="text-base text-gray-900 font-medium ml-3">
+                  Sign in with Apple
+                </Text>
+              </TouchableOpacity>
+            </>
           )}
 
           <View className="flex-row justify-center mt-6 mb-6">
