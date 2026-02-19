@@ -1,16 +1,38 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '@/navigation/AuthNavigator';
+import { verifyOTP, resendOTP } from '@/services/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type OTPVerificationScreenProps = NativeStackScreenProps<AuthStackParamList, 'OTPVerification'>;
 
 const OTPVerificationScreen = ({ navigation, route }: OTPVerificationScreenProps) => {
+  const { email, isVendor } = route.params;
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [countdown, setCountdown] = useState(30);
+  const [canResend, setCanResend] = useState(false);
   const inputRefs = useRef<Array<TextInput | null>>([]);
 
+  // Countdown timer for resend
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      return () => clearTimeout(timer);
+    } else {
+      setCanResend(true);
+    }
+  }, [countdown]);
+
   const handleOtpChange = (value: string, index: number) => {
+    // Only allow numbers
+    if (value && !/^\d+$/.test(value)) {
+      return;
+    }
+
     const newOtp = [...otp];
     newOtp[index] = value;
     setOtp(newOtp);
@@ -27,14 +49,111 @@ const OTPVerificationScreen = ({ navigation, route }: OTPVerificationScreenProps
     }
   };
 
-  const handleVerify = () => {
-    // Navigate to vendor setup
-    navigation.navigate('VendorSetup');
+  const handleVerify = async () => {
+    // Check if all OTP fields are filled
+    const otpCode = otp.join('');
+    if (otpCode.length !== 6) {
+      Alert.alert('Invalid OTP', 'Please enter all 6 digits');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      console.log('🔢 Verifying OTP:', { email, otp: otpCode });
+
+      // Call verify OTP API
+      const response = await verifyOTP({
+        email,
+        otp: otpCode,
+      });
+
+      console.log('✅ OTP verification successful:', response);
+
+      // Store user data and token (already done in the API function)
+      Alert.alert(
+        'Success',
+        'Email verified successfully!',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              // Route based on user role
+              if (isVendor) {
+                // Navigate to vendor setup for vendors
+                navigation.navigate('VendorSetup');
+              } else {
+                // Navigate to main app for customers
+                // You can replace 'Login' with your main app navigator
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: 'Login' }],
+                });
+              }
+            },
+          },
+        ]
+      );
+    } catch (error: any) {
+      console.error('❌ OTP verification error:', error);
+
+      let errorMessage = 'OTP verification failed. Please try again.';
+
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      // Clear OTP on error
+      setOtp(['', '', '', '', '', '']);
+      inputRefs.current[0]?.focus();
+
+      Alert.alert('Verification Failed', errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleResend = () => {
-    // Resend OTP logic
-    console.log('Resend OTP');
+  const handleResend = async () => {
+    if (!canResend || resending) {
+      return;
+    }
+
+    setResending(true);
+
+    try {
+      console.log('📧 Resending OTP to:', email);
+
+      // Call resend OTP API
+      const response = await resendOTP(email);
+
+      console.log('✅ OTP resent successfully:', response);
+
+      // Reset countdown
+      setCountdown(30);
+      setCanResend(false);
+
+      // Clear current OTP
+      setOtp(['', '', '', '', '', '']);
+      inputRefs.current[0]?.focus();
+
+      Alert.alert('Success', 'A new verification code has been sent to your email');
+    } catch (error: any) {
+      console.error('❌ Resend OTP error:', error);
+
+      let errorMessage = 'Failed to resend OTP. Please try again.';
+
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      Alert.alert('Resend Failed', errorMessage);
+    } finally {
+      setResending(false);
+    }
   };
 
   return (
@@ -48,8 +167,11 @@ const OTPVerificationScreen = ({ navigation, route }: OTPVerificationScreenProps
         <Text className="text-2xl font-bold text-pink-500 text-center mb-2">
           Enter Verification Code
         </Text>
-        <Text className="text-sm text-gray-500 text-center mb-8">
-          We just sent a 6-digit code to your email
+        <Text className="text-sm text-gray-500 text-center mb-2">
+          We just sent a 6-digit code to
+        </Text>
+        <Text className="text-sm font-medium text-gray-700 text-center mb-8">
+          {email}
         </Text>
 
         {/* OTP Input Boxes */}
@@ -64,6 +186,8 @@ const OTPVerificationScreen = ({ navigation, route }: OTPVerificationScreenProps
               value={digit}
               onChangeText={(value) => handleOtpChange(value, index)}
               onKeyPress={(e) => handleKeyPress(e, index)}
+              editable={!loading}
+              selectTextOnFocus
             />
           ))}
         </View>
@@ -71,23 +195,46 @@ const OTPVerificationScreen = ({ navigation, route }: OTPVerificationScreenProps
         {/* Resend Code */}
         <View className="flex-row justify-center mb-8">
           <Text className="text-sm text-gray-500">
-            Didn`t get the code?{' '}
+            Didn't get the code?{' '}
           </Text>
-          <TouchableOpacity onPress={handleResend}>
-            <Text className="text-sm text-pink-500 font-medium">
-              Resend Code in 30s
-            </Text>
+          <TouchableOpacity 
+            onPress={handleResend}
+            disabled={!canResend || resending}
+          >
+            {resending ? (
+              <ActivityIndicator size="small" color="#EC4899" />
+            ) : (
+              <Text className={`text-sm font-medium ${canResend ? 'text-pink-500' : 'text-gray-400'}`}>
+                {canResend ? 'Resend Code' : `Resend in ${countdown}s`}
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
 
         {/* Verify Button */}
         <TouchableOpacity 
-          className="bg-pink-500 py-4 rounded-lg"
+          className={`py-4 rounded-lg ${loading ? 'bg-pink-300' : 'bg-pink-500'}`}
           onPress={handleVerify}
           activeOpacity={0.8}
+          disabled={loading}
         >
-          <Text className="text-white text-base font-semibold text-center">
-            Verify
+          {loading ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text className="text-white text-base font-semibold text-center">
+              Verify
+            </Text>
+          )}
+        </TouchableOpacity>
+
+        {/* Back to Register */}
+        <TouchableOpacity 
+          className="mt-6"
+          onPress={() => navigation.goBack()}
+          disabled={loading}
+        >
+          <Text className="text-sm text-gray-500 text-center">
+            Wrong email? <Text className="text-pink-500 font-medium">Go back</Text>
           </Text>
         </TouchableOpacity>
       </ScrollView>

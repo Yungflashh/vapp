@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '@/navigation/AuthNavigator';
@@ -7,7 +7,16 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import MaterialIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Toast from 'react-native-toast-message';
 import { login as apiLogin } from '@/services/api';
+import { googleLogin, appleLogin } from '@/services/Oauth.service';
 import { useAuth } from '@/context/AuthContext';
+import api from '@/services/api';
+import * as Google from 'expo-auth-session/providers/google';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import * as WebBrowser from 'expo-web-browser';
+import Constants from 'expo-constants';
+
+// Required for expo-auth-session to work properly
+WebBrowser.maybeCompleteAuthSession();
 
 type LoginScreenProps = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
@@ -16,10 +25,85 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isAppleAvailable, setIsAppleAvailable] = useState(false);
   const { login } = useAuth();
 
+  // Google OAuth setup
+  const googleConfig = Constants.expoConfig?.extra?.google;
+  const [googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
+    androidClientId: googleConfig?.androidClientId,
+    webClientId: googleConfig?.webClientId,
+    scopes: ['profile', 'email'],
+  });
+
+  // Check if Apple Sign In is available
+  useEffect(() => {
+    const checkAppleAuth = async () => {
+      const available = await AppleAuthentication.isAvailableAsync();
+      setIsAppleAvailable(available);
+    };
+    
+    if (Platform.OS === 'ios') {
+      checkAppleAuth();
+    }
+  }, []);
+
+  // Handle Google OAuth response
+  useEffect(() => {
+    if (googleResponse?.type === 'success') {
+      const { authentication } = googleResponse;
+      handleGoogleLogin(authentication);
+    } else if (googleResponse?.type === 'error') {
+      Toast.show({
+        type: 'error',
+        text1: 'Google Sign In Failed',
+        text2: googleResponse.error?.message || 'Unable to authenticate with Google',
+      });
+      setIsLoading(false);
+    } else if (googleResponse?.type === 'dismiss' || googleResponse?.type === 'cancel') {
+      setIsLoading(false);
+    }
+  }, [googleResponse]);
+
+  const checkVendorSetupStatus = async (userRole: string) => {
+    if (userRole !== 'vendor') {
+      return true;
+    }
+
+    try {
+      const response = await api.get('/vendor/profile');
+      
+      if (response.data.success && response.data.data.vendorProfile) {
+        const profile = response.data.data.vendorProfile;
+        
+        const hasBusinessInfo = !!(
+          profile.businessName &&
+          profile.businessDescription &&
+          profile.businessAddress?.street &&
+          profile.businessAddress?.city &&
+          profile.businessAddress?.state &&
+          profile.businessPhone &&
+          profile.businessEmail
+        );
+        
+        const hasPayoutDetails = !!(
+          profile.payoutDetails?.bankName &&
+          profile.payoutDetails?.accountNumber &&
+          profile.payoutDetails?.accountName &&
+          profile.payoutDetails?.bankCode
+        );
+        
+        return hasBusinessInfo && hasPayoutDetails;
+      }
+      
+      return false;
+    } catch (error: any) {
+      // It's better to log this error to a proper monitoring service
+      return false;
+    }
+  };
+
   const handleLogin = async () => {
-    // Validation
     if (!email || !password) {
       Toast.show({
         type: 'error',
@@ -41,23 +125,35 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
     setIsLoading(true);
 
     try {
-      console.log('🔐 Attempting login...');
-      
       const response = await apiLogin({ email, password });
       
-      console.log('✅ Login response:', response);
-      
       if (response.success) {
+        const user = response.data.user;
+        
         Toast.show({
           type: 'success',
           text1: 'Welcome back!',
-          text2: `${response.data.user.firstName} ${response.data.user.lastName}`,
+          text2: `${user.firstName} ${user.lastName}`,
         });
         
-        // Small delay to show toast before navigating
-        setTimeout(() => {
-          login();
-        }, 500);
+        const isVendorSetupComplete = await checkVendorSetupStatus(user.role);
+        
+        if (user.role === 'vendor' && !isVendorSetupComplete) {
+          Toast.show({
+            type: 'info',
+            text1: 'Complete Your Setup',
+            text2: 'Please complete your vendor profile to continue',
+            visibilityTime: 4000,
+          });
+          
+          setTimeout(() => {
+            login();
+          }, 1000);
+        } else {
+          setTimeout(() => {
+            login();
+          }, 500);
+        }
       } else {
         Toast.show({
           type: 'error',
@@ -66,11 +162,7 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
         });
       }
     } catch (error: any) {
-      console.error('❌ Login error:', error);
-      
-      // Handle different error types
       if (error.response) {
-        // Server responded with error
         const message = error.response.data?.message || 'Invalid credentials';
         Toast.show({
           type: 'error',
@@ -78,7 +170,6 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
           text2: message,
         });
       } else if (error.request) {
-        // Network error
         Toast.show({
           type: 'error',
           text1: 'Network Error',
@@ -96,6 +187,139 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
     }
   };
 
+  const handleGoogleLogin = async (authentication: any) => {
+    try {
+      if (!authentication?.idToken) {
+        throw new Error('No ID token received from Google');
+      }
+      
+      const response = await googleLogin({ 
+        idToken: authentication.idToken,
+        role: 'customer'
+      });
+      
+      if (response.success) {
+        const user = response.data.user;
+        
+        Toast.show({
+          type: 'success',
+          text1: 'Welcome!',
+          text2: `${user.firstName} ${user.lastName}`,
+        });
+        
+        const isVendorSetupComplete = await checkVendorSetupStatus(user.role);
+        
+        if (user.role === 'vendor' && !isVendorSetupComplete) {
+          Toast.show({
+            type: 'info',
+            text1: 'Complete Your Setup',
+            text2: 'Please complete your vendor profile to continue',
+            visibilityTime: 4000,
+          });
+          
+          setTimeout(() => {
+            login();
+          }, 1000);
+        } else {
+          setTimeout(() => {
+            login();
+          }, 500);
+        }
+      }
+    } catch (error: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Google Login Failed',
+        text2: error.response?.data?.message || error.message || 'Unable to login with Google',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAppleLogin = async () => {
+    setIsLoading(true);
+
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+
+      if (!credential.identityToken) {
+        throw new Error('No identity token received from Apple');
+      }
+
+      const response = await appleLogin({
+        identityToken: credential.identityToken,
+        authorizationCode: credential.authorizationCode || undefined,
+        user: {
+          givenName: credential.fullName?.givenName || undefined,
+          familyName: credential.fullName?.familyName || undefined,
+          email: credential.email || undefined,
+        },
+        role: 'customer',
+      });
+      
+      if (response.success) {
+        const user = response.data.user;
+        
+        Toast.show({
+          type: 'success',
+          text1: 'Welcome!',
+          text2: `${user.firstName} ${user.lastName}`,
+        });
+        
+        const isVendorSetupComplete = await checkVendorSetupStatus(user.role);
+        
+        if (user.role === 'vendor' && !isVendorSetupComplete) {
+          Toast.show({
+            type: 'info',
+            text1: 'Complete Your Setup',
+            text2: 'Please complete your vendor profile to continue',
+            visibilityTime: 4000,
+          });
+          
+          setTimeout(() => {
+            login();
+          }, 1000);
+        } else {
+          setTimeout(() => {
+            login();
+          }, 500);
+        }
+      }
+    } catch (error: any) {
+      if (error.code === 'ERR_CANCELED') {
+        Toast.show({
+          type: 'info',
+          text1: 'Sign In Canceled',
+          text2: 'You canceled the sign in process',
+        });
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Apple Login Failed',
+          text2: error.response?.data?.message || 'Unable to login with Apple',
+        });
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleButtonPress = () => {
+    if (!googleRequest) {
+      Alert.alert('Error', 'Google Sign-In is not ready yet. Please wait a moment and try again.');
+      return;
+    }
+    
+    setIsLoading(true);
+    promptGoogleAsync();
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-white">
       <KeyboardAvoidingView 
@@ -108,7 +332,6 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Welcome Text */}
           <Text className="text-2xl font-bold text-pink-500 mb-2 mt-8">
             Welcome back
           </Text>
@@ -116,7 +339,6 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
             Access your store, track orders, and keep your business running smoothly.
           </Text>
 
-          {/* Email Input */}
           <View className="flex-row items-center border border-gray-200 rounded-lg px-4 py-3 mb-4">
             <Icon name="mail-outline" size={20} color="#9CA3AF" />
             <TextInput
@@ -127,10 +349,10 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
+              editable={!isLoading}
             />
           </View>
 
-          {/* Password Input */}
           <View className="flex-row items-center border border-gray-200 rounded-lg px-4 py-3 mb-4">
             <Icon name="lock-closed-outline" size={20} color="#9CA3AF" />
             <TextInput
@@ -140,8 +362,12 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
+              editable={!isLoading}
             />
-            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+            <TouchableOpacity 
+              onPress={() => setShowPassword(!showPassword)}
+              disabled={isLoading}
+            >
               <Icon 
                 name={showPassword ? "eye-outline" : "eye-off-outline"} 
                 size={20} 
@@ -150,14 +376,16 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
             </TouchableOpacity>
           </View>
 
-          {/* Forgot Password */}
-          <TouchableOpacity className="items-end mb-6">
+          <TouchableOpacity 
+            className="items-end mb-6" 
+            disabled={isLoading}
+            onPress={() => navigation.navigate('ForgotPassword')}
+          >
             <Text className="text-sm text-gray-500">Forgot Password?</Text>
           </TouchableOpacity>
 
-          {/* Sign In Button */}
           <TouchableOpacity 
-            className="bg-pink-500 py-4 rounded-lg mb-6"
+            className={`py-4 rounded-lg mb-6 ${isLoading ? 'bg-pink-300' : 'bg-pink-500'}`}
             onPress={handleLogin}
             activeOpacity={0.8}
             disabled={isLoading}
@@ -171,44 +399,54 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
             )}
           </TouchableOpacity>
 
-          {/* Divider */}
           <View className="flex-row items-center mb-6">
             <View className="flex-1 h-px bg-gray-200" />
             <Text className="text-sm text-gray-400 mx-4">or sign in with</Text>
             <View className="flex-1 h-px bg-gray-200" />
           </View>
 
-          {/* Google Sign In Button */}
           <TouchableOpacity 
             className="flex-row items-center justify-center border border-gray-200 rounded-lg py-3 mb-3"
             activeOpacity={0.8}
+            disabled={isLoading || !googleRequest}
+            onPress={handleGoogleButtonPress}
           >
-            <MaterialIcon name="google" size={20} color="#DB4437" />
-            <Text className="text-base text-gray-900 font-medium ml-3">
-              Sign in with Google
-            </Text>
+            {isLoading ? (
+              <ActivityIndicator size="small" color="#DB4437" />
+            ) : (
+              <>
+                <MaterialIcon name="google" size={20} color="#DB4437" />
+                <Text className="text-base text-gray-900 font-medium ml-3">
+                  Sign in with Google
+                </Text>
+              </>
+            )}
           </TouchableOpacity>
 
-          {/* Apple Sign In Button */}
-          <TouchableOpacity 
-            className="flex-row items-center justify-center border border-gray-200 rounded-lg py-3 mb-6"
-            activeOpacity={0.8}
-          >
-            <Icon name="logo-apple" size={20} color="#000000" />
-            <Text className="text-base text-gray-900 font-medium ml-3">
-              Sign in with Apple
-            </Text>
-          </TouchableOpacity>
+          {Platform.OS === 'ios' && isAppleAvailable && (
+            <TouchableOpacity 
+              className="flex-row items-center justify-center border border-gray-200 rounded-lg py-3 mb-6"
+              activeOpacity={0.8}
+              disabled={isLoading}
+              onPress={handleAppleLogin}
+            >
+              <Icon name="logo-apple" size={20} color="#000000" />
+              <Text className="text-base text-gray-900 font-medium ml-3">
+                Sign in with Apple
+              </Text>
+            </TouchableOpacity>
+          )}
 
-          {/* Sign Up Link */}
           <View className="flex-row justify-center mt-6 mb-6">
-            <Text className="text-sm text-gray-500">Don`t have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+            <Text className="text-sm text-gray-500">Don't have an account? </Text>
+            <TouchableOpacity 
+              onPress={() => navigation.navigate('Register')}
+              disabled={isLoading}
+            >
               <Text className="text-sm text-pink-500 font-semibold">Sign up</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Terms and Conditions */}
           <Text className="text-xs text-gray-400 text-center leading-[18px] px-4 pb-6">
             By continuing, I agree to the{' '}
             <Text className="text-pink-500">Vendorspot General Terms of Use</Text> &{' '}
@@ -216,6 +454,8 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>
+      
+      <Toast />
     </SafeAreaView>
   );
 };

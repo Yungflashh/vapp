@@ -2,18 +2,19 @@ import axios, { AxiosInstance, AxiosError } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // API Base URL
-const API_URL = 'http://192.168.133.66:5000/api/v1';
+// const API_URL = 'http://10.121.89.66:5000/api/v1';
+const API_URL = 'http://192.168.242.66:5000/api/v1';
 
 // Create Axios instance
 const api: AxiosInstance = axios.create({
   baseURL: API_URL,
-  timeout: 10000,
+  timeout: 180000,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Request interceptor - Add auth token to requests
+
 api.interceptors.request.use(
   async (config) => {
     try {
@@ -109,6 +110,177 @@ export interface VendorSetupRequest {
   shopCategory: string;
   country: string;
 }
+
+
+// ============================================================
+// ADD THESE FUNCTIONS TO YOUR api.ts FILE
+// Place them in the VENDOR PROFILE MANAGEMENT section
+// ============================================================
+
+/**
+ * Upload KYC document
+ * This endpoint should be created on your backend
+ */
+export const uploadKYCDocument = async (
+  documentUri: string,
+  documentType: string
+): Promise<{
+  success: boolean;
+  data: {
+    url: string;
+  };
+}> => {
+  try {
+    console.log(`📄 Uploading KYC document (${documentType})...`);
+    
+    // Create FormData
+    const formData = new FormData();
+    
+    // Get file extension from URI
+    const uriParts = documentUri.split('.');
+    const fileType = uriParts[uriParts.length - 1];
+    
+    formData.append('document', {
+      uri: documentUri,
+      name: `kyc-${documentType}-${Date.now()}.${fileType}`,
+      type: fileType === 'pdf' ? 'application/pdf' : `image/${fileType}`,
+    } as any);
+    
+    formData.append('type', documentType);
+    
+    // Upload document
+    const response = await api.post('/upload/kyc-document', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    
+    console.log('✅ KYC document uploaded:', response.data.data.url);
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ Upload KYC document error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};
+
+/**
+ * Submit KYC documents for verification
+ * POST /api/v1/vendor/kyc/upload
+ */
+export const submitKYCDocuments = async (
+  documents: Array<{ type: string; documentUrl: string }>
+) => {
+  try {
+    console.log('📝 Submitting KYC documents for verification...');
+    
+    const response = await api.post('/vendor/kyc/upload', { documents });
+    
+    console.log('✅ KYC documents submitted');
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ Submit KYC documents error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};
+
+
+// ============================================================
+// ADD THIS TO YOUR EXISTING @/services/api.ts FILE
+// Place it before the "HELPER FUNCTIONS" section
+// ============================================================
+
+// ============================================================
+// ACCOUNT DELETION API
+// ============================================================
+
+export interface DeletionRequest {
+  id: string;
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled';
+  reason: string;
+  additionalDetails?: string;
+  createdAt: string;
+  processedAt?: string;
+  rejectionReason?: string;
+}
+
+/**
+ * Request account deletion
+ */
+export const requestAccountDeletion = async (data: {
+  reason: string;
+  additionalDetails?: string;
+}): Promise<{
+  success: boolean;
+  message: string;
+  data: {
+    deletionRequest: DeletionRequest;
+  };
+}> => {
+  try {
+    console.log('🗑️ Requesting account deletion...');
+    
+    const response = await api.post('/account-deletion/request', data);
+    
+    console.log('✅ Account deletion requested');
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ Request account deletion error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};
+
+/**
+ * Get deletion request status
+ */
+export const getDeletionRequestStatus = async (): Promise<{
+  success: boolean;
+  data: {
+    hasRequest: boolean;
+    deletionRequest: DeletionRequest | null;
+  };
+}> => {
+  try {
+    console.log('🔍 Checking deletion request status...');
+    
+    const response = await api.get('/account-deletion/status');
+    
+    console.log('✅ Deletion status fetched');
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ Get deletion status error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};
+
+/**
+ * Cancel deletion request
+ */
+export const cancelDeletionRequest = async (): Promise<{
+  success: boolean;
+  message: string;
+}> => {
+  try {
+    console.log('❌ Cancelling deletion request...');
+    
+    const response = await api.post('/account-deletion/cancel');
+    
+    console.log('✅ Deletion request cancelled');
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ Cancel deletion request error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};
 
 export interface PaymentSetupRequest {
   accountName: string;
@@ -261,6 +433,139 @@ export interface VendorsResponse {
   };
 }
 
+
+// ============================================================
+// VENDOR PROFILE MANAGEMENT - ADD THESE TO api.ts
+// ============================================================
+
+/**
+ * Update vendor profile (authenticated vendor)
+ */
+export const updateVendorProfile = async (data: {
+  businessName?: string;
+  businessDescription?: string;
+  businessLogo?: string;
+  businessBanner?: string;
+  businessAddress?: {
+    street?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+  };
+  businessPhone?: string;
+  businessEmail?: string;
+  businessWebsite?: string;
+  category?: string;
+  socialMedia?: {
+    facebook?: string;
+    instagram?: string;
+    twitter?: string;
+    linkedin?: string;
+  };
+}) => {
+  try {
+    console.log('📝 Updating vendor profile...');
+    
+    const response = await api.put('/vendor/profile', data);
+    
+    console.log('✅ Vendor profile updated');
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ Update vendor profile error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};
+
+/**
+ * Upload vendor image (logo or banner)
+ */
+export const uploadVendorImage = async (
+  imageUri: string,
+  type: 'logo' | 'banner'
+): Promise<{
+  success: boolean;
+  data: {
+    url: string;
+  };
+}> => {
+  try {
+    console.log(`📸 Uploading vendor ${type}...`);
+    
+    // Create FormData
+    const formData = new FormData();
+    
+    // Get file extension from URI
+    const uriParts = imageUri.split('.');
+    const fileType = uriParts[uriParts.length - 1];
+    
+    formData.append('image', {
+      uri: imageUri,
+      name: `vendor-${type}-${Date.now()}.${fileType}`,
+      type: `image/${fileType}`,
+    } as any);
+    
+    formData.append('type', type);
+    
+    // Upload image
+    const response = await api.post('/upload/vendor-image', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    
+    console.log('✅ Image uploaded:', response.data.data.url);
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ Upload vendor image error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};
+
+/**
+ * Get own vendor profile (authenticated)
+ */
+export const getMyVendorProfile = async () => {
+  try {
+    console.log('👤 Fetching my vendor profile...');
+    
+    const response = await api.get('/vendor/profile');
+    
+    console.log('✅ My vendor profile fetched');
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ Get my vendor profile error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};
+
+/**
+ * Get followed vendors
+ */
+export const getFollowedVendors = async (
+  page: number = 1,
+  limit: number = 20
+) => {
+  try {
+    console.log('👥 Fetching followed vendors...');
+    
+    const response = await api.get(`/vendor/following?page=${page}&limit=${limit}`);
+    
+    console.log('✅ Followed vendors fetched:', response.data.data.vendors.length);
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ Get followed vendors error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};
+
 // ============================================================
 // AUTH FUNCTIONS
 // ============================================================
@@ -330,7 +635,7 @@ export const verifyOTP = async (data: VerifyOTPRequest): Promise<VerifyOTPRespon
   try {
     console.log('🔢 Verifying OTP for:', data.email);
     
-    const response = await api.post<VerifyOTPResponse>('/auth/verify-otp', data);
+    const response = await api.post<VerifyOTPResponse>('/auth/verify-email', data);
     
     console.log('✅ OTP verification successful:', response.data);
     
@@ -367,42 +672,156 @@ export const resendOTP = async (email: string) => {
   }
 };
 
+
+
+export interface VendorProfileRequest {
+  businessName: string;
+  businessDescription: string;
+  businessAddress: {
+    street: string;
+    city: string;
+    state: string;
+    country: string;
+  };
+  businessPhone: string;
+  businessEmail: string;
+  businessWebsite?: string;
+}
+
+
+export interface PayoutDetailsRequest {
+  bankName: string;
+  accountNumber: string;
+  accountName: string;
+  bankCode: string;
+  businessPhone?: string;
+  websiteLink?: string;
+}
+
+
+
+
+
 /**
- * Setup vendor business information
+ * Create vendor profile (replaces setupVendor)
+ * POST /api/v1/vendor/profile
  */
-export const setupVendor = async (data: VendorSetupRequest) => {
+export const createVendorProfile = async (data: VendorProfileRequest) => {
   try {
-    console.log('🏪 Setting up vendor:', data.shopName);
+    console.log('🏪 Creating vendor profile:', data.businessName);
     
-    const response = await api.post('/vendor/setup', data);
+    const response = await api.post('/vendor/profile', data);
     
-    console.log('✅ Vendor setup successful:', response.data);
+    console.log('✅ Vendor profile created:', response.data);
     
     return response.data;
   } catch (error) {
-    console.error('❌ Vendor setup error:', error);
+    console.error('❌ Create vendor profile error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};
+
+
+
+
+/**
+ * Get vendor dashboard analytics
+ * Returns all dashboard data including rewards tier from User.points
+ */
+export const getVendorDashboard = async () => {
+  try {
+    console.log('📊 Fetching vendor dashboard...');
+    
+    const response = await api.get('/vendor/dashboard');
+    
+    console.log('✅ Dashboard fetched successfully');
+    console.log('📈 Today\'s sales:', response.data.data.overview.todaySales);
+    
+    if (response.data.data.rewardsTier) {
+      console.log('🏆 Tier:', response.data.data.rewardsTier.tier);
+      console.log('💎 Points:', response.data.data.rewardsTier.points);
+    }
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ Get vendor dashboard error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};
+
+
+
+
+export const getVendorAnalytics = async (
+  period: '7days' | '30days' | '90days' | '1year' = '30days'
+) => {
+  try {
+    console.log(`📈 Fetching vendor analytics (${period})...`);
+    
+    const response = await api.get(`/vendor/analytics?period=${period}`);
+    
+    console.log('✅ Analytics fetched successfully');
+    console.log('📊 Total orders:', response.data.data.summary.totalOrders);
+    console.log('💰 Total revenue:', response.data.data.summary.totalRevenue);
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ Get vendor analytics error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};
+
+
+
+/**
+ * Update payout details (replaces setupPayment)
+ * PUT /api/v1/vendor/payout-details
+ */
+export const updatePayoutDetails = async (data: PayoutDetailsRequest) => {
+  try {
+    console.log('💳 Updating payout details:', data.accountName);
+    
+    const response = await api.put('/vendor/payout-details', data);
+    
+    console.log('✅ Payout details updated:', response.data);
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ Update payout details error:', error);
     handleApiError(error);
     throw error;
   }
 };
 
 /**
- * Setup payment information
+ * Get Nigerian bank codes (helper function)
  */
-export const setupPayment = async (data: PaymentSetupRequest) => {
-  try {
-    console.log('💳 Setting up payment:', data.accountName);
-    
-    const response = await api.post('/vendor/payment-setup', data);
-    
-    console.log('✅ Payment setup successful:', response.data);
-    
-    return response.data;
-  } catch (error) {
-    console.error('❌ Payment setup error:', error);
-    handleApiError(error);
-    throw error;
-  }
+export const getNigerianBanks = () => {
+  return [
+    { name: 'Access Bank', code: '044' },
+    { name: 'Guaranty Trust Bank (GTBank)', code: '058' },
+    { name: 'United Bank for Africa (UBA)', code: '033' },
+    { name: 'Zenith Bank', code: '057' },
+    { name: 'First Bank of Nigeria', code: '011' },
+    { name: 'Fidelity Bank', code: '070' },
+    { name: 'Union Bank', code: '032' },
+    { name: 'Stanbic IBTC Bank', code: '221' },
+    { name: 'Sterling Bank', code: '232' },
+    { name: 'Polaris Bank', code: '076' },
+    { name: 'Wema Bank', code: '035' },
+    { name: 'Keystone Bank', code: '082' },
+    { name: 'Ecobank', code: '050' },
+    { name: 'FCMB', code: '214' },
+    { name: 'Heritage Bank', code: '030' },
+    { name: 'Providus Bank', code: '101' },
+    { name: 'Jaiz Bank', code: '301' },
+    { name: 'Kuda Bank', code: '090267' },
+    { name: 'Opay', code: '100004' },
+    { name: 'PalmPay', code: '100033' },
+  ];
 };
 
 /**
@@ -651,6 +1070,52 @@ export const getVendorProducts = async (
     return response.data;
   } catch (error) {
     console.error('❌ Get vendor products error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};
+
+
+// ADD THIS TO YOUR api.ts FILE - in the PRODUCT API FUNCTIONS section
+
+/**
+ * Get authenticated vendor's own products (for inventory management)
+ */
+export const getMyProducts = async (
+  page: number = 1,
+  limit: number = 20,
+  filters?: {
+    status?: 'active' | 'inactive' | 'draft';
+    productType?: 'physical' | 'digital';
+    search?: string;
+    sort?: 'price_asc' | 'price_desc' | 'name' | 'stock' | 'newest' | 'oldest';
+  }
+): Promise<ProductsResponse & { stats?: any }> => {
+  try {
+    console.log('📦 Fetching my products...');
+    
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString(),
+    });
+    
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.productType) params.append('productType', filters.productType);
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.sort) params.append('sort', filters.sort);
+    
+    const response = await api.get<ProductsResponse & { stats?: any }>(
+      `/products/my-products?${params.toString()}`
+    );
+    
+    console.log('✅ My products fetched:', response.data.data.products.length);
+    if (response.data.data.stats) {
+      console.log('📊 Stats:', response.data.data.stats);
+    }
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ Get my products error:', error);
     handleApiError(error);
     throw error;
   }
@@ -1466,6 +1931,70 @@ export const verifyPayment = async (reference: string): Promise<{ success: boole
 };
 
 
+
+
+// ============================================================
+// ADD THIS TO YOUR api.ts FILE
+// Place it after the ORDER API FUNCTIONS section
+// ============================================================
+
+// VENDOR ORDER API FUNCTIONS
+
+/**
+ * Get vendor's orders (authenticated vendor)
+ */
+export const getVendorOrders = async (
+  page: number = 1,
+  limit: number = 20,
+  status?: string
+): Promise<OrdersResponse> => {
+  try {
+    console.log('📦 Fetching vendor orders...');
+    
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString(),
+    });
+    
+    if (status) params.append('status', status);
+    
+    const response = await api.get<OrdersResponse>(
+      `/orders/vendor/orders?${params.toString()}`
+    );
+    
+    console.log('✅ Vendor orders fetched:', response.data.data.orders.length);
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ Get vendor orders error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};
+
+/**
+ * Update order status (vendor)
+ */
+export const updateVendorOrderStatus = async (
+  orderId: string,
+  status: string
+): Promise<{ success: boolean; message: string; data: { order: Order } }> => {
+  try {
+    console.log('📦 Updating order status:', { orderId, status });
+    
+    const response = await api.put(`/orders/${orderId}/status`, { status });
+    
+    console.log('✅ Order status updated');
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ Update order status error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};
+
+
 // ============================================================
 // WISHLIST API FUNCTIONS
 // Add these to your existing @/services/api.ts file
@@ -1584,6 +2113,526 @@ export const clearWishlist = async (): Promise<{ success: boolean; message: stri
 };
 
 
+// ============================================================
+// AFFILIATE API - ADD TO @/services/api.ts
+// ============================================================
+
+// Add these interfaces to your api.ts file
+
+export interface AffiliateDashboard {
+  summary: {
+    affiliateCode: string;
+    totalClicks: number;
+    totalConversions: number;
+    totalEarnings: number;
+    conversionRate: string;
+    availableBalance: number;
+  };
+  links: any[];
+  topPerformingLinks: any[];
+  recentConversions: any[];
+}
+
+export interface AffiliateEarnings {
+  period: string;
+  summary: {
+    totalOrders: number;
+    totalEarnings: number;
+    averageCommission: number;
+  };
+  earningsByDate: Array<{
+    date: string;
+    orders: number;
+    earnings: number;
+  }>;
+}
+
+export interface AffiliateLeaderboard {
+  period: string;
+  metric: string;
+  leaderboard: Array<{
+    rank: number;
+    affiliate: {
+      id: string;
+      name: string;
+      code: string;
+    };
+    stats: {
+      clicks: number;
+      conversions: number;
+      earnings: number;
+    };
+    score: number;
+  }>;
+}
+
+// ============================================================
+// AFFILIATE API FUNCTIONS
+// ============================================================
+
+/**
+ * Activate affiliate account
+ */
+export const activateAffiliate = async (): Promise<{
+  success: boolean;
+  message: string;
+  data: {
+    affiliateCode: string;
+    wallet: {
+      balance: number;
+    };
+  };
+}> => {
+  try {
+    console.log('💎 Activating affiliate account...');
+    
+    const response = await api.post('/affiliate/activate');
+    
+    console.log('✅ Affiliate activated:', response.data);
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ Activate affiliate error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};
+
+/**
+ * Generate affiliate link for product
+ */
+export const generateAffiliateLink = async (
+  productId: string
+): Promise<{
+  success: boolean;
+  message: string;
+  data: {
+    affiliateLink: {
+      id: string;
+      code: string;
+      url: string;
+      product: {
+        id: string;
+        name: string;
+        price: number;
+        commission: number;
+      };
+      clicks: number;
+      conversions: number;
+      totalEarned: number;
+    };
+  };
+}> => {
+  try {
+    console.log('🔗 Generating affiliate link for product:', productId);
+    
+    const response = await api.post('/affiliate/generate-link', { productId });
+    
+    console.log('✅ Affiliate link generated');
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ Generate affiliate link error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};
+
+/**
+ * Generate general affiliate link
+ */
+export const generateGeneralAffiliateLink = async (): Promise<{
+  success: boolean;
+  message: string;
+  data: {
+    affiliateLink: {
+      id: string;
+      code: string;
+      url: string;
+      clicks: number;
+      conversions: number;
+      totalEarned: number;
+    };
+  };
+}> => {
+  try {
+    console.log('🔗 Generating general affiliate link...');
+    
+    const response = await api.post('/affiliate/generate-general-link');
+    
+    console.log('✅ General affiliate link generated');
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ Generate general affiliate link error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};
+
+/**
+ * Get affiliate dashboard
+ */
+export const getAffiliateDashboard = async (): Promise<{
+  success: boolean;
+  data: AffiliateDashboard;
+}> => {
+  try {
+    console.log('📊 Fetching affiliate dashboard...');
+    
+    const response = await api.get('/affiliate/dashboard');
+    
+    console.log('✅ Affiliate dashboard fetched');
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ Get affiliate dashboard error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};
+
+/**
+ * Get affiliate earnings
+ */
+export const getAffiliateEarnings = async (
+  period: '7days' | '30days' | '90days' | 'all' = '30days'
+): Promise<{
+  success: boolean;
+  data: AffiliateEarnings;
+}> => {
+  try {
+    console.log('💰 Fetching affiliate earnings...');
+    
+    const response = await api.get(`/affiliate/earnings?period=${period}`);
+    
+    console.log('✅ Affiliate earnings fetched');
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ Get affiliate earnings error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};
+
+/**
+ * Get affiliate leaderboard
+ */
+export const getAffiliateLeaderboard = async (
+  period: '7days' | '30days' | 'all' = '30days',
+  metric: 'earnings' | 'conversions' | 'clicks' = 'earnings'
+): Promise<{
+  success: boolean;
+  data: AffiliateLeaderboard;
+}> => {
+  try {
+    console.log('🏆 Fetching affiliate leaderboard...');
+    
+    const response = await api.get(`/affiliate/leaderboard?period=${period}&metric=${metric}`);
+    
+    console.log('✅ Affiliate leaderboard fetched');
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ Get affiliate leaderboard error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};
+
+/**
+ * Track affiliate click
+ */
+export const trackAffiliateClick = async (code: string): Promise<{
+  success: boolean;
+  message: string;
+}> => {
+  try {
+    console.log('👆 Tracking affiliate click:', code);
+    
+    const response = await api.get(`/affiliate/track/${code}`);
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ Track affiliate click error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};
+
+
+
+// ============================================================
+// REWARDS API - ADD TO @/services/api.ts
+// ============================================================
+
+// Add these interfaces to your api.ts file
+
+export interface UserPoints {
+  points: number;
+  tier: 'Bronze' | 'Silver' | 'Gold' | 'Platinum' | 'Diamond';
+  pointsToNextTier: number;
+  badges: string[];
+  achievements: string[];
+}
+
+export interface AvailableReward {
+  id: string;
+  name: string;
+  description: string;
+  pointsCost: number;
+  available: boolean;
+}
+
+export interface PointsHistory {
+  date: string;
+  type: string;
+  description: string;
+  points: number;
+}
+
+export interface Leaderboard {
+  type: string;
+  period: string;
+  leaderboard: Array<{
+    rank: number;
+    user: {
+      id: string;
+      name: string;
+      badges: string[];
+    };
+    score: number;
+  }>;
+}
+
+// ============================================================
+// REWARDS API FUNCTIONS
+// ============================================================
+
+/**
+ * Get user points and rewards tier
+ */
+export const getUserPoints = async (): Promise<{
+  success: boolean;
+  data: UserPoints;
+}> => {
+  try {
+    console.log('🏆 Fetching user points...');
+    
+    const response = await api.get('/rewards/points');
+    
+    console.log('✅ User points fetched');
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ Get user points error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};
+
+/**
+ * Get points history
+ */
+export const getPointsHistory = async (): Promise<{
+  success: boolean;
+  data: {
+    history: PointsHistory[];
+  };
+}> => {
+  try {
+    console.log('📜 Fetching points history...');
+    
+    const response = await api.get('/rewards/points/history');
+    
+    console.log('✅ Points history fetched');
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ Get points history error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};
+
+/**
+ * Redeem points for cash
+ */
+export const redeemPoints = async (
+  points: number
+): Promise<{
+  success: boolean;
+  message: string;
+  data: {
+    pointsRedeemed: number;
+    cashValue: number;
+    remainingPoints: number;
+    newBalance: number;
+  };
+}> => {
+  try {
+    console.log('💰 Redeeming points:', points);
+    
+    const response = await api.post('/rewards/points/redeem', { points });
+    
+    console.log('✅ Points redeemed successfully');
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ Redeem points error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};
+
+/**
+ * Get available rewards
+ */
+export const getAvailableRewards = async (): Promise<{
+  success: boolean;
+  data: {
+    userPoints: number;
+    rewards: AvailableReward[];
+  };
+}> => {
+  try {
+    console.log('🎁 Fetching available rewards...');
+    
+    const response = await api.get('/rewards/available');
+    
+    console.log('✅ Available rewards fetched');
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ Get available rewards error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};
+
+/**
+ * Get leaderboard
+ */
+export const getLeaderboard = async (
+  period: 'all-time' | '7days' | '30days' = 'all-time',
+  type: 'points' | 'purchases' = 'points'
+): Promise<{
+  success: boolean;
+  data: Leaderboard;
+}> => {
+  try {
+    console.log('🏅 Fetching leaderboard...');
+    
+    const response = await api.get(`/rewards/leaderboard?period=${period}&type=${type}`);
+    
+    console.log('✅ Leaderboard fetched');
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ Get leaderboard error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};
+
+
+// ============================================================
+// ADD THIS TO YOUR api.ts FILE
+// Place it after the ORDER API FUNCTIONS section
+// ============================================================
+
+// ============================================================
+// DIGITAL PRODUCTS INTERFACES
+// ============================================================
+
+export interface DigitalProduct {
+  orderId: string;
+  orderNumber: string;
+  itemId: string;
+  product: {
+    _id: string;
+    name: string;
+    slug: string;
+    image: string;
+    productType: string;
+  };
+  purchaseDate: string;
+  downloadUrl?: string;
+  fileSize?: number;
+  fileType?: string;
+  version?: string;
+}
+
+export interface DigitalProductsResponse {
+  success: boolean;
+  message?: string;
+  data: {
+    digitalProducts: DigitalProduct[];
+    total: number;
+  };
+}
+
+export interface DownloadResponse {
+  success: boolean;
+  data: {
+    downloadUrl: string;
+    product: {
+      name: string;
+      fileSize?: number;
+      fileType?: string;
+      version?: string;
+    };
+    expiresAt?: string;
+  };
+}
+
+// ============================================================
+// DIGITAL PRODUCTS API FUNCTIONS
+// ============================================================
+
+/**
+ * Get user's digital products
+ */
+export const getDigitalProducts = async (): Promise<DigitalProductsResponse> => {
+  try {
+    console.log('📥 Fetching digital products...');
+    
+    const response = await api.get<DigitalProductsResponse>('/orders/my-digital-products');
+    
+    console.log('✅ Digital products fetched:', response.data.data.digitalProducts.length);
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ Get digital products error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};
+
+/**
+ * Get download link for a digital product
+ */
+export const getDigitalProductDownload = async (
+  orderId: string,
+  itemId: string
+): Promise<DownloadResponse> => {
+  try {
+    console.log('📥 Getting download link:', { orderId, itemId });
+    
+    const response = await api.get<DownloadResponse>(
+      `/orders/${orderId}/download/${itemId}`
+    );
+    
+    console.log('✅ Download link retrieved');
+    
+    return response.data;
+  } catch (error) {
+    console.error('❌ Get download link error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};
 
 
 // ============================================================

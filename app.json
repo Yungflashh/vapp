@@ -1,37 +1,76 @@
 {
   "expo": {
-    "name": "my-expo-app",
-    "slug": "my-expo-app",
+    "name": "Vendorspot",
+    "slug": "Vendorspot",
     "version": "1.0.0",
-
     "web": {
-      "favicon": ".src/assets/favicon.png"
+      "favicon": "./src/assets/favicon.png"
     },
-
     "experiments": {
       "tsconfigPaths": true
     },
-
-    "plugins": [],
-
+    "plugins": [
+      "expo-web-browser"
+    ],
     "orientation": "portrait",
-    "icon": ".src/assets/icon.png",
-
+    "icon": "./src/assets/icon.png",
     "userInterfaceStyle": "light",
-
     "splash": {
-      "image": ".src/assets/splash.png",
+      "image": "./src/assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.vendorspot.app",
+      "associatedDomains": [
+        "applinks:vendorspot.com",
+        "applinks:www.vendorspot.com"
+      ]
     },
     "android": {
+      "package": "com.vendorspot.app",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./src/assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
+      },
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "vendorspot.com",
+              "pathPrefix": "/vendor"
+            },
+            {
+              "scheme": "https",
+              "host": "www.vendorspot.com",
+              "pathPrefix": "/vendor"
+            },
+            {
+              "scheme": "vendorspot"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
+    },
+    "scheme": "vendorspot",
+    "extra": {
+      "eas": {
+        "projectId": "95bbcdae-0b49-46e8-b1e4-0d9a9d1195fe"
+      },
+      "google": {
+        "androidClientId": "365199861665-46cfcedrppe40yogu2vlqftvap8fo97.apps.googleusercontent.com",
+        "webClientId": "365199861665-l0fippe3jlt08h6f12k7vkqnibkhqrgj.apps.googleusercontent.com"
       }
     }
   }
