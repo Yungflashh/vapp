@@ -1,6 +1,5 @@
-// EXPO-COMPATIBLE VERSION - FIXED
-// Uses expo-location instead of @react-native-community/geolocation
-// FIX: Unique IDs for delivery options to show all couriers
+// EXPO-COMPATIBLE VERSION - FIXED WITH ACTUAL SHIPPING PRICES
+// Passes selected delivery price and courier info to backend
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -43,6 +42,13 @@ interface DeliveryOption {
   courier?: string;
   logo?: string;
   pickupAddress?: string;
+  vendorBreakdown?: Array<{
+    vendorId: string;
+    vendorName: string;
+    price: number;
+    courier: string;
+  }>;
+  isMultiVendor?: boolean;
 }
 
 interface PaymentMethod {
@@ -163,92 +169,88 @@ const CheckoutScreen = () => {
     }
   };
 
-const fetchDeliveryRates = async () => {
-  if (!selectedAddress) return;
+  const fetchDeliveryRates = async () => {
+    if (!selectedAddress) return;
 
-  try {
-    setIsLoadingRates(true);
-    
-    const response = await getDeliveryRates(
-      selectedAddress.city,
-      selectedAddress.state,
-      selectedAddress.street,
-      selectedAddress.fullName,
-      selectedAddress.phone
-    );
-
-    if (response.success && response.data?.rates) {
-      const rates = response.data.rates;
+    try {
+      setIsLoadingRates(true);
       
-      const formattedRates = rates.map((rate: any, index: number) => {
-        const uniqueId = `${rate.type}-${rate.courier || 'courier'}-${index}`;
+      console.log('📦 Fetching delivery rates for address:', {
+        city: selectedAddress.city,
+        state: selectedAddress.state,
+        street: selectedAddress.street,
+      });
+      
+      const response = await getDeliveryRates(
+        selectedAddress.city,
+        selectedAddress.state,
+        selectedAddress.street,
+        selectedAddress.fullName,
+        selectedAddress.phone
+      );
+
+      console.log('📥 Delivery rates response:', response);
+
+      if (response.success && response.data?.rates) {
+        const rates = response.data.rates;
         
-        // ✅ Include vendorBreakdown for multi-vendor orders
-        return {
-          id: uniqueId,
-          type: rate.type,
-          name: rate.name,
-          description: rate.description,
-          price: rate.price || 0,
-          estimatedDays: rate.estimatedDays || 'N/A',
-          courier: rate.courier,
-          logo: rate.logo,
-          pickupAddress: rate.pickupAddress,
-          vendorBreakdown: rate.vendorBreakdown, // ✅ Add this
-          isMultiVendor: response.data.multiVendor, // ✅ Add this
-        };
-      });
-      
-      console.log('✅ Formatted delivery options:', formattedRates.length);
-      setDeliveryOptions(formattedRates);
-      
-      // Auto-select pickup if available
-      const pickupOption = formattedRates.find(r => r.type === 'pickup');
-      if (pickupOption) {
-        setSelectedDeliveryOption(pickupOption.id);
-      } else if (formattedRates.length > 0) {
-        setSelectedDeliveryOption(formattedRates[0].id);
+        const formattedRates = rates.map((rate: any, index: number) => {
+          const uniqueId = `${rate.type}-${rate.courier || 'courier'}-${index}`;
+          
+          console.log(`📦 Rate ${index + 1}:`, {
+            id: uniqueId,
+            name: rate.name,
+            price: rate.price,
+            courier: rate.courier,
+            hasBreakdown: !!rate.vendorBreakdown,
+          });
+          
+          return {
+            id: uniqueId,
+            type: rate.type,
+            name: rate.name,
+            description: rate.description,
+            price: rate.price || 0,
+            estimatedDays: rate.estimatedDays || 'N/A',
+            courier: rate.courier,
+            logo: rate.logo,
+            pickupAddress: rate.pickupAddress,
+            vendorBreakdown: rate.vendorBreakdown,
+            isMultiVendor: response.data.multiVendor,
+          };
+        });
+        
+        console.log('✅ Formatted delivery options:', formattedRates.length);
+        setDeliveryOptions(formattedRates);
+        
+        // Auto-select pickup if available
+        const pickupOption = formattedRates.find(r => r.type === 'pickup');
+        if (pickupOption) {
+          setSelectedDeliveryOption(pickupOption.id);
+          console.log('✅ Auto-selected pickup option');
+        } else if (formattedRates.length > 0) {
+          setSelectedDeliveryOption(formattedRates[0].id);
+          console.log('✅ Auto-selected first option:', formattedRates[0].name);
+        }
+
+        Toast.show({
+          type: 'success',
+          text1: 'Delivery Options Loaded',
+          text2: `Found ${formattedRates.length} delivery option${formattedRates.length !== 1 ? 's' : ''}`,
+        });
       }
-
+    } catch (error: any) {
+      console.error('❌ Error fetching delivery rates:', error);
       Toast.show({
-        type: 'success',
-        text1: 'Delivery Options Loaded',
-        text2: `Found ${formattedRates.length} delivery option${formattedRates.length !== 1 ? 's' : ''}`,
+        type: 'info',
+        text1: 'Using Default Rates',
+        text2: 'Could not fetch live rates.',
       });
+      useFallbackRates();
+    } finally {
+      setIsLoadingRates(false);
     }
-  } catch (error: any) {
-    console.error('❌ Error fetching delivery rates:', error);
-    Toast.show({
-      type: 'info',
-      text1: 'Using Default Rates',
-      text2: 'Could not fetch live rates.',
-    });
-    useFallbackRates();
-  } finally {
-    setIsLoadingRates(false);
-  }
-};
-
-// Update your DeliveryOption interface to include vendorBreakdown
-interface DeliveryOption {
-  id: string;
-  type: string;
-  name: string;
-  description: string;
-  price: number;
-  estimatedDays: string;
-  courier?: string;
-  logo?: string;
-  pickupAddress?: string;
-  vendorBreakdown?: Array<{  // ✅ Add this
-    vendorId: string;
-    vendorName: string;
-    price: number;
-    courier: string;
-  }>;
-  isMultiVendor?: boolean;  // ✅ Add this
-}
-
+  };
 
   const useFallbackRates = () => {
     const fallbackRates: DeliveryOption[] = [
@@ -285,14 +287,10 @@ interface DeliveryOption {
     setSelectedDeliveryOption('pickup-Self Pickup-0');
   };
 
-  /**
-   * EXPO VERSION: Get user's current location using expo-location
-   */
   const getUserLocation = async () => {
     try {
       setIsGettingLocation(true);
 
-      // Request permissions
       const { status } = await Location.requestForegroundPermissionsAsync();
       
       if (status !== 'granted') {
@@ -305,14 +303,12 @@ interface DeliveryOption {
         return;
       }
 
-      // Get current position
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
 
       console.log('📍 Got location:', location.coords);
       
-      // Reverse geocode using OpenStreetMap Nominatim (free)
       const response = await fetch(
         `https://nominatim.openstreetmap.org/reverse?format=json&lat=${location.coords.latitude}&lon=${location.coords.longitude}`,
         {
@@ -589,6 +585,26 @@ interface DeliveryOption {
         throw new Error('Selected delivery option not found');
       }
 
+      console.log('📦 ============================================');
+      console.log('📦 PLACING ORDER');
+      console.log('📦 ============================================');
+      console.log('🚚 Selected delivery option:', {
+        id: selectedRate.id,
+        type: selectedRate.type,
+        name: selectedRate.name,
+        price: selectedRate.price,
+        courier: selectedRate.courier,
+        hasBreakdown: !!selectedRate.vendorBreakdown,
+        breakdownCount: selectedRate.vendorBreakdown?.length || 0,
+      });
+
+      if (selectedRate.vendorBreakdown) {
+        console.log('📦 Vendor breakdown:');
+        selectedRate.vendorBreakdown.forEach((vendor, i) => {
+          console.log(`  ${i + 1}. ${vendor.vendorName}: ₦${vendor.price} (${vendor.courier})`);
+        });
+      }
+
       const shippingAddress = {
         fullName: selectedAddress.fullName,
         phone: selectedAddress.phone,
@@ -599,14 +615,30 @@ interface DeliveryOption {
         postalCode: selectedAddress.postalCode,
       };
       
+      // ✅ CRITICAL FIX: Pass actual delivery price and courier info to backend
       const orderData = {
         shippingAddress,
         paymentMethod: selectedPaymentMethod,
         deliveryType: selectedRate.type as 'standard' | 'express' | 'same_day' | 'pickup',
         notes: orderNotes || undefined,
+        // ✅ NEW: Pass selected delivery details
+        selectedDeliveryPrice: selectedRate.price,
+        selectedCourier: selectedRate.courier,
+        vendorBreakdown: selectedRate.vendorBreakdown,
       };
       
+      console.log('📤 Order data being sent:', {
+        deliveryType: orderData.deliveryType,
+        selectedDeliveryPrice: orderData.selectedDeliveryPrice,
+        selectedCourier: orderData.selectedCourier,
+        hasVendorBreakdown: !!orderData.vendorBreakdown,
+        breakdownCount: orderData.vendorBreakdown?.length || 0,
+      });
+      
       const response = await createOrder(orderData);
+      
+      console.log('📥 Order response:', response);
+      console.log('📦 ============================================');
       
       if (response.success && response.data.order) {
         if (selectedPaymentMethod === 'paystack' && response.data.payment) {
@@ -771,125 +803,124 @@ interface DeliveryOption {
     </View>
   );
 
+  const renderDeliveryStep = () => (
+    <View className="flex-1">
+      <Text className="text-lg font-bold text-gray-900 px-6 py-4">
+        Delivery Method
+      </Text>
 
-const renderDeliveryStep = () => (
-  <View className="flex-1">
-    <Text className="text-lg font-bold text-gray-900 px-6 py-4">
-      Delivery Method
-    </Text>
-
-    <ScrollView
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 120 }}
-    >
-      {isLoadingRates ? (
-        <View className="bg-white rounded-2xl p-8 items-center">
-          <ActivityIndicator size="large" color="#EC4899" />
-          <Text className="text-gray-500 mt-4">Finding best delivery options...</Text>
-        </View>
-      ) : (
-        <>
-          {deliveryOptions.map((option) => (
-            <TouchableOpacity
-              key={option.id}
-              onPress={() => setSelectedDeliveryOption(option.id)}
-              className={`bg-white rounded-2xl p-4 mb-3 border-2 ${
-                selectedDeliveryOption === option.id
-                  ? 'border-pink-500 bg-pink-50'
-                  : 'border-gray-100'
-              }`}
-            >
-              {/* Main Option Header */}
-              <View className="flex-row items-center justify-between mb-3">
-                <View className="flex-row items-center flex-1">
-                  <View className={`w-12 h-12 rounded-full items-center justify-center mr-3 ${
-                    option.type === 'pickup' ? 'bg-green-100' : 'bg-blue-100'
-                  }`}>
-                    <Icon 
-                      name={option.type === 'pickup' ? 'storefront' : 'car'} 
-                      size={24} 
-                      color={option.type === 'pickup' ? '#10B981' : '#3B82F6'} 
-                    />
-                  </View>
-                  
-                  <View className="flex-1">
-                    <View className="flex-row items-center">
-                      <Text className="text-base font-bold text-gray-900">
-                        {option.name}
-                      </Text>
-                      {option.price === 0 && (
-                        <View className="ml-2 bg-green-100 px-2 py-0.5 rounded">
-                          <Text className="text-xs font-semibold text-green-700">FREE</Text>
-                        </View>
-                      )}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 120 }}
+      >
+        {isLoadingRates ? (
+          <View className="bg-white rounded-2xl p-8 items-center">
+            <ActivityIndicator size="large" color="#EC4899" />
+            <Text className="text-gray-500 mt-4">Finding best delivery options...</Text>
+          </View>
+        ) : (
+          <>
+            {deliveryOptions.map((option) => (
+              <TouchableOpacity
+                key={option.id}
+                onPress={() => setSelectedDeliveryOption(option.id)}
+                className={`bg-white rounded-2xl p-4 mb-3 border-2 ${
+                  selectedDeliveryOption === option.id
+                    ? 'border-pink-500 bg-pink-50'
+                    : 'border-gray-100'
+                }`}
+              >
+                {/* Main Option Header */}
+                <View className="flex-row items-center justify-between mb-3">
+                  <View className="flex-row items-center flex-1">
+                    <View className={`w-12 h-12 rounded-full items-center justify-center mr-3 ${
+                      option.type === 'pickup' ? 'bg-green-100' : 'bg-blue-100'
+                    }`}>
+                      <Icon 
+                        name={option.type === 'pickup' ? 'storefront' : 'car'} 
+                        size={24} 
+                        color={option.type === 'pickup' ? '#10B981' : '#3B82F6'} 
+                      />
                     </View>
-                    <Text className="text-xs text-gray-500 mt-1">
-                      {option.estimatedDays}
-                    </Text>
-                  </View>
-                </View>
-
-                <View className="items-end">
-                  <Text className={`text-lg font-bold ${option.price === 0 ? 'text-green-600' : 'text-gray-900'}`}>
-                    {option.price === 0 ? 'FREE' : `₦${option.price.toLocaleString()}`}
-                  </Text>
-                  {selectedDeliveryOption === option.id && (
-                    <View className="w-6 h-6 rounded-full bg-pink-500 items-center justify-center mt-1">
-                      <Icon name="checkmark" size={16} color="#FFFFFF" />
-                    </View>
-                  )}
-                </View>
-              </View>
-
-              <Text className="text-sm text-gray-600 mb-2">{option.description}</Text>
-
-              {/* ✅ Show Vendor Breakdown for Multi-Vendor Orders */}
-              {option.vendorBreakdown && option.vendorBreakdown.length > 0 && (
-                <View className="mt-3 pt-3 border-t border-gray-200">
-                  <Text className="text-xs font-semibold text-gray-700 mb-2">
-                    Shipping Breakdown:
-                  </Text>
-                  {option.vendorBreakdown.map((vendor, idx) => (
-                    <View key={idx} className="flex-row items-center justify-between py-1.5">
-                      <View className="flex-1">
-                        <Text className="text-xs font-medium text-gray-900">
-                          {vendor.vendorName}
+                    
+                    <View className="flex-1">
+                      <View className="flex-row items-center">
+                        <Text className="text-base font-bold text-gray-900">
+                          {option.name}
                         </Text>
-                        <Text className="text-xs text-gray-500">
-                          via {vendor.courier}
+                        {option.price === 0 && (
+                          <View className="ml-2 bg-green-100 px-2 py-0.5 rounded">
+                            <Text className="text-xs font-semibold text-green-700">FREE</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text className="text-xs text-gray-500 mt-1">
+                        {option.estimatedDays}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View className="items-end">
+                    <Text className={`text-lg font-bold ${option.price === 0 ? 'text-green-600' : 'text-gray-900'}`}>
+                      {option.price === 0 ? 'FREE' : `₦${option.price.toLocaleString()}`}
+                    </Text>
+                    {selectedDeliveryOption === option.id && (
+                      <View className="w-6 h-6 rounded-full bg-pink-500 items-center justify-center mt-1">
+                        <Icon name="checkmark" size={16} color="#FFFFFF" />
+                      </View>
+                    )}
+                  </View>
+                </View>
+
+                <Text className="text-sm text-gray-600 mb-2">{option.description}</Text>
+
+                {/* ✅ Show Vendor Breakdown for Multi-Vendor Orders */}
+                {option.vendorBreakdown && option.vendorBreakdown.length > 0 && (
+                  <View className="mt-3 pt-3 border-t border-gray-200">
+                    <Text className="text-xs font-semibold text-gray-700 mb-2">
+                      Shipping Breakdown:
+                    </Text>
+                    {option.vendorBreakdown.map((vendor, idx) => (
+                      <View key={idx} className="flex-row items-center justify-between py-1.5">
+                        <View className="flex-1">
+                          <Text className="text-xs font-medium text-gray-900">
+                            {vendor.vendorName}
+                          </Text>
+                          <Text className="text-xs text-gray-500">
+                            via {vendor.courier}
+                          </Text>
+                        </View>
+                        <Text className="text-xs font-semibold text-gray-700">
+                          ₦{vendor.price.toLocaleString()}
                         </Text>
                       </View>
-                      <Text className="text-xs font-semibold text-gray-700">
-                        ₦{vendor.price.toLocaleString()}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              )}
+                    ))}
+                  </View>
+                )}
 
-              {/* Pickup Address */}
-              {option.pickupAddress && (
-                <View className="bg-gray-50 rounded-lg p-3 flex-row mt-2">
-                  <Icon name="location" size={16} color="#6B7280" />
-                  <Text className="text-xs text-gray-600 ml-2 flex-1">
-                    {option.pickupAddress}
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          ))}
+                {/* Pickup Address */}
+                {option.pickupAddress && (
+                  <View className="bg-gray-50 rounded-lg p-3 flex-row mt-2">
+                    <Icon name="location" size={16} color="#6B7280" />
+                    <Text className="text-xs text-gray-600 ml-2 flex-1">
+                      {option.pickupAddress}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            ))}
 
-          {deliveryOptions.length === 0 && (
-            <View className="bg-white rounded-2xl p-8 items-center">
-              <Icon name="alert-circle-outline" size={64} color="#D1D5DB" />
-              <Text className="text-gray-500 mt-4">No delivery options available</Text>
-            </View>
-          )}
-        </>
-      )}
-    </ScrollView>
-  </View>
-);
+            {deliveryOptions.length === 0 && (
+              <View className="bg-white rounded-2xl p-8 items-center">
+                <Icon name="alert-circle-outline" size={64} color="#D1D5DB" />
+                <Text className="text-gray-500 mt-4">No delivery options available</Text>
+              </View>
+            )}
+          </>
+        )}
+      </ScrollView>
+    </View>
+  );
 
   const renderPaymentStep = () => (
     <View className="flex-1">
@@ -1061,7 +1092,6 @@ const renderDeliveryStep = () => (
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ padding: 24 }}
           >
-            {/* Location Button - EXPO VERSION */}
             <TouchableOpacity
               onPress={getUserLocation}
               disabled={isGettingLocation}

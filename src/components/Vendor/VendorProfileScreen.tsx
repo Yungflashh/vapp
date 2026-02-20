@@ -207,17 +207,18 @@ const VendorProfileScreen = ({ route, navigation }: VendorProfileScreenProps) =>
   };
 
   const handleShare = async () => {
-    if (!vendor) return;
+  if (!vendor) return;
 
-    try {
-      await Share.share({
-        message: `Check out ${vendor.name} on VendorSpot! ${vendor.description || ''}`,
-        title: vendor.name,
-      });
-    } catch (error) {
-      console.error('Error sharing:', error);
-    }
-  };
+  try {
+    await Share.share({
+      message: `Check out ${vendor.name} on VendorSpot! 🛍️\n\n${vendor.description || ''}\n\nView Store: https://vendorspot.com/vendor/${vendorId}`,
+      title: vendor.name,
+      url: `https://vendorspot.com/vendor/${vendorId}`, // iOS uses this
+    });
+  } catch (error) {
+    console.error('Error sharing:', error);
+  }
+};
 
   const handleChatNow = () => {
     Toast.show({
@@ -363,7 +364,7 @@ const VendorProfileScreen = ({ route, navigation }: VendorProfileScreenProps) =>
               <View className="flex-row items-center mb-1">
                 <Text className="text-lg font-bold text-gray-900 mr-2">{vendor.name}</Text>
                 {vendor.verified && (
-                  <Icon name="checkmark-circle" size={20} color="#3B82F6" />
+                  <Icon name="shield-checkmark" size={20} color="#FFDD00" />
                 )}
               </View>
               <Text className="text-sm text-gray-600 mb-2">

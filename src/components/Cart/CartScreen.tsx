@@ -1,3 +1,4 @@
+// screens/CartScreen.tsx
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -34,8 +35,6 @@ const CartScreen = () => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [promoCode, setPromoCode] = useState('');
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
-
-  const deliveryFee = 2500; // Fixed delivery fee
 
   // Fetch cart when screen comes into focus
   useFocusEffect(
@@ -242,116 +241,117 @@ const CartScreen = () => {
     }
   };
 
- const proceedToCheckout = () => {
-  if (!cart || cart.items.length === 0) {
-    Toast.show({
-      type: 'warning',
-      text1: 'Cart Empty',
-      text2: 'Please add items to your cart',
-    });
-    return;
-  }
+  const proceedToCheckout = () => {
+    if (!cart || cart.items.length === 0) {
+      Toast.show({
+        type: 'warning',
+        text1: 'Cart Empty',
+        text2: 'Please add items to your cart',
+      });
+      return;
+    }
 
-  // Navigate to checkout screen with cart data
-  navigation.navigate('Checkout', { cart });
-};
+    // Navigate to checkout screen with cart data
+    // Shipping will be calculated in checkout based on delivery address
+    navigation.navigate('Checkout', { cart });
+  };
 
- const renderCartItem = (item: CartItem) => {
-  const mainImage = item.product.images?.[0] || '';
-  
-  // Make sure we have a valid item ID
-  const itemId = item._id || (item as any).id;
-  
-  if (!itemId) {
-    console.error('Cart item missing ID:', item);
-    return null;
-  }
+  const renderCartItem = (item: CartItem) => {
+    const mainImage = item.product.images?.[0] || '';
+    
+    // Make sure we have a valid item ID
+    const itemId = item._id || (item as any).id;
+    
+    if (!itemId) {
+      console.error('Cart item missing ID:', item);
+      return null;
+    }
 
-  return (
-    <View key={itemId} className="bg-white rounded-2xl p-4 mb-3 flex-row">
-      {/* Product Image */}
-      <TouchableOpacity
-        onPress={() => navigation.navigate('ProductDetails', { productId: item.product._id })}
-        className="w-20 h-20 rounded-xl bg-gray-100 overflow-hidden mr-3"
-      >
-        {mainImage ? (
-          <Image
-            source={{ uri: mainImage }}
-            style={{ width: '100%', height: '100%' }}
-            resizeMode="cover"
-          />
-        ) : (
-          <View className="flex-1 items-center justify-center">
-            <Icon name="image-outline" size={32} color="#9CA3AF" />
-          </View>
-        )}
-      </TouchableOpacity>
+    return (
+      <View key={itemId} className="bg-white rounded-2xl p-4 mb-3 flex-row">
+        {/* Product Image */}
+        <TouchableOpacity
+          onPress={() => navigation.navigate('ProductDetails', { productId: item.product._id })}
+          className="w-20 h-20 rounded-xl bg-gray-100 overflow-hidden mr-3"
+        >
+          {mainImage ? (
+            <Image
+              source={{ uri: mainImage }}
+              style={{ width: '100%', height: '100%' }}
+              resizeMode="cover"
+            />
+          ) : (
+            <View className="flex-1 items-center justify-center">
+              <Icon name="image-outline" size={32} color="#9CA3AF" />
+            </View>
+          )}
+        </TouchableOpacity>
 
-      {/* Product Details */}
-      <View className="flex-1">
-        <View className="flex-row justify-between items-start mb-1">
-          <TouchableOpacity
-            onPress={() => navigation.navigate('ProductDetails', { productId: item.product._id })}
-            className="flex-1 pr-2"
-          >
-            <Text className="text-base font-semibold text-gray-900" numberOfLines={2}>
-              {item.product.name}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => removeItem(itemId)}
-            className="w-8 h-8 rounded-full bg-gray-100 items-center justify-center"
-            disabled={isUpdating}
-          >
-            <Icon name="close" size={18} color="#6B7280" />
-          </TouchableOpacity>
-        </View>
-
-        {item.variant && (
-          <Text className="text-xs text-gray-500 mb-2">{item.variant}</Text>
-        )}
-
-        <View className="flex-row items-center justify-between">
-          {/* Quantity Controls */}
-          <View className="flex-row items-center bg-gray-100 rounded-full">
+        {/* Product Details */}
+        <View className="flex-1">
+          <View className="flex-row justify-between items-start mb-1">
             <TouchableOpacity
-              onPress={() => {
-                if (item.quantity > 1) {
-                  console.log('Decreasing quantity for item:', itemId);
-                  updateQuantity(itemId, item.quantity - 1);
-                }
-              }}
-              className="w-8 h-8 items-center justify-center"
-              disabled={isUpdating || item.quantity <= 1}
+              onPress={() => navigation.navigate('ProductDetails', { productId: item.product._id })}
+              className="flex-1 pr-2"
             >
-              <Icon name="remove" size={16} color={item.quantity <= 1 ? '#D1D5DB' : '#6B7280'} />
+              <Text className="text-base font-semibold text-gray-900" numberOfLines={2}>
+                {item.product.name}
+              </Text>
             </TouchableOpacity>
-
-            <Text className="text-base font-semibold text-gray-900 mx-3">
-              {item.quantity}
-            </Text>
-
             <TouchableOpacity
-              onPress={() => {
-                console.log('Increasing quantity for item:', itemId);
-                updateQuantity(itemId, item.quantity + 1);
-              }}
-              className="w-8 h-8 items-center justify-center"
+              onPress={() => removeItem(itemId)}
+              className="w-8 h-8 rounded-full bg-gray-100 items-center justify-center"
               disabled={isUpdating}
             >
-              <Icon name="add" size={16} color="#EC4899" />
+              <Icon name="close" size={18} color="#6B7280" />
             </TouchableOpacity>
           </View>
 
-          {/* Price */}
-          <Text className="text-lg font-bold text-gray-900">
-            ₦{(item.price * item.quantity).toLocaleString()}
-          </Text>
+          {item.variant && (
+            <Text className="text-xs text-gray-500 mb-2">{item.variant}</Text>
+          )}
+
+          <View className="flex-row items-center justify-between">
+            {/* Quantity Controls */}
+            <View className="flex-row items-center bg-gray-100 rounded-full">
+              <TouchableOpacity
+                onPress={() => {
+                  if (item.quantity > 1) {
+                    console.log('Decreasing quantity for item:', itemId);
+                    updateQuantity(itemId, item.quantity - 1);
+                  }
+                }}
+                className="w-8 h-8 items-center justify-center"
+                disabled={isUpdating || item.quantity <= 1}
+              >
+                <Icon name="remove" size={16} color={item.quantity <= 1 ? '#D1D5DB' : '#6B7280'} />
+              </TouchableOpacity>
+
+              <Text className="text-base font-semibold text-gray-900 mx-3">
+                {item.quantity}
+              </Text>
+
+              <TouchableOpacity
+                onPress={() => {
+                  console.log('Increasing quantity for item:', itemId);
+                  updateQuantity(itemId, item.quantity + 1);
+                }}
+                className="w-8 h-8 items-center justify-center"
+                disabled={isUpdating}
+              >
+                <Icon name="add" size={16} color="#EC4899" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Price */}
+            <Text className="text-lg font-bold text-gray-900">
+              ₦{(item.price * item.quantity).toLocaleString()}
+            </Text>
+          </View>
         </View>
       </View>
-    </View>
-  );
-};
+    );
+  };
 
   const renderEmptyCart = () => (
     <View className="flex-1 items-center justify-center py-20">
@@ -360,7 +360,7 @@ const CartScreen = () => {
       </View>
       <Text className="text-2xl font-bold text-gray-900 mb-2">Your Cart is Empty</Text>
       <Text className="text-gray-500 text-center mb-8 px-8">
-        Looks like you haven`t added anything to your cart yet
+        Looks like you haven't added anything to your cart yet
       </Text>
       <TouchableOpacity
         className="bg-pink-500 px-8 py-4 rounded-full"
@@ -392,7 +392,8 @@ const CartScreen = () => {
     );
   }
 
-  const totalAmount = cart ? cart.subtotal - cart.discount + deliveryFee : 0;
+  // ✅ Cart total = subtotal - discount (NO SHIPPING)
+  const cartTotal = cart ? cart.subtotal - cart.discount : 0;
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
@@ -472,15 +473,15 @@ const CartScreen = () => {
               <View className="mt-3 flex-row items-center bg-green-50 px-3 py-2 rounded-lg">
                 <Icon name="checkmark-circle" size={20} color="#10B981" />
                 <Text className="text-green-700 font-medium ml-2">
-                  Coupon `{cart.couponCode}` applied
+                  Coupon '{cart.couponCode}' applied
                 </Text>
               </View>
             )}
           </View>
 
-          {/* Order Summary */}
+          {/* ✅ Cart Summary (NO SHIPPING) */}
           <View className="bg-white rounded-2xl p-4">
-            <Text className="text-base font-semibold text-gray-900 mb-4">Order Summary</Text>
+            <Text className="text-base font-semibold text-gray-900 mb-4">Cart Summary</Text>
 
             <View className="space-y-3">
               <View className="flex-row justify-between items-center mb-3">
@@ -489,13 +490,6 @@ const CartScreen = () => {
                 </Text>
                 <Text className="text-gray-900 font-medium">
                   ₦{cart.subtotal.toLocaleString()}
-                </Text>
-              </View>
-
-              <View className="flex-row justify-between items-center mb-3">
-                <Text className="text-gray-600">Delivery Fee</Text>
-                <Text className="text-gray-900 font-medium">
-                  ₦{deliveryFee.toLocaleString()}
                 </Text>
               </View>
 
@@ -512,9 +506,9 @@ const CartScreen = () => {
 
               <View className="border-t border-gray-200 pt-3">
                 <View className="flex-row justify-between items-center mb-2">
-                  <Text className="text-lg font-bold text-gray-900">Total Amount</Text>
+                  <Text className="text-lg font-bold text-gray-900">Cart Total</Text>
                   <Text className="text-2xl font-bold text-gray-900">
-                    ₦{totalAmount.toLocaleString()}
+                    ₦{cartTotal.toLocaleString()}
                   </Text>
                 </View>
                 {cart.discount > 0 && (
@@ -524,24 +518,37 @@ const CartScreen = () => {
                 )}
               </View>
             </View>
+
+            {/* ✅ Shipping Note */}
+            <View className="mt-4 bg-blue-50 rounded-xl p-3">
+              <View className="flex-row items-center">
+                <Icon name="information-circle" size={20} color="#3B82F6" />
+                <Text className="text-blue-700 text-sm ml-2 flex-1">
+                  Shipping fees will be calculated at checkout based on your delivery address
+                </Text>
+              </View>
+            </View>
           </View>
         </ScrollView>
       )}
 
-      {/* Checkout Button - Fixed at Bottom */}
+      {/* ✅ Checkout Button - Shows Cart Total (NO SHIPPING) */}
       {cart && cart.items.length > 0 && (
         <View className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-4 shadow-lg">
           <View className="flex-row items-center justify-between mb-3">
             <View>
-              <Text className="text-gray-600 text-sm">Total Amount</Text>
+              <Text className="text-gray-600 text-sm">Cart Total</Text>
               <Text className="text-2xl font-bold text-gray-900">
-                ₦{totalAmount.toLocaleString()}
+                ₦{cartTotal.toLocaleString()}
               </Text>
               {cart.discount > 0 && (
                 <Text className="text-green-600 font-medium text-sm">
                   You save ₦{cart.discount.toLocaleString()}
                 </Text>
               )}
+              <Text className="text-gray-500 text-xs mt-1">
+                + Shipping (calculated at checkout)
+              </Text>
             </View>
           </View>
 
@@ -550,8 +557,8 @@ const CartScreen = () => {
             onPress={proceedToCheckout}
             activeOpacity={0.8}
           >
-            <Icon name="lock-closed" size={20} color="#FFFFFF" />
-            <Text className="text-white font-bold text-base ml-2">CheckOut</Text>
+            <Text className="text-white font-bold text-base">Proceed to Checkout</Text>
+            <Icon name="arrow-forward" size={20} color="#FFFFFF" className="ml-2" />
           </TouchableOpacity>
         </View>
       )}
