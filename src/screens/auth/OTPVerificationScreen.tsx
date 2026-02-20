@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityInd
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '@/navigation/AuthNavigator';
-import { verifyOTP, resendOTP } from '@/services/api';
+import { verifyOTP, resendOTP } from '@/services/auth.service';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type OTPVerificationScreenProps = NativeStackScreenProps<AuthStackParamList, 'OTPVerification'>;

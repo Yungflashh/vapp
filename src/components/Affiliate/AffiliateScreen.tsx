@@ -17,7 +17,8 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import Toast from 'react-native-toast-message';
 import * as Clipboard from 'expo-clipboard';
-import api from '@/services/api';
+import { getCurrentUser } from '@/services/auth.service';
+import { activateAffiliate, getAffiliateDashboard, getAffiliateEarnings, AffiliateDashboard, AffiliateEarnings } from '@/services/affiliate.service';
 
 type AffiliateScreenProps = NativeStackScreenProps<RootStackParamList, 'Affiliate'>;
 
@@ -88,7 +89,7 @@ const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
     try {
       console.log('🔍 ==================== CHECKING AFFILIATE STATUS ====================');
       setIsLoading(true);
-      const response = await api.get('/auth/me');
+      const response = await getCurrentUser();
       
       console.log('📥 Auth Me Response:', response.data);
       
@@ -128,7 +129,7 @@ const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
       
       // Fetch dashboard
       console.log('🔄 Fetching affiliate dashboard...');
-      const dashboardResponse = await api.get('/affiliate/dashboard');
+      const dashboardResponse = await getAffiliateDashboard();
       console.log('📥 Dashboard Response:', dashboardResponse.data);
       
       if (dashboardResponse.data.success) {
@@ -143,7 +144,7 @@ const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
 
       // Fetch earnings
       console.log(`🔄 Fetching affiliate earnings (period: ${selectedPeriod})...`);
-      const earningsResponse = await api.get(`/affiliate/earnings?period=${selectedPeriod}`);
+      const earningsResponse = await getAffiliateEarnings(selectedPeriod);
       console.log('📥 Earnings Response:', earningsResponse.data);
       
       if (earningsResponse.data.success) {
@@ -179,7 +180,7 @@ const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
   const handleActivateAffiliate = async () => {
     try {
       setIsActivating(true);
-      const response = await api.post('/affiliate/activate');
+      const response = await activateAffiliate();
       
       if (response.data.success) {
         Toast.show({

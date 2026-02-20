@@ -5,7 +5,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '@/navigation/AuthNavigator';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Toast from 'react-native-toast-message';
-import api from '@/services/api';
+import { forgotPassword } from '@/services/auth.service';
 
 type ForgotPasswordScreenProps = NativeStackScreenProps<AuthStackParamList, 'ForgotPassword'>;
 
@@ -37,7 +37,7 @@ const ForgotPasswordScreen = ({ navigation }: ForgotPasswordScreenProps) => {
     try {
       console.log('📧 Requesting password reset for:', email);
       
-      const response = await api.post('/auth/forgot-password', { email });
+      const response = await forgotPassword(email);
       
       console.log('✅ Password reset response:', response.data);
       

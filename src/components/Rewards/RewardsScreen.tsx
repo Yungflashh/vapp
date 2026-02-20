@@ -16,7 +16,7 @@ import { RootStackParamList } from '@/navigation';
 import Icon from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import Toast from 'react-native-toast-message';
-import api from '@/services/api';
+import { getUserPoints, getAvailableRewards, redeemPoints } from '@/services/reward.service';
 
 type RewardsScreenProps = NativeStackScreenProps<RootStackParamList, 'Rewards'>;
 
@@ -54,15 +54,15 @@ const RewardsScreen = ({ navigation }: RewardsScreenProps) => {
       setIsLoading(true);
 
       // Fetch user points
-      const pointsResponse = await api.get('/rewards/points');
-      if (pointsResponse.data.success) {
-        setUserPoints(pointsResponse.data.data);
+      const pointsResponse = await getUserPoints();
+      if (pointsResponse.success) {
+        setUserPoints(pointsResponse.data);
       }
 
       // Fetch available rewards
-      const rewardsResponse = await api.get('/rewards/available');
-      if (rewardsResponse.data.success) {
-        setAvailableRewards(rewardsResponse.data.data.rewards);
+      const rewardsResponse = await getAvailableRewards();
+      if (rewardsResponse.success) {
+        setAvailableRewards(rewardsResponse.data.rewards);
       }
     } catch (error) {
       console.error('❌ Fetch rewards error:', error);
@@ -102,9 +102,7 @@ const RewardsScreen = ({ navigation }: RewardsScreenProps) => {
     try {
       setIsRedeeming(true);
 
-      const response = await api.post('/rewards/points/redeem', {
-        points: selectedReward.pointsCost,
-      });
+      const response = await redeemPoints(selectedReward.pointsCost);
 
       if (response.data.success) {
         Toast.show({

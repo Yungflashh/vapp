@@ -26,7 +26,7 @@ import {
   getMyVendorProfile,
   updateVendorProfile,
   uploadVendorImage,
-} from '@/services/api';
+} from '@/services/vendor.service';
 import Toast from 'react-native-toast-message';
 
 interface VendorProfile {

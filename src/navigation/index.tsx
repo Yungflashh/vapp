@@ -25,7 +25,7 @@ import PaymentSetupScreen from '@/screens/auth/PaymentSetupScreen';
 import RegistrationSuccessScreen from '@/screens/auth/RegistrationSuccessScreen';
 import AddProductScreen from '@/components/VendorComponentsScreen/Product/AddProductScreen';
 import VendorProductDetailScreen from '@/components/VendorComponentsScreen/Product/VendorProductDetailScreen'; 
-import api from '@/services/api';
+import { getMyVendorProfile } from '@/services/vendor.service';
 import VendorEditProfileScreen from '@/components/VendorComponentsScreen/Profile/VendorEditProfileScreen';
 import VendorStoreSetupScreen from '@/components/VendorComponentsScreen/Profile/VendorStoreSetupScreen';
 import VendorKYCVerificationScreen from '@/components/VendorComponentsScreen/Profile/VendorKYCVerificationScreen';
@@ -89,7 +89,7 @@ function AppNavigator() {
         
         // Check if vendor has completed profile setup
         try {
-          const response = await api.get('/vendor/profile');
+          const response = await getMyVendorProfile();
           
           if (response.data.success && response.data.data.vendorProfile) {
             const profile = response.data.data.vendorProfile;

@@ -15,14 +15,16 @@ import {
   getProducts,
   getRecommendedProducts, 
   getTrendingProducts, 
+  Product, 
+  ProductFilters,
+} from '@/services/product.service';
+import { 
   getTopVendors,
-  getCategories,
   followVendor,
   unfollowVendor,
-  Product, 
   Vendor,
-  ProductFilters,
-} from '@/services/api';
+} from '@/services/vendor.service';
+import { getCategories } from '@/services/category.service';
 
 type HomeScreenProps = CompositeScreenProps<
   BottomTabScreenProps<BottomTabParamList, 'Home'>,

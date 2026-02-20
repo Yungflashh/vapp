@@ -16,7 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { getMyVendorProfile } from '@/services/api';
+import { getMyVendorProfile } from '@/services/vendor.service';
 import Toast from 'react-native-toast-message';
 
 interface SetupStatus {

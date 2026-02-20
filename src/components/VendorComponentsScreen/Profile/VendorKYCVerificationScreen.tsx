@@ -20,8 +20,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
-import { getMyVendorProfile } from '@/services/api';
-import api from '@/services/api';
+import { getMyVendorProfile, uploadKYCDocument, submitKYCDocuments } from '@/services/vendor.service';
 import Toast from 'react-native-toast-message';
 
 interface KYCDocument {
@@ -213,11 +212,7 @@ const VendorKYCVerificationScreen = () => {
       
       formData.append('type', documentType);
       
-      const response = await api.post('/upload/kyc-document', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const response = await uploadKYCDocument(uri, documentType);
       
       if (response.data.success) {
         setNewDocuments([
@@ -277,7 +272,7 @@ const VendorKYCVerificationScreen = () => {
         documentUrl: doc.uri,
       }));
       
-      const response = await api.post('/vendor/kyc/upload', { documents });
+      const response = await submitKYCDocuments(documents);
       
       if (response.data.success) {
         Toast.show({

@@ -6,7 +6,7 @@ import { AuthStackParamList } from '@/navigation/AuthNavigator';
 import Icon from 'react-native-vector-icons/Ionicons';
 import * as Location from 'expo-location';
 import Toast from 'react-native-toast-message';
-import api from '@/services/api';
+import { createVendorProfile } from '@/services/vendor.service';
 
 type VendorSetupScreenProps = NativeStackScreenProps<AuthStackParamList, 'VendorSetup'>;
 
@@ -198,7 +198,7 @@ const VendorSetupScreen = ({ navigation }: VendorSetupScreenProps) => {
       console.log('🏪 Creating vendor profile:', vendorData);
 
       // Call the vendor profile creation API
-      const response = await api.post('/vendor/profile', vendorData);
+      const response = await createVendorProfile(vendorData);
 
       console.log('✅ Vendor profile created:', response.data);
 

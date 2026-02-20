@@ -15,7 +15,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/navigation';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Toast from 'react-native-toast-message';
-import { trackOrder, getOrderById, Order } from '@/services/api';
+import { trackOrder, getOrderById, Order } from '@/services/order.service';
 import { refreshOrderStatus } from '@/services/tracking.service';
 
 // ✅ TypeScript declaration for __DEV__

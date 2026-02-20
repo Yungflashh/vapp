@@ -18,9 +18,11 @@ import { RootStackParamList } from '@/navigation';
 import { BottomTabParamList } from '@/navigation/BottomTabNavigator';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Toast from 'react-native-toast-message';
-import { logout, getCart } from '@/services/api';
-import { useFocusEffect } from '@react-navigation/native';
-import api from '@/services/api';
+import { logout, getCurrentUser } from '@/services/auth.service';
+import { getCart } from '@/services/cart.service';
+import { getOrders } from '@/services/order.service';
+import { getUserPoints } from '@/services/reward.service';
+import { getWallet } from '@/services/wallet.service';
 
 type ProfileScreenProps = CompositeScreenProps<
   BottomTabScreenProps<BottomTabParamList, 'Profile'>,
@@ -78,16 +80,16 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
       setIsLoading(true);
       
       // Fetch user profile
-      const profileResponse = await api.get('/auth/me');
-      if (profileResponse.data.success) {
-        setUser(profileResponse.data.data.user);
+      const profileResponse = await getCurrentUser();
+      if (profileResponse.success) {
+        setUser(profileResponse.data.user);
       }
 
       // Fetch wallet balance
       try {
-        const walletResponse = await api.get('/wallet');
-        if (walletResponse.data.success) {
-          setWalletBalance(walletResponse.data.data.wallet.balance || 0);
+        const walletResponse = await getWallet();
+        if (walletResponse.success) {
+          setWalletBalance(walletResponse.data.wallet.balance || 0);
         }
       } catch (err) {
         console.log('⚠️ Wallet fetch error:', err);
@@ -95,9 +97,9 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
 
       // Fetch order stats
       try {
-        const ordersResponse = await api.get('/orders/my-orders?limit=100');
-        if (ordersResponse.data.success) {
-          const orders = ordersResponse.data.data.orders;
+        const ordersResponse = await getOrders(1, 100);
+        if (ordersResponse.success) {
+          const orders = ordersResponse.data.orders;
           
           const active = orders.filter((order: any) => 
             ['pending', 'confirmed', 'processing', 'shipped', 'in_transit'].includes(order.status)
@@ -116,11 +118,11 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
 
       // Fetch reward points
       try {
-        const rewardsResponse = await api.get('/rewards/points');
-        if (rewardsResponse.data.success) {
-          const points = rewardsResponse.data.data.points || 0;
-          const tier = rewardsResponse.data.data.tier || 'Bronze';
-          const toNext = rewardsResponse.data.data.pointsToNextTier || 500;
+        const rewardsResponse = await getUserPoints();
+        if (rewardsResponse.success) {
+          const points = rewardsResponse.data.points || 0;
+          const tier = rewardsResponse.data.tier || 'Bronze';
+          const toNext = rewardsResponse.data.pointsToNextTier || 500;
           
           setUserPoints(points);
           setUserTier(tier.toUpperCase());

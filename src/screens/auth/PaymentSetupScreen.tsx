@@ -5,7 +5,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '@/navigation/AuthNavigator';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Toast from 'react-native-toast-message';
-import api, { getNigerianBanks } from '@/services/api';
+import { updatePayoutDetails, getNigerianBanks } from '@/services/vendor.service';
 
 type PaymentSetupScreenProps = NativeStackScreenProps<AuthStackParamList, 'PaymentSetup'>;
 
@@ -85,7 +85,7 @@ const PaymentSetupScreen = ({ navigation }: PaymentSetupScreenProps) => {
       console.log('💳 Updating payout details:', payoutData);
 
       // Call the payout details update API (correct endpoint)
-      const response = await api.put('/vendor/payout-details', payoutData);
+      const response = await updatePayoutDetails(payoutData);
 
       console.log('✅ Payout details updated:', response.data);
 

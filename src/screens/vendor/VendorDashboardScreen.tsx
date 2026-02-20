@@ -21,7 +21,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { BarChart, LineChart } from 'react-native-chart-kit';
-import { getVendorDashboard } from '@/services/api';
+import { getVendorDashboard } from '@/services/vendor.service';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');

@@ -23,7 +23,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import api from '@/services/api';
+import { getVendorOrders, updateVendorOrderStatus } from '@/services/order.service';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -339,9 +339,7 @@ const VendorOrdersScreen: React.FC = () => {
         setLoadingMore(true);
       }
 
-      const res = await api.get('/orders/vendor/orders', { 
-        params: { page: pg, limit: 20 } 
-      });
+      const res = await getVendorOrders(pg, 20);
 
       if (res.data?.success) {
         const fetched: VendorOrder[] = res.data.data?.orders || [];
@@ -413,7 +411,7 @@ const VendorOrdersScreen: React.FC = () => {
   const handleUpdateStatus = async (orderId: string, newStatus: string) => {
     try {
       setUpdatingId(orderId);
-      const res = await api.put(`/orders/${orderId}/status`, { status: newStatus });
+      const res = await updateVendorOrderStatus(orderId, newStatus);
       
       if (res.data?.success) {
         setOrders(prev => prev.map(o => 

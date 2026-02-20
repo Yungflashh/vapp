@@ -20,7 +20,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
-import { getMyVendorProfile, updateVendorProfile, uploadVendorImage } from '@/services/api';
+import { getMyVendorProfile, updateVendorProfile, uploadVendorImage } from '@/services/vendor.service';
 import Toast from 'react-native-toast-message';
 
 const THEME_OPTIONS = [

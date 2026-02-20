@@ -21,7 +21,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import api from '@/services/api';
+import { getVendorOrderById, updateVendorOrderStatus, simulateWebhook } from '@/services/order.service';
 import { RootStackParamList } from '@/navigation/index';
 
 // ✅ TypeScript declaration for __DEV__
@@ -357,7 +357,7 @@ const VendorOrderDetailScreen: React.FC = () => {
         isRefresh ? setRefreshing(true) : setLoading(true);
         setError('');
 
-        const res = await api.get(`/orders/vendor/orders/${orderId}`);
+        const res = await getVendorOrderById(orderId);
 
         if (res.data?.success) {
           setOrder(res.data.data?.order || null);
@@ -386,7 +386,7 @@ const VendorOrderDetailScreen: React.FC = () => {
     if (!order) return;
     try {
       setUpdating(true);
-      const res = await api.put(`/orders/${order._id}/status`, { status: newStatus });
+      const res = await updateVendorOrderStatus(order._id, newStatus);
       if (res.data?.success) {
         setOrder(prev => (prev ? { ...prev, status: newStatus } : prev));
         Alert.alert('Success', `Order marked as ${fmt(newStatus)}`);
@@ -418,10 +418,7 @@ const VendorOrderDetailScreen: React.FC = () => {
     try {
       Alert.alert('Simulating...', 'Updating shipment status');
       
-      const res = await api.post('/webhooks/vendor/simulate', {
-        orderId: order._id,
-        statusCode,
-      });
+      const res = await simulateWebhook(order._id, statusCode);
 
       if (res.data?.success) {
         Alert.alert('Success', 'Status updated! Refreshing order...');

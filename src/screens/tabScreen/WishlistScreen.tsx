@@ -13,12 +13,8 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/navigation';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Toast from 'react-native-toast-message';
-import {
-  getWishlist,
-  removeFromWishlist,
-  addToCart,
-  getCart,
-} from '@/services/api';
+import { getWishlist, removeFromWishlist } from '@/services/wishlist.service';
+import { addToCart, getCart } from '@/services/cart.service';
 import { useFocusEffect } from '@react-navigation/native';
 
 type WishlistScreenProps = NativeStackScreenProps<RootStackParamList, 'Wishlist'>;

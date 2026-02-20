@@ -20,12 +20,12 @@ import {
   getCart,
   updateCartItem,
   removeFromCart,
-  clearCart as clearCartAPI,
-  applyCoupon as applyCouponAPI,
-  removeCoupon as removeCouponAPI,
+  clearCart,
+  applyCoupon,
+  removeCoupon,
   CartItem,
   Cart,
-} from '@/services/api';
+} from '@/services/cart.service';
 
 const CartScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -151,7 +151,7 @@ const CartScreen = () => {
             try {
               setIsUpdating(true);
               
-              const response = await clearCartAPI();
+              const response = await clearCart();
               
               if (response.success) {
                 await fetchCart(); // Refresh cart
@@ -190,7 +190,7 @@ const CartScreen = () => {
     try {
       setIsApplyingCoupon(true);
       
-      const response = await applyCouponAPI(promoCode);
+      const response = await applyCoupon(promoCode);
       
       if (response.success && response.data.cart) {
         setCart(response.data.cart);
@@ -219,7 +219,7 @@ const CartScreen = () => {
     try {
       setIsUpdating(true);
       
-      const response = await removeCouponAPI();
+      const response = await removeCoupon();
       
       if (response.success && response.data.cart) {
         setCart(response.data.cart);

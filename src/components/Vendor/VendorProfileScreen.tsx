@@ -21,8 +21,8 @@ import {
   followVendor,
   unfollowVendor,
   Vendor,
-  Product,
-} from '@/services/api';
+} from '@/services/vendor.service';
+import { Product } from '@/services/product.service';
 
 type VendorProfileScreenProps = NativeStackScreenProps<RootStackParamList, 'VendorProfile'>;
 

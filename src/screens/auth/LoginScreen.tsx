@@ -5,10 +5,10 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '@/navigation/AuthNavigator';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Toast from 'react-native-toast-message';
-import { login as apiLogin } from '@/services/api';
+import { login as authLogin } from '@/services/auth.service';
+import { getMyVendorProfile } from '@/services/vendor.service';
 import { appleLogin } from '@/services/Oauth.service';
 import { useAuth } from '@/context/AuthContext';
-import api from '@/services/api';
 import * as AppleAuthentication from 'expo-apple-authentication';
 
 type LoginScreenProps = NativeStackScreenProps<AuthStackParamList, 'Login'>;
@@ -39,10 +39,10 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
     }
 
     try {
-      const response = await api.get('/vendor/profile');
+      const response = await getMyVendorProfile();
       
-      if (response.data.success && response.data.data.vendorProfile) {
-        const profile = response.data.data.vendorProfile;
+      if (response.success && response.data.vendorProfile) {
+        const profile = response.data.vendorProfile;
         
         const hasBusinessInfo = !!(
           profile.businessName &&
@@ -93,7 +93,7 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
     setIsLoading(true);
 
     try {
-      const response = await apiLogin({ email, password });
+      const response = await authLogin({ email, password });
       
       if (response.success) {
         const user = response.data.user;

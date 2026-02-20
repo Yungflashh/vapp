@@ -16,7 +16,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/navigation';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Toast from 'react-native-toast-message';
-import { getOrderById, trackOrder, cancelOrder, Order } from '@/services/api';
+import { getOrderById, trackOrder, cancelOrder, Order } from '@/services/order.service';
 
 type OrderDetailsScreenProps = NativeStackScreenProps<RootStackParamList, 'OrderDetails'>;
 

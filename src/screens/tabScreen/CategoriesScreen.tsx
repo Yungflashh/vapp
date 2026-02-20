@@ -14,7 +14,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/Ionicons';
 import MaterialIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Toast from 'react-native-toast-message';
-import { getCategories, getCategoryTree, Category } from '@/services/api';
+import { getCategories, getCategoryTree, Category } from '@/services/category.service';
 
 type ViewMode = 'grid' | 'list';
 

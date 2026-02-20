@@ -15,7 +15,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/navigation';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Toast from 'react-native-toast-message';
-import { getDigitalProducts, getDigitalProductDownload } from '@/services/api';
+import { getDigitalProducts, getDigitalProductDownload } from '@/services/digital-product.service';
 
 type MyDigitalProductsScreenProps = NativeStackScreenProps<RootStackParamList, 'MyDigitalProducts'>;
 

@@ -23,7 +23,7 @@ import {
   requestAccountDeletion,
   getDeletionRequestStatus,
   cancelDeletionRequest,
-} from '@/services/api';
+} from '@/services/account.service';
 
 interface DeletionReason {
   id: string;

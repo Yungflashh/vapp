@@ -5,7 +5,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '@/navigation/AuthNavigator';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Toast from 'react-native-toast-message';
-import api from '@/services/api';
+import { resetPassword } from '@/services/auth.service';
 
 type ResetPasswordScreenProps = NativeStackScreenProps<AuthStackParamList, 'ResetPassword'>;
 
@@ -63,7 +63,7 @@ const ResetPasswordScreen = ({ navigation, route }: ResetPasswordScreenProps) =>
       console.log('📧 Email:', email);
       console.log('🔑 Code:', resetCode.toUpperCase());
       
-      const response = await api.post('/auth/reset-password', {
+      const response = await resetPassword({
         code: resetCode.toUpperCase().trim(),
         password: newPassword,
       });

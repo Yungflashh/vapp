@@ -15,7 +15,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/navigation';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Toast from 'react-native-toast-message';
-import { getOrders, Order } from '@/services/api';
+import { getOrders, Order } from '@/services/order.service';
 import { useFocusEffect } from '@react-navigation/native';
 
 type OrdersScreenProps = NativeStackScreenProps<RootStackParamList, 'Orders'>;

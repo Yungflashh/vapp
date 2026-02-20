@@ -13,7 +13,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/navigation';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Toast from 'react-native-toast-message';
-import api from '@/services/api';
+import { getPointsHistory } from '@/services/reward.service';
 
 type PointsHistoryScreenProps = NativeStackScreenProps<RootStackParamList, 'PointsHistory'>;
 
@@ -36,7 +36,7 @@ const PointsHistoryScreen = ({ navigation }: PointsHistoryScreenProps) => {
   const fetchHistory = async () => {
     try {
       setIsLoading(true);
-      const response = await api.get('/rewards/points/history');
+      const response = await getPointsHistory();
       
       if (response.data.success) {
         setHistory(response.data.data.history);

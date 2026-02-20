@@ -22,15 +22,14 @@ import * as Location from 'expo-location';
 import { RootStackParamList } from '@/navigation';
 import {
   Address,
-  Cart,
   getAddresses,
   createAddress,
   deleteAddress,
   setDefaultAddress,
-  getDeliveryRates,
-  createOrder,
   CreateAddressRequest,
-} from '@/services/api';
+} from '@/services/address.service';
+import { getDeliveryRates, createOrder } from '@/services/order.service';
+import { Cart } from '@/services/cart.service';
 
 interface DeliveryOption {
   id: string;

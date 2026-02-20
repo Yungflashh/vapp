@@ -16,7 +16,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import Toast from 'react-native-toast-message';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import api from '@/services/api';
+import { getMyProducts, updateProduct } from '@/services/product.service';
 
 interface VendorProduct {
   id: string;
@@ -70,12 +70,7 @@ const VendorProductsScreen = () => {
         setLoadingMore(true);
       }
 
-      const response = await api.get('/products/my-products', {
-        params: {
-          page,
-          limit: ITEMS_PER_PAGE,
-        },
-      });
+      const response = await getMyProducts(page, ITEMS_PER_PAGE);
       
       if (response.data.success) {
         const newProducts = response.data.data.products;
@@ -200,7 +195,7 @@ const VendorProductsScreen = () => {
           onPress: async (newStock) => {
             if (newStock && !isNaN(Number(newStock))) {
               try {
-                await api.put(`/products/${productId}`, {
+                await updateProduct(productId, {
                   quantity: Number(newStock),
                 });
 

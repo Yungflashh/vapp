@@ -23,7 +23,7 @@ import MaterialIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Toast from 'react-native-toast-message';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import api from '@/services/api';
+import { getProductById, updateProduct, deleteProduct } from '@/services/product.service';
 
 const { width, height } = Dimensions.get('window');
 
@@ -70,7 +70,7 @@ const VendorProductDetailScreen = () => {
   const fetchProductDetail = async () => {
     try {
       setLoading(true);
-      const response = await api.get(`/products/${productId}`);
+      const response = await getProductById(productId);
       
       if (response.data.success) {
         setProduct(response.data.data);
@@ -111,10 +111,9 @@ const VendorProductDetailScreen = () => {
           onPress: async (newStock) => {
             if (newStock && !isNaN(Number(newStock))) {
               try {
-                await api.put(`/products/${productId}`, {
-                  quantity: Number(newStock),
-                });
-
+                              await updateProduct(productId, {
+                                quantity: Number(newStock),
+                              });
                 Toast.show({
                   type: 'success',
                   text1: 'Stock Updated',
@@ -155,7 +154,7 @@ const VendorProductDetailScreen = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              await api.delete(`/products/${productId}`);
+              await deleteProduct(productId);
 
               Toast.show({
                 type: 'success',
