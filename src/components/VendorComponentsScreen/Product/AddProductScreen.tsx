@@ -22,7 +22,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy'; // ✅ Use legacy API
-import api from '@/services/api';
+import api from '../../../services/api.config';
 
 interface Category {
   _id: string;

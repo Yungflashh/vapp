@@ -1,4 +1,4 @@
-import api from './api';
+import api from './api.config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ============================================================

@@ -3,7 +3,10 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Image } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Toast from 'react-native-toast-message';
-import { Product, addToCart, addToWishlist, removeFromWishlist, getAuthToken } from '@/services/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Product } from '../../services/product.service';
+import { addToCart } from '../../services/cart.service';
+import { addToWishlist, removeFromWishlist } from '../../services/wishlist.service';
 
 interface ProductCardProps {
   product: Product;
@@ -30,7 +33,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
   const handleAddToCart = async () => {
     try {
-      const token = await getAuthToken();
+      const token = await AsyncStorage.getItem('authToken');
       if (!token) {
         Toast.show({
           type: 'warning',
@@ -62,7 +65,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
   const handleToggleWishlist = async () => {
     try {
-      const token = await getAuthToken();
+      const token = await AsyncStorage.getItem('authToken');
       if (!token) {
         Toast.show({
           type: 'warning',

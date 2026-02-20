@@ -1,5 +1,5 @@
 // services/tracking.service.ts
-import api from './api';
+import api from './api.config';
 
 export interface RefreshStatusParams {
   orderId: string;

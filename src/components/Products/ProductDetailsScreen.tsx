@@ -15,7 +15,7 @@ import { RootStackParamList } from '@/navigation';
 import Icon from 'react-native-vector-icons/Ionicons';
 import MaterialIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Toast from 'react-native-toast-message';
-import { getProductById, Product as ApiProduct } from '@/services/api';
+import { getProductById, Product as ApiProduct } from '../../services/product.service';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ProductDetails'>;
 
