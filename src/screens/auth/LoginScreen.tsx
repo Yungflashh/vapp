@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '@/navigation/AuthNavigator';
@@ -19,6 +19,10 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isAppleAvailable, setIsAppleAvailable] = useState(false);
   const { login } = useAuth();
+  const { width } = useWindowDimensions();
+
+  const isTablet = width >= 768;
+  const formMaxWidth = isTablet ? 420 : undefined;
 
   // Check if Apple Sign In is available
   useEffect(() => {
@@ -65,7 +69,6 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
           text2: `${user.firstName} ${user.lastName}`,
         });
         
-        // Just call login() - let AppNavigator handle routing logic
         setTimeout(() => {
           login();
         }, 500);
@@ -137,7 +140,6 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
           text2: `${user.firstName} ${user.lastName}`,
         });
         
-        // Just call login() - let AppNavigator handle routing logic
         setTimeout(() => {
           login();
         }, 500);
@@ -169,114 +171,123 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
       >
         <ScrollView 
           className="flex-1"
-          contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16 }}
+          contentContainerStyle={{
+            flexGrow: 1,
+            justifyContent: 'center',
+            alignItems: 'center',
+            paddingHorizontal: 24,
+            paddingVertical: 16,
+          }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <Text className="text-2xl font-bold text-pink-500 mb-2 mt-8">
-            Welcome back
-          </Text>
-          <Text className="text-sm text-gray-500 leading-5 mb-8">
-            Access your store, track orders, and keep your business running smoothly.
-          </Text>
+          {/* Responsive centered container */}
+          <View style={{ width: '100%', maxWidth: formMaxWidth }}>
+            <Text className="text-2xl font-bold text-pink-500 mb-2 mt-8">
+              Welcome back
+            </Text>
+            <Text className="text-sm text-gray-500 leading-5 mb-8">
+              Access your store, track orders, and keep your business running smoothly.
+            </Text>
 
-          <View className="flex-row items-center border border-gray-200 rounded-lg px-4 py-3 mb-4">
-            <Icon name="mail-outline" size={20} color="#9CA3AF" />
-            <TextInput
-              className="flex-1 ml-3 text-base text-gray-900"
-              placeholder="Email"
-              placeholderTextColor="#9CA3AF"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              editable={!isLoading}
-            />
-          </View>
-
-          <View className="flex-row items-center border border-gray-200 rounded-lg px-4 py-3 mb-4">
-            <Icon name="lock-closed-outline" size={20} color="#9CA3AF" />
-            <TextInput
-              className="flex-1 ml-3 text-base text-gray-900"
-              placeholder="Password"
-              placeholderTextColor="#9CA3AF"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-              editable={!isLoading}
-            />
-            <TouchableOpacity 
-              onPress={() => setShowPassword(!showPassword)}
-              disabled={isLoading}
-            >
-              <Icon 
-                name={showPassword ? "eye-outline" : "eye-off-outline"} 
-                size={20} 
-                color="#9CA3AF" 
+            <View className="flex-row items-center border border-gray-200 rounded-lg px-4 py-3 mb-4">
+              <Icon name="mail-outline" size={20} color="#9CA3AF" />
+              <TextInput
+                className="flex-1 ml-3 text-base text-gray-900"
+                placeholder="Email"
+                placeholderTextColor="#9CA3AF"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                editable={!isLoading}
               />
-            </TouchableOpacity>
-          </View>
+            </View>
 
-          <TouchableOpacity 
-            className="items-end mb-6" 
-            disabled={isLoading}
-            onPress={() => navigation.navigate('ForgotPassword')}
-          >
-            <Text className="text-sm text-gray-500">Forgot Password?</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            className={`py-4 rounded-lg mb-6 ${isLoading ? 'bg-pink-300' : 'bg-pink-500'}`}
-            onPress={handleLogin}
-            activeOpacity={0.8}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text className="text-white text-base font-semibold text-center">
-                Sign In
-              </Text>
-            )}
-          </TouchableOpacity>
-
-          {Platform.OS === 'ios' && isAppleAvailable && (
-            <>
-              <View className="flex-row items-center mb-6">
-                <View className="flex-1 h-px bg-gray-200" />
-                <Text className="text-sm text-gray-400 mx-4">or sign in with</Text>
-                <View className="flex-1 h-px bg-gray-200" />
-              </View>
-
+            <View className="flex-row items-center border border-gray-200 rounded-lg px-4 py-3 mb-4">
+              <Icon name="lock-closed-outline" size={20} color="#9CA3AF" />
+              <TextInput
+                className="flex-1 ml-3 text-base text-gray-900"
+                placeholder="Password"
+                placeholderTextColor="#9CA3AF"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                editable={!isLoading}
+              />
               <TouchableOpacity 
-                className="flex-row items-center justify-center border border-gray-200 rounded-lg py-3 mb-6"
-                activeOpacity={0.8}
+                onPress={() => setShowPassword(!showPassword)}
                 disabled={isLoading}
-                onPress={handleAppleLogin}
               >
-                <Icon name="logo-apple" size={20} color="#000000" />
-                <Text className="text-base text-gray-900 font-medium ml-3">
-                  Sign in with Apple
-                </Text>
+                <Icon 
+                  name={showPassword ? "eye-outline" : "eye-off-outline"} 
+                  size={20} 
+                  color="#9CA3AF" 
+                />
               </TouchableOpacity>
-            </>
-          )}
+            </View>
 
-          <View className="flex-row justify-center mt-6 mb-6">
-            <Text className="text-sm text-gray-500">Don't have an account? </Text>
             <TouchableOpacity 
-              onPress={() => navigation.navigate('Register')}
+              className="items-end mb-6" 
+              disabled={isLoading}
+              onPress={() => navigation.navigate('ForgotPassword')}
+            >
+              <Text className="text-sm text-gray-500">Forgot Password?</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              className={`py-4 rounded-lg mb-6 ${isLoading ? 'bg-pink-300' : 'bg-pink-500'}`}
+              onPress={handleLogin}
+              activeOpacity={0.8}
               disabled={isLoading}
             >
-              <Text className="text-sm text-pink-500 font-semibold">Sign up</Text>
+              {isLoading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text className="text-white text-base font-semibold text-center">
+                  Sign In
+                </Text>
+              )}
             </TouchableOpacity>
-          </View>
 
-          <Text className="text-xs text-gray-400 text-center leading-[18px] px-4 pb-6">
-            By continuing, I agree to the{' '}
-            <Text className="text-pink-500">Vendorspot General Terms of Use</Text> &{' '}
-            <Text className="text-pink-500">General Privacy Policy</Text>.
-          </Text>
+            {Platform.OS === 'ios' && isAppleAvailable && (
+              <>
+                <View className="flex-row items-center mb-6">
+                  <View className="flex-1 h-px bg-gray-200" />
+                  <Text className="text-sm text-gray-400 mx-4">or sign in with</Text>
+                  <View className="flex-1 h-px bg-gray-200" />
+                </View>
+
+                <TouchableOpacity 
+                  className="flex-row items-center justify-center border border-gray-200 rounded-lg py-3 mb-6"
+                  activeOpacity={0.8}
+                  disabled={isLoading}
+                  onPress={handleAppleLogin}
+                >
+                  <Icon name="logo-apple" size={20} color="#000000" />
+                  <Text className="text-base text-gray-900 font-medium ml-3">
+                    Sign in with Apple
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            <View className="flex-row justify-center mt-6 mb-6">
+              <Text className="text-sm text-gray-500">Don't have an account? </Text>
+              <TouchableOpacity 
+                onPress={() => navigation.navigate('Register')}
+                disabled={isLoading}
+              >
+                <Text className="text-sm text-pink-500 font-semibold">Sign up</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text className="text-xs text-gray-400 text-center leading-[18px] px-4 pb-6">
+              By continuing, I agree to the{' '}
+              <Text className="text-pink-500">Vendorspot General Terms of Use</Text> &{' '}
+              <Text className="text-pink-500">General Privacy Policy</Text>.
+            </Text>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
       

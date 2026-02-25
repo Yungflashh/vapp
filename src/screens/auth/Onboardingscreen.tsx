@@ -92,10 +92,8 @@ const OnboardingScreen = ({ navigation }: OnboardingScreenProps) => {
     <SafeAreaView className="flex-1 bg-white">
       <View className="flex-1 pt-4 pb-10">
         {/* Header with Skip Button */}
-        <View className="flex-row justify-between items-center px-6 mb-8">
-          <Text className="text-sm text-gray-400">
-            Onboarding {currentIndex + 1}
-          </Text>
+        <View className="flex-row justify-end items-center px-6 mb-8">
+          
           <TouchableOpacity onPress={handleSkip}>
             <Text className="text-sm text-gray-500 font-medium">Skip</Text>
           </TouchableOpacity>

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Platform, ActivityIndicator, useWindowDimensions, Keyboard } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '@/navigation/AuthNavigator';
@@ -12,6 +12,29 @@ type ForgotPasswordScreenProps = NativeStackScreenProps<AuthStackParamList, 'For
 const ForgotPasswordScreen = ({ navigation }: ForgotPasswordScreenProps) => {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const { width } = useWindowDimensions();
+
+  const isTablet = width >= 768;
+  const formMaxWidth = isTablet ? 420 : undefined;
+
+  // Keyboard listener for Android
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showListener = Keyboard.addListener(showEvent, (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hideListener = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showListener.remove();
+      hideListener.remove();
+    };
+  }, []);
 
   const handleSendResetLink = async () => {
     if (!email) {
@@ -49,7 +72,6 @@ const ForgotPasswordScreen = ({ navigation }: ForgotPasswordScreenProps) => {
           visibilityTime: 4000,
         });
         
-        // Navigate to ResetPassword screen with email
         setTimeout(() => {
           navigation.navigate('ResetPassword', { email });
         }, 1500);
@@ -90,16 +112,21 @@ const ForgotPasswordScreen = ({ navigation }: ForgotPasswordScreenProps) => {
 
   return (
     <SafeAreaView className="flex-1 bg-white">
-      <KeyboardAvoidingView 
+      <ScrollView 
         className="flex-1"
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        contentContainerStyle={{
+          flexGrow: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          paddingHorizontal: 24,
+          paddingVertical: 16,
+          paddingBottom: keyboardHeight > 0 ? keyboardHeight : 16,
+        }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        <ScrollView 
-          className="flex-1"
-          contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16 }}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
+        {/* Responsive centered container */}
+        <View style={{ width: '100%', maxWidth: formMaxWidth }}>
           {/* Back Button */}
           <TouchableOpacity 
             className="flex-row items-center mb-8 mt-4"
@@ -130,6 +157,8 @@ const ForgotPasswordScreen = ({ navigation }: ForgotPasswordScreenProps) => {
               keyboardType="email-address"
               autoCapitalize="none"
               editable={!isLoading}
+              returnKeyType="done"
+              onSubmitEditing={() => Keyboard.dismiss()}
             />
           </View>
 
@@ -169,8 +198,8 @@ const ForgotPasswordScreen = ({ navigation }: ForgotPasswordScreenProps) => {
               <Text className="text-pink-500">support@vendorspot.com</Text>
             </Text>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </View>
+      </ScrollView>
       
       <Toast />
     </SafeAreaView>

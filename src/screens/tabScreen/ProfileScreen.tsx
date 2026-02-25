@@ -163,7 +163,7 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
         text1: 'Logged Out',
         text2: 'You have been logged out successfully',
       });
-      navigation.reset({
+      navigation.navigate({
         index: 0,
         routes: [{ name: 'Login' }],
       });
