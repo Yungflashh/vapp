@@ -27,7 +27,13 @@ export interface OrderItem {
 export interface Order {
   _id: string;
   orderNumber: string;
-  user: string;
+  user: string | {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string;
+  };
   items: OrderItem[];
   subtotal: number;
   discount: number;
@@ -48,6 +54,20 @@ export interface Order {
   cancelReason?: string;
   refundAmount?: number;
   refundReason?: string;
+  isDigital?: boolean;
+  isPickup?: boolean;
+  vendorShipments?: Array<{
+    vendor: string | { _id: string; firstName: string; lastName: string };
+    vendorName: string;
+    items: string[];
+    origin?: { street?: string; city: string; state: string; country: string };
+    shippingCost: number;
+    status: string;
+    trackingNumber?: string;
+    trackingUrl?: string;
+    shipmentId?: string;
+    courier?: string;
+  }>;
   createdAt: string;
   updatedAt: string;
 }
@@ -192,7 +212,7 @@ export const getOrderById = async (orderId: string): Promise<{ success: boolean;
 /**
  * Track order shipment
  */
-export const trackOrder = async (orderId: string): Promise<{ success: boolean; data: { order: Order; tracking: any } }> => {
+export const trackOrder = async (orderId: string): Promise<{ success: boolean; data: { order: Order; tracking: any; multiVendor?: boolean; trackingUrl?: string } }> => {
   try {
     console.log('📍 Tracking order:', orderId);
     

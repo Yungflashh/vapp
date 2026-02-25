@@ -1,105 +1,98 @@
-import React, { useEffect } from 'react';
-import { View, Text, TouchableOpacity, Image } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { AuthStackParamList } from '@/navigation/AuthNavigator';
+import { RootStackParamList } from '@/navigation/index';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { useAuth } from '@/context/AuthContext';
 
-type RegistrationSuccessScreenProps = NativeStackScreenProps<AuthStackParamList, 'RegistrationSuccess'>;
+type RegistrationSuccessScreenProps = NativeStackScreenProps<RootStackParamList, 'RegistrationSuccess'>;
 
 const RegistrationSuccessScreen = ({ navigation }: RegistrationSuccessScreenProps) => {
-  // Optional: Auto-navigate after 3 seconds
-  useEffect(() => {
-    // Uncomment to enable auto-navigation
-    // const timer = setTimeout(() => {
-    //   handleContinue();
-    // }, 3000);
-    // return () => clearTimeout(timer);
-  }, []);
+  const { refreshUser } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleContinue = () => {
-    // Check if we're in the auth flow or app flow
-    // If user is authenticated, they're in app flow
-    // Reset to appropriate main screen
+  const handleContinue = async () => {
     try {
-      // Try to navigate to VendorMain (if vendor with complete profile)
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'VendorMain' as any }],
-      });
+      setIsLoading(true);
+      console.log('🎉 Registration success - refreshing user data...');
+      
+      // Refresh user data - this triggers AppNavigator's useEffect
+      await refreshUser();
+      
+      console.log('✅ User data refreshed, AppNavigator will re-render with VendorMain');
+      
+      // Small delay to allow AppNavigator to re-render
+      setTimeout(() => {
+        setIsLoading(false);
+        // The AppNavigator will automatically show VendorMain now
+      }, 500);
+      
     } catch (error) {
-      // If that fails, try Main (customer) or fall back to Login
-      try {
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'Main' as any }],
-        });
-      } catch (e) {
-        // Last resort - go to login
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'Login' as any }],
-        });
-      }
+      console.error('❌ Error during continue:', error);
+      setIsLoading(false);
     }
   };
 
   return (
     <SafeAreaView className="flex-1 bg-white">
-      <View className="flex-1 px-6 justify-center items-center">
+      <View className="flex-1 px-6 justify-center">
         {/* Success Icon */}
-        <View className="mb-8">
-          <View className="w-32 h-32 rounded-full bg-green-100 justify-center items-center">
-            <View className="w-24 h-24 rounded-full bg-green-200 justify-center items-center">
-              <Icon name="checkmark-circle" size={80} color="#10B981" />
-            </View>
+        <View className="items-center mb-8">
+          <View className="w-32 h-32 rounded-full bg-green-100 items-center justify-center mb-6">
+            <Icon name="checkmark-circle" size={80} color="#10B981" />
           </View>
+
+          {/* Success Message */}
+          <Text className="text-3xl font-bold text-center text-gray-900 mb-3">
+            Congratulations! 🎉
+          </Text>
+          <Text className="text-xl font-semibold text-center text-green-600 mb-4">
+            Registration Successful
+          </Text>
+          <Text className="text-base text-center text-gray-600 px-4">
+            Your vendor account has been successfully created! You can now start selling your products on Vendorspot.
+          </Text>
         </View>
 
-        {/* Success Message */}
-        <Text className="text-3xl font-bold text-gray-900 text-center mb-4">
-          Congratulations! 🎉
-        </Text>
-        <Text className="text-xl font-semibold text-pink-500 text-center mb-4">
-          Registration Successful
-        </Text>
-        <Text className="text-base text-gray-600 text-center mb-8 px-4">
-          Your vendor account has been successfully created! You can now start selling your products on Vendorspot.
-        </Text>
-
         {/* Feature Highlights */}
-        <View className="w-full mb-8">
-          <FeatureItem 
+        <View className="space-y-4 mb-8">
+          <FeatureItem
             icon="storefront-outline"
-            title="Your Shop is Ready"
-            description="Start adding products to your storefront"
+            title="Your Store is Ready"
+            description="Start adding products and manage your inventory"
           />
-          <FeatureItem 
+          <FeatureItem
+            icon="trending-up-outline"
+            title="Track Your Sales"
+            description="Monitor your performance with real-time analytics"
+          />
+          <FeatureItem
             icon="wallet-outline"
-            title="Payment Setup Complete"
-            description="Receive payments directly to your account"
-          />
-          <FeatureItem 
-            icon="people-outline"
-            title="Reach Customers"
-            description="Connect with thousands of buyers"
+            title="Get Paid Securely"
+            description="Receive payments directly to your bank account"
           />
         </View>
 
         {/* Continue Button */}
-        <TouchableOpacity 
-          className="bg-pink-500 py-4 px-8 rounded-lg w-full"
+        <TouchableOpacity
           onPress={handleContinue}
+          className="bg-pink-500 rounded-xl py-4 items-center shadow-lg mb-4"
           activeOpacity={0.8}
+          disabled={isLoading}
         >
-          <Text className="text-white text-base font-semibold text-center">
-            Continue to Login
-          </Text>
+          {isLoading ? (
+            <ActivityIndicator color="white" />
+          ) : (
+            <Text className="text-white text-lg font-semibold">
+              Go to Dashboard
+            </Text>
+          )}
         </TouchableOpacity>
 
         {/* Help Text */}
-        <Text className="text-sm text-gray-400 text-center mt-6">
-          Ready to start your journey? Login to access your dashboard
+        <Text className="text-center text-gray-500 text-sm">
+          Ready to start your journey? Access your vendor dashboard now
         </Text>
       </View>
     </SafeAreaView>
@@ -107,16 +100,27 @@ const RegistrationSuccessScreen = ({ navigation }: RegistrationSuccessScreenProp
 };
 
 // Feature Item Component
-const FeatureItem = ({ icon, title, description }: { icon: string; title: string; description: string }) => (
-  <View className="flex-row items-center mb-4">
-    <View className="w-12 h-12 rounded-full bg-pink-100 justify-center items-center mr-4">
-      <Icon name={icon} size={24} color="#EC4899" />
+const FeatureItem = ({ 
+  icon, 
+  title, 
+  description 
+}: { 
+  icon: string; 
+  title: string; 
+  description: string 
+}) => (
+  <View className="flex-row items-start space-x-3 bg-gray-50 p-4 rounded-lg">
+    <View className="w-10 h-10 rounded-full bg-pink-100 items-center justify-center mt-1">
+      <Icon name={icon} size={20} color="#EC4899" />
     </View>
     <View className="flex-1">
-      <Text className="text-base font-semibold text-gray-900">{title}</Text>
-      <Text className="text-sm text-gray-600">{description}</Text>
+      <Text className="text-base font-semibold text-gray-900 mb-1">
+        {title}
+      </Text>
+      <Text className="text-sm text-gray-600">
+        {description}
+      </Text>
     </View>
-    <Icon name="checkmark-circle" size={24} color="#10B981" />
   </View>
 );
 

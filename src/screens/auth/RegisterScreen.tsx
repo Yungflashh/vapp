@@ -96,12 +96,11 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
 
       // Prepare registration data
       const registrationData = {
-        firstName,
-        lastName,
+        fullName: `${firstName} ${lastName}`,
         email: email.trim().toLowerCase(),
         phone: phone.trim(),
         password,
-        role: isVendor ? 'vendor' : 'customer',
+        role: isVendor ? 'vendor' as const : 'customer' as const,
         hearAbout: hearAbout || undefined,
       };
 
@@ -126,7 +125,7 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
               // Navigate to OTP verification screen
               navigation.navigate('OTPVerification', {
                 email: email.trim().toLowerCase(),
-                isVendor,
+                isVendor: isVendor,
               });
             },
           },

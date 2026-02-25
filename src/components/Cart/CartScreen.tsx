@@ -21,8 +21,8 @@ import {
   updateCartItem,
   removeFromCart,
   clearCart,
-  applyCoupon,
-  removeCoupon,
+  applyCoupon as applyCouponService,
+  removeCoupon as removeCouponService,
   CartItem,
   Cart,
 } from '@/services/cart.service';
@@ -177,7 +177,7 @@ const CartScreen = () => {
     );
   };
 
-  const applyCoupon = async () => {
+  const handleApplyCoupon = async () => {
     if (!promoCode.trim()) {
       Toast.show({
         type: 'warning',
@@ -189,9 +189,9 @@ const CartScreen = () => {
 
     try {
       setIsApplyingCoupon(true);
-      
-      const response = await applyCoupon(promoCode);
-      
+
+      const response = await applyCouponService(promoCode);
+
       if (response.success && response.data.cart) {
         setCart(response.data.cart);
         Toast.show({
@@ -213,14 +213,14 @@ const CartScreen = () => {
     }
   };
 
-  const removeCoupon = async () => {
+  const handleRemoveCoupon = async () => {
     if (!cart?.couponCode) return;
 
     try {
       setIsUpdating(true);
-      
-      const response = await removeCoupon();
-      
+
+      const response = await removeCouponService();
+
       if (response.success && response.data.cart) {
         setCart(response.data.cart);
         Toast.show({
@@ -253,7 +253,7 @@ const CartScreen = () => {
 
     // Navigate to checkout screen with cart data
     // Shipping will be calculated in checkout based on delivery address
-    navigation.navigate('Checkout', { cart });
+    navigation.navigate('Checkout', { cart } as any);
   };
 
   const renderCartItem = (item: CartItem) => {
@@ -450,7 +450,7 @@ const CartScreen = () => {
               {cart.couponCode ? (
                 <TouchableOpacity
                   className="bg-gray-200 px-6 py-3 rounded-lg items-center justify-center"
-                  onPress={removeCoupon}
+                  onPress={handleRemoveCoupon}
                   disabled={isUpdating}
                 >
                   <Text className="text-gray-700 font-semibold">Remove</Text>
@@ -458,7 +458,7 @@ const CartScreen = () => {
               ) : (
                 <TouchableOpacity
                   className="bg-pink-500 px-6 py-3 rounded-lg items-center justify-center"
-                  onPress={applyCoupon}
+                  onPress={handleApplyCoupon}
                   disabled={isApplyingCoupon}
                 >
                   {isApplyingCoupon ? (

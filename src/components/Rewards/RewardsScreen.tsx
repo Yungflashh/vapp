@@ -104,11 +104,11 @@ const RewardsScreen = ({ navigation }: RewardsScreenProps) => {
 
       const response = await redeemPoints(selectedReward.pointsCost);
 
-      if (response.data.success) {
+      if (response.success) {
         Toast.show({
           type: 'success',
           text1: 'Success!',
-          text2: response.data.message,
+          text2: response.message,
         });
 
         // Refresh data

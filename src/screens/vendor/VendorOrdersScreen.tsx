@@ -1,8 +1,4 @@
-// ============================================================
-// PREMIUM VENDOR ORDERS SCREEN
-// File: screens/vendor/VendorOrdersScreen.tsx
-// Clean, spacious design with refined visual hierarchy
-// ============================================================
+
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
@@ -24,7 +20,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getVendorOrders, updateVendorOrderStatus } from '@/services/order.service';
-import { RootStackParamList } from '@/navigation/AppNavigator';
+import { RootStackParamList } from '@/navigation/index';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -341,9 +337,9 @@ const VendorOrdersScreen: React.FC = () => {
 
       const res = await getVendorOrders(pg, 20);
 
-      if (res.data?.success) {
-        const fetched: VendorOrder[] = res.data.data?.orders || [];
-        const meta = res.data.meta;
+      if (res.success) {
+        const fetched: VendorOrder[] = res.data?.orders || [];
+        const meta = res.meta;
 
         if (pg === 1) {
           setOrders(fetched);

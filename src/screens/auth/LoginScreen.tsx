@@ -6,7 +6,6 @@ import { AuthStackParamList } from '@/navigation/AuthNavigator';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Toast from 'react-native-toast-message';
 import { login as authLogin } from '@/services/auth.service';
-import { getMyVendorProfile } from '@/services/vendor.service';
 import { appleLogin } from '@/services/Oauth.service';
 import { useAuth } from '@/context/AuthContext';
 import * as AppleAuthentication from 'expo-apple-authentication';
@@ -32,44 +31,6 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
       checkAppleAuth();
     }
   }, []);
-
-  const checkVendorSetupStatus = async (userRole: string) => {
-    if (userRole !== 'vendor') {
-      return true;
-    }
-
-    try {
-      const response = await getMyVendorProfile();
-      
-      if (response.success && response.data.vendorProfile) {
-        const profile = response.data.vendorProfile;
-        
-        const hasBusinessInfo = !!(
-          profile.businessName &&
-          profile.businessDescription &&
-          profile.businessAddress?.street &&
-          profile.businessAddress?.city &&
-          profile.businessAddress?.state &&
-          profile.businessPhone &&
-          profile.businessEmail
-        );
-        
-        const hasPayoutDetails = !!(
-          profile.payoutDetails?.bankName &&
-          profile.payoutDetails?.accountNumber &&
-          profile.payoutDetails?.accountName &&
-          profile.payoutDetails?.bankCode
-        );
-        
-        return hasBusinessInfo && hasPayoutDetails;
-      }
-      
-      return false;
-    } catch (error: any) {
-      // It's better to log this error to a proper monitoring service
-      return false;
-    }
-  };
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -104,24 +65,10 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
           text2: `${user.firstName} ${user.lastName}`,
         });
         
-        const isVendorSetupComplete = await checkVendorSetupStatus(user.role);
-        
-        if (user.role === 'vendor' && !isVendorSetupComplete) {
-          Toast.show({
-            type: 'info',
-            text1: 'Complete Your Setup',
-            text2: 'Please complete your vendor profile to continue',
-            visibilityTime: 4000,
-          });
-          
-          setTimeout(() => {
-            login();
-          }, 1000);
-        } else {
-          setTimeout(() => {
-            login();
-          }, 500);
-        }
+        // Just call login() - let AppNavigator handle routing logic
+        setTimeout(() => {
+          login();
+        }, 500);
       } else {
         Toast.show({
           type: 'error',
@@ -190,24 +137,10 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
           text2: `${user.firstName} ${user.lastName}`,
         });
         
-        const isVendorSetupComplete = await checkVendorSetupStatus(user.role);
-        
-        if (user.role === 'vendor' && !isVendorSetupComplete) {
-          Toast.show({
-            type: 'info',
-            text1: 'Complete Your Setup',
-            text2: 'Please complete your vendor profile to continue',
-            visibilityTime: 4000,
-          });
-          
-          setTimeout(() => {
-            login();
-          }, 1000);
-        } else {
-          setTimeout(() => {
-            login();
-          }, 500);
-        }
+        // Just call login() - let AppNavigator handle routing logic
+        setTimeout(() => {
+          login();
+        }, 500);
       }
     } catch (error: any) {
       if (error.code === 'ERR_CANCELED') {

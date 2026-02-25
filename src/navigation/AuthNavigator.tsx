@@ -15,9 +15,12 @@ import ResetPasswordScreen from '@/screens/auth/ResetPasswordScreen';
 // navigation/AuthNavigator.tsx
 export type AuthStackParamList = {
   Onboarding: undefined;
+  Splash1: undefined;
+  Splash2: undefined;
+  Splash3: undefined;
   Login: undefined;
   Register: undefined;
-  OTPVerification: { email: string };
+  OTPVerification: { email: string; isVendor?: boolean };
   VendorSetup: undefined;
   PaymentSetup: undefined;
   RegistrationSuccess: undefined;

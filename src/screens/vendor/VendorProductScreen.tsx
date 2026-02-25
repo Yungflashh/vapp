@@ -48,7 +48,7 @@ const VendorProductsScreen = () => {
     lowStock: 0,
     outOfStock: 0,
   });
-  
+
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [totalPages, setTotalPages] = useState(1);
@@ -70,28 +70,28 @@ const VendorProductsScreen = () => {
         setLoadingMore(true);
       }
 
-      const response = await getMyProducts(page, ITEMS_PER_PAGE);
-      
-      if (response.data.success) {
-        const newProducts = response.data.data.products;
-        const meta = response.data.meta || response.data.data;
-        
+     const response = await getMyProducts(page, ITEMS_PER_PAGE);
+console.log('My products response:', JSON.stringify(response, null, 2));
+
+      if (response.success) {
+        const newProducts = response.data.products;
+
         if (append && page > 1) {
           setProducts(prev => [...prev, ...newProducts]);
         } else {
           setProducts(newProducts);
         }
-        
+
         setCurrentPage(page);
-        setHasMore(response.data.data.hasMore || false);
-        setTotalPages(meta.totalPages || 1);
-        
+        setHasMore(response.data.hasMore || false);
+        setTotalPages(Math.ceil(response.data.total / ITEMS_PER_PAGE));
+
         if (page === 1) {
-          if (response.data.data.stats) {
+          if ((response.data as any).stats) {
             setStats({
-              totalProducts: response.data.data.stats.total || 0,
-              lowStock: response.data.data.stats.lowStock || 0,
-              outOfStock: response.data.data.stats.outOfStock || 0,
+              totalProducts: (response.data as any).stats.total || 0,
+              lowStock: (response.data as any).stats.lowStock || 0,
+              outOfStock: (response.data as any).stats.outOfStock || 0,
             });
           } else {
             calculateStats(newProducts);
@@ -371,7 +371,7 @@ const VendorProductsScreen = () => {
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: '#FFF0F5' }} edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFF0F5" />
-      
+
       {/* Header */}
       <View className="px-6 pt-4 pb-6">
         <View className="flex-row items-center justify-between mb-4">
@@ -436,7 +436,7 @@ const VendorProductsScreen = () => {
         onScroll={({ nativeEvent }) => {
           const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
           const isCloseToBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - 500;
-          
+
           if (isCloseToBottom) {
             handleEndReached();
           }
@@ -477,93 +477,33 @@ const VendorProductsScreen = () => {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 24, marginBottom: 16 }}
         >
-          <TouchableOpacity
-            onPress={() => setActiveFilter('all')}
-            className={`px-5 py-2.5 rounded-xl mr-3 ${
-              activeFilter === 'all' ? 'bg-pink-500' : 'bg-white'
-            }`}
-            style={activeFilter !== 'all' && {
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.05,
-              shadowRadius: 2,
-              elevation: 2,
-            }}
-          >
-            <Text
-              className={`text-sm font-bold ${
-                activeFilter === 'all' ? 'text-white' : 'text-gray-700'
-              }`}
-            >
-              All Products
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            onPress={() => setActiveFilter('active')}
-            className={`px-5 py-2.5 rounded-xl mr-3 ${
-              activeFilter === 'active' ? 'bg-pink-500' : 'bg-white'
-            }`}
-            style={activeFilter !== 'active' && {
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.05,
-              shadowRadius: 2,
-              elevation: 2,
-            }}
-          >
-            <Text
-              className={`text-sm font-bold ${
-                activeFilter === 'active' ? 'text-white' : 'text-gray-700'
-              }`}
-            >
-              In Stock
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            onPress={() => setActiveFilter('low')}
-            className={`px-5 py-2.5 rounded-xl mr-3 ${
-              activeFilter === 'low' ? 'bg-pink-500' : 'bg-white'
-            }`}
-            style={activeFilter !== 'low' && {
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.05,
-              shadowRadius: 2,
-              elevation: 2,
-            }}
-          >
-            <Text
-              className={`text-sm font-bold ${
-                activeFilter === 'low' ? 'text-white' : 'text-gray-700'
-              }`}
-            >
-              Low Stock
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            onPress={() => setActiveFilter('out')}
-            className={`px-5 py-2.5 rounded-xl ${
-              activeFilter === 'out' ? 'bg-pink-500' : 'bg-white'
-            }`}
-            style={activeFilter !== 'out' && {
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.05,
-              shadowRadius: 2,
-              elevation: 2,
-            }}
-          >
-            <Text
-              className={`text-sm font-bold ${
-                activeFilter === 'out' ? 'text-white' : 'text-gray-700'
-              }`}
-            >
-              Out of Stock
-            </Text>
-          </TouchableOpacity>
+          {(['all', 'active', 'low', 'out'] as const).map((filter) => {
+            const labels: Record<StockFilter, string> = {
+              all: 'All Products',
+              active: 'In Stock',
+              low: 'Low Stock',
+              out: 'Out of Stock',
+            };
+            const isActive = activeFilter === filter;
+            return (
+              <TouchableOpacity
+                key={filter}
+                onPress={() => setActiveFilter(filter)}
+                className={`px-5 py-2.5 rounded-xl mr-3 ${isActive ? 'bg-pink-500' : 'bg-white'}`}
+                style={!isActive ? {
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.05,
+                  shadowRadius: 2,
+                  elevation: 2,
+                } : undefined}
+              >
+                <Text className={`text-sm font-bold ${isActive ? 'text-white' : 'text-gray-700'}`}>
+                  {labels[filter]}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
 
         {/* Products List */}
@@ -593,14 +533,14 @@ const VendorProductsScreen = () => {
           ) : (
             <>
               {filteredProducts.map(renderProductCard)}
-              
+
               {loadingMore && (
                 <View className="py-4 items-center">
                   <ActivityIndicator size="small" color="#EC4899" />
                   <Text className="text-gray-500 text-sm mt-2">Loading more...</Text>
                 </View>
               )}
-              
+
               {!hasMore && filteredProducts.length > 0 && (
                 <View className="py-6 items-center">
                   <View className="w-12 h-12 rounded-full bg-pink-50 items-center justify-center mb-2">

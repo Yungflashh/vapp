@@ -33,6 +33,7 @@ import VendorStorefrontSetupScreen from '@/components/VendorComponentsScreen/Pro
 import VendorBankSetupScreen from '@/components/VendorComponentsScreen/Profile/VendorBankSetupScreen';
 import VendorOrderDetailScreen from '@/components/VendorComponentsScreen/Orders/VendorOrderDetailScreen';
 import DeleteAccountScreen from '@/components/VendorComponentsScreen/DeleteAccount/DeleteAccountScreen';
+import WriteReviewScreen from '@/components/Reviews/WriteReviewScreen';
 
 export type RootStackParamList = {
   Main: undefined;
@@ -44,11 +45,11 @@ export type RootStackParamList = {
   ProductDetails: { productId: string };
   Cart: undefined;
   Categories: undefined;
-  Checkout: undefined;
+  Checkout: { cart?: any } | undefined;
   VendorProfile: { vendorId: string };
-  Wishlist: undefined; 
-  Settings: undefined; 
-  Affiliate: undefined; 
+  Wishlist: undefined;
+  Settings: undefined;
+  Affiliate: undefined;
   Rewards: undefined;
   PointsHistory: undefined;
   Orders: undefined;
@@ -56,15 +57,23 @@ export type RootStackParamList = {
   TrackOrder: { orderId: string };
   MyDigitalProducts: undefined;
   AddProduct: undefined;
-  VendorProductDetail: { productId: string }; 
+  VendorProductDetail: { productId: string };
   VendorEditProfile: undefined;
   VendorStoreSetup: undefined;
   VendorStorefrontSetup: undefined;
   VendorKYCVerification: undefined;
   VendorBankSetup: undefined;
-  VendorOrderDetail: { orderId: string };  
+  VendorOrderDetail: { orderId: string };
   DeleteAccount: undefined;
-
+  SavedAddresses: undefined;
+  WriteReview: {
+      orderId: string;
+      items: Array<{
+        product: string;
+        productName: string;
+        productImage?: string;
+      }>;
+   };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -90,9 +99,11 @@ function AppNavigator() {
         // Check if vendor has completed profile setup
         try {
           const response = await getMyVendorProfile();
+          console.log('Vendor profile response:', JSON.stringify(response.data, null, 2));
+
           
-          if (response.data.success && response.data.data.vendorProfile) {
-            const profile = response.data.data.vendorProfile;
+          if (response.data.vendorProfile) {
+              const profile = response.data.vendorProfile;
             
             // Check if vendor has completed all required fields
             const hasBusinessInfo = !!(
@@ -308,6 +319,11 @@ function AppNavigator() {
   component={DeleteAccountScreen}
   options={{ headerShown: false }}
 />
+ <Stack.Screen
+      name="WriteReview"
+      component={WriteReviewScreen}
+      options={{ headerShown: false }}
+    />
 
     </Stack.Navigator>
   );

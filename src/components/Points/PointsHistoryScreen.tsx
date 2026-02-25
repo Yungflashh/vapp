@@ -38,8 +38,8 @@ const PointsHistoryScreen = ({ navigation }: PointsHistoryScreenProps) => {
       setIsLoading(true);
       const response = await getPointsHistory();
       
-      if (response.data.success) {
-        setHistory(response.data.data.history);
+      if (response.success) {
+        setHistory(response.data.history);
       }
     } catch (error) {
       console.error('❌ Fetch history error:', error);

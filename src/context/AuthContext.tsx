@@ -17,6 +17,7 @@ interface AuthContextType {
   login: () => void;
   logout: () => void;
   updateUser: (userData: User) => void;
+  refreshUser: () => Promise<void>; // ✅ Add this
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -37,6 +38,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (token && userData) {
         const parsedUser = JSON.parse(userData);
+        console.log('User data stored:', parsedUser);
         setUser(parsedUser);
         setIsAuthenticated(true);
       }
@@ -78,12 +80,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     AsyncStorage.setItem('userData', JSON.stringify(userData));
   };
 
+  // ✅ Add this new function
+  const refreshUser = async () => {
+    try {
+      console.log('🔄 Refreshing user data...');
+      const userData = await AsyncStorage.getItem('userData');
+      if (userData) {
+        const parsedUser = JSON.parse(userData);
+        console.log('✅ User data refreshed:', parsedUser);
+        setUser(parsedUser);
+        // Force a re-render by updating the state
+        setUser(prevUser => ({ ...parsedUser }));
+      }
+    } catch (error) {
+      console.error('❌ Error refreshing user:', error);
+    }
+  };
+
   if (isLoading) {
     return null; // Or a loading spinner
   }
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, logout, updateUser }}>
+    <AuthContext.Provider value={{ 
+      isAuthenticated, 
+      user, 
+      login, 
+      logout, 
+      updateUser,
+      refreshUser // ✅ Add this
+    }}>
       {children}
     </AuthContext.Provider>
   );
