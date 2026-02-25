@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc:*)",
+      "Bash(head:*)",
+      "mcp__ide__getDiagnostics"
+    ]
+  }
+}

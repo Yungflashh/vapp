@@ -45,6 +45,8 @@ export interface Vendor {
   verified: boolean;
   followers?: number;
   isFollowing?: boolean;
+  phone?: string;
+  responseRate?: number;
 }
 
 export interface VendorsResponse {

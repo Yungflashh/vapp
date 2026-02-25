@@ -18,41 +18,13 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import Toast from 'react-native-toast-message';
 import * as Clipboard from 'expo-clipboard';
 import { getCurrentUser } from '@/services/auth.service';
-import { activateAffiliate, getAffiliateDashboard, getAffiliateEarnings, AffiliateDashboard, AffiliateEarnings } from '@/services/affiliate.service';
+import { activateAffiliate, getAffiliateDashboard, getAffiliateEarnings, type AffiliateDashboard, type AffiliateEarnings } from '@/services/affiliate.service';
 
 type AffiliateScreenProps = NativeStackScreenProps<RootStackParamList, 'Affiliate'>;
 
-interface AffiliateDashboard {
-  summary: {
-    affiliateCode: string;
-    totalClicks: number;
-    totalConversions: number;
-    totalEarnings: number;
-    conversionRate: string;
-    availableBalance: number;
-  };
-  links: any[];
-  topPerformingLinks: any[];
-  recentConversions: any[];
-}
-
-interface EarningsData {
-  period: string;
-  summary: {
-    totalOrders: number;
-    totalEarnings: number;
-    averageCommission: number;
-  };
-  earningsByDate: Array<{
-    date: string;
-    orders: number;
-    earnings: number;
-  }>;
-}
-
 const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
   const [dashboard, setDashboard] = useState<AffiliateDashboard | null>(null);
-  const [earningsData, setEarningsData] = useState<EarningsData | null>(null);
+  const [earningsData, setEarningsData] = useState<AffiliateEarnings | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<'7days' | '30days' | '90days'>('30days');
   const [chartPeriod, setChartPeriod] = useState<'Weekly' | 'Monthly'>('Weekly');
   const [isLoading, setIsLoading] = useState(true);
@@ -130,11 +102,11 @@ const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
       // Fetch dashboard
       console.log('🔄 Fetching affiliate dashboard...');
       const dashboardResponse = await getAffiliateDashboard();
-      console.log('📥 Dashboard Response:', dashboardResponse.data);
-      
-      if (dashboardResponse.data.success) {
+      console.log('📥 Dashboard Response:', dashboardResponse);
+
+      if (dashboardResponse.success) {
         console.log('✅ Dashboard data received');
-        const data = dashboardResponse.data.data;
+        const data = dashboardResponse.data;
         console.log('📈 Summary:', data.summary);
         console.log('🔗 Links count:', data.links?.length || 0);
         console.log('🏆 Top performing links count:', data.topPerformingLinks?.length || 0);
@@ -145,11 +117,11 @@ const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
       // Fetch earnings
       console.log(`🔄 Fetching affiliate earnings (period: ${selectedPeriod})...`);
       const earningsResponse = await getAffiliateEarnings(selectedPeriod);
-      console.log('📥 Earnings Response:', earningsResponse.data);
-      
-      if (earningsResponse.data.success) {
+      console.log('📥 Earnings Response:', earningsResponse);
+
+      if (earningsResponse.success) {
         console.log('✅ Earnings data received');
-        const data = earningsResponse.data.data;
+        const data = earningsResponse.data;
         console.log('💰 Earnings Summary:', {
           period: data.period,
           totalOrders: data.summary.totalOrders,
@@ -181,8 +153,8 @@ const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
     try {
       setIsActivating(true);
       const response = await activateAffiliate();
-      
-      if (response.data.success) {
+
+      if (response.success) {
         Toast.show({
           type: 'success',
           text1: 'Success!',

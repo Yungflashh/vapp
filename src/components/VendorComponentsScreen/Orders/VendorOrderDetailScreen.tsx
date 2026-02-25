@@ -359,8 +359,8 @@ const VendorOrderDetailScreen: React.FC = () => {
 
         const res = await getVendorOrderById(orderId);
 
-        if (res.data?.success) {
-          setOrder(res.data.data?.order || null);
+        if (res.success) {
+          setOrder(res.data?.order || null);
         }
       } catch (err: any) {
         console.error('❌ Fetch vendor order error:', err?.response?.data || err?.message);

@@ -9,7 +9,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 type OTPVerificationScreenProps = NativeStackScreenProps<AuthStackParamList, 'OTPVerification'>;
 
 const OTPVerificationScreen = ({ navigation, route }: OTPVerificationScreenProps) => {
-  const { email, isVendor } = route.params;
+  const { email, isVendor } = route.params as { email: string; isVendor?: boolean };
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
@@ -179,7 +179,7 @@ const OTPVerificationScreen = ({ navigation, route }: OTPVerificationScreenProps
           {otp.map((digit, index) => (
             <TextInput
               key={index}
-              ref={(ref) => (inputRefs.current[index] = ref)}
+              ref={(ref: TextInput | null) => { inputRefs.current[index] = ref; }}
               className="w-12 h-14 border-2 border-gray-200 rounded-lg text-center text-xl font-bold text-gray-900"
               maxLength={1}
               keyboardType="number-pad"

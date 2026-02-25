@@ -18,7 +18,7 @@ export interface WishlistResponse {
     wishlist: {
       _id: string;
       user: string;
-      items: Product[];
+      items: any[];
       createdAt: string;
       updatedAt: string;
     };

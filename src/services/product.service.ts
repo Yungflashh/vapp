@@ -179,6 +179,22 @@ export const getProductsByCategory = async (
   }
 };
 
+export const getSimilarProducts = async (
+  productId: string,
+  limit = 10
+): Promise<any> => {
+  try {
+    const response = await api.get(`/products/${productId}/similar`, {
+      params: { limit },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('❌ Get similar products error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};
+
 /**
  * Get single product by ID
  */
@@ -320,9 +336,9 @@ export const getMyProducts = async (
       `/products/my-products?${params.toString()}`
     );
     
-    console.log('✅ My products fetched:', response.data.data.products.length);
-    if (response.data.data.stats) {
-      console.log('📊 Stats:', response.data.data.stats);
+console.log('✅ My products fetched:', response.data.data?.products?.length);
+    if (response.data.stats) {
+      console.log('📊 Stats:', response.data.stats);
     }
     
     return response.data;

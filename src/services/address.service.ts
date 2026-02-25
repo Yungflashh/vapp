@@ -33,6 +33,7 @@ export interface SingleAddressResponse {
   message?: string;
   data: {
     address: Address;
+    validated?: boolean;
   };
 }
 

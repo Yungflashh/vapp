@@ -675,14 +675,35 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
             </TouchableOpacity>
           )}
 
+        {/* Write Review Button */}
+          {order.status === 'delivered' && order.paymentStatus === 'completed' && (
+            <TouchableOpacity
+              onPress={() => {
+                navigation.navigate('WriteReview' as any, {
+                  orderId: order._id,
+                  items: order.items.map((item: any) => ({
+                    product: item.product,
+                    productName: item.productName,
+                    productImage: item.productImage,
+                  })),
+                });
+              }}
+              className="bg-amber-500 py-4 rounded-xl mb-3"
+            >
+              <View className="flex-row items-center justify-center">
+                <Icon name="star" size={20} color="#FFFFFF" />
+                <Text className="text-white font-bold ml-2">Write a Review</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
             onPress={() => {
               console.log('ℹ️ Help button pressed');
-              // Navigate to support or help
             }}
             className="bg-gray-100 py-4 rounded-xl"
           >
-            <Text className="text-gray-900 font-bold text-center">Need Help?</Text>
+            <Text className="text-gray-900 font-bold text-center">Need Help oo?</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
