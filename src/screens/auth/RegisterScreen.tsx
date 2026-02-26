@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, useWindowDimensions, Keyboard, TextInput as RNTextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '@/navigation/AuthNavigator';
@@ -17,6 +17,37 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
   const [showPassword, setShowPassword] = useState(false);
   const [hearAbout, setHearAbout] = useState('');
   const [loading, setLoading] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const { width } = useWindowDimensions();
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  const isTablet = width >= 768;
+  const formMaxWidth = isTablet ? 420 : undefined;
+
+  // Refs for focusing next input
+  const emailRef = useRef<RNTextInput>(null);
+  const phoneRef = useRef<RNTextInput>(null);
+  const passwordRef = useRef<RNTextInput>(null);
+  const hearAboutRef = useRef<RNTextInput>(null);
+
+  // Listen for keyboard events to get actual keyboard height
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const keyboardShowListener = Keyboard.addListener(showEvent, (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+
+    const keyboardHideListener = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      keyboardShowListener.remove();
+      keyboardHideListener.remove();
+    };
+  }, []);
 
   // Password strength calculation
   const getPasswordStrength = (pass: string): { strength: string; color: string } => {
@@ -43,7 +74,6 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
       return false;
     }
 
-    // Split full name into first and last name
     const nameParts = fullName.trim().split(' ');
     if (nameParts.length < 2) {
       Alert.alert('Validation Error', 'Please enter both first and last name');
@@ -55,7 +85,6 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
       return false;
     }
 
-    // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       Alert.alert('Validation Error', 'Please enter a valid email address');
@@ -81,7 +110,8 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
   };
 
   const handleRegister = async () => {
-    // Validate form
+    Keyboard.dismiss();
+    
     if (!validateForm()) {
       return;
     }
@@ -89,12 +119,10 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
     setLoading(true);
 
     try {
-      // Split full name into first and last name
       const nameParts = fullName.trim().split(' ');
       const firstName = nameParts[0];
       const lastName = nameParts.slice(1).join(' ');
 
-      // Prepare registration data
       const registrationData = {
         fullName: `${firstName} ${lastName}`,
         email: email.trim().toLowerCase(),
@@ -109,12 +137,10 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
         password: '***hidden***',
       });
 
-      // Call registration API
       const response = await register(registrationData);
 
       console.log('✅ Registration successful:', response);
 
-      // Show success message
       Alert.alert(
         'Success',
         'Registration successful! Please check your email for the verification code.',
@@ -122,7 +148,6 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
           {
             text: 'OK',
             onPress: () => {
-              // Navigate to OTP verification screen
               navigation.navigate('OTPVerification', {
                 email: email.trim().toLowerCase(),
                 isVendor: isVendor,
@@ -134,7 +159,6 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
     } catch (error: any) {
       console.error('❌ Registration error:', error);
 
-      // Handle specific error messages
       let errorMessage = 'Registration failed. Please try again.';
 
       if (error.response?.data?.message) {
@@ -149,18 +173,36 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
     }
   };
 
+  // Handle focus on inputs - scroll to make them visible
+  const handleInputFocus = (inputRef: React.RefObject<RNTextInput>) => {
+    setTimeout(() => {
+      inputRef.current?.measureInWindow((_x, y, _width, height) => {
+        scrollViewRef.current?.scrollTo({
+          y: y - 150,
+          animated: true,
+        });
+      });
+    }, 300);
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-white">
-      <KeyboardAvoidingView 
+      <ScrollView 
+        ref={scrollViewRef}
         className="flex-1"
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        contentContainerStyle={{
+          flexGrow: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          paddingHorizontal: 24,
+          paddingVertical: 16,
+          paddingBottom: keyboardHeight > 0 ? keyboardHeight : 16,
+        }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        <ScrollView 
-          className="flex-1"
-          contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16 }}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
+        {/* Responsive centered container */}
+        <View style={{ width: '100%', maxWidth: formMaxWidth }}>
           {/* Back Button */}
           <TouchableOpacity 
             className="w-10 h-10 justify-center mb-4"
@@ -218,6 +260,9 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
               onChangeText={setFullName}
               editable={!loading}
               autoCapitalize="words"
+              returnKeyType="next"
+              onSubmitEditing={() => emailRef.current?.focus()}
+              blurOnSubmit={false}
             />
           </View>
 
@@ -225,6 +270,7 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
           <View className="flex-row items-center border border-gray-200 rounded-lg px-4 py-3 mb-4">
             <Icon name="mail-outline" size={20} color="#9CA3AF" />
             <TextInput
+              ref={emailRef}
               className="flex-1 ml-3 text-base text-gray-900"
               placeholder="Email"
               placeholderTextColor="#9CA3AF"
@@ -233,6 +279,10 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
               keyboardType="email-address"
               autoCapitalize="none"
               editable={!loading}
+              returnKeyType="next"
+              onSubmitEditing={() => phoneRef.current?.focus()}
+              onFocus={() => handleInputFocus(emailRef)}
+              blurOnSubmit={false}
             />
           </View>
 
@@ -240,6 +290,7 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
           <View className="flex-row items-center border border-gray-200 rounded-lg px-4 py-3 mb-4">
             <Icon name="call-outline" size={20} color="#9CA3AF" />
             <TextInput
+              ref={phoneRef}
               className="flex-1 ml-3 text-base text-gray-900"
               placeholder="Phone Number"
               placeholderTextColor="#9CA3AF"
@@ -247,6 +298,10 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
               onChangeText={setPhone}
               keyboardType="phone-pad"
               editable={!loading}
+              returnKeyType="next"
+              onSubmitEditing={() => passwordRef.current?.focus()}
+              onFocus={() => handleInputFocus(phoneRef)}
+              blurOnSubmit={false}
             />
           </View>
 
@@ -254,6 +309,7 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
           <View className="flex-row items-center border border-gray-200 rounded-lg px-4 py-3 mb-4">
             <Icon name="lock-closed-outline" size={20} color="#9CA3AF" />
             <TextInput
+              ref={passwordRef}
               className="flex-1 ml-3 text-base text-gray-900"
               placeholder="Password"
               placeholderTextColor="#9CA3AF"
@@ -261,6 +317,10 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
               editable={!loading}
+              returnKeyType="next"
+              onSubmitEditing={() => hearAboutRef.current?.focus()}
+              onFocus={() => handleInputFocus(passwordRef)}
+              blurOnSubmit={false}
             />
             <TouchableOpacity onPress={() => setShowPassword(!showPassword)} disabled={loading}>
               <Icon 
@@ -282,12 +342,16 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
               How did you hear about Vendorspot? (Optional)
             </Text>
             <TextInput
+              ref={hearAboutRef}
               className="text-base text-gray-900"
               placeholder="Select option"
               placeholderTextColor="#9CA3AF"
               value={hearAbout}
               onChangeText={setHearAbout}
               editable={!loading}
+              returnKeyType="done"
+              onFocus={() => handleInputFocus(hearAboutRef)}
+              onSubmitEditing={() => Keyboard.dismiss()}
             />
           </View>
 
@@ -313,8 +377,8 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
             <Text className="text-pink-500">Vendorspot General Terms of Use</Text> &{' '}
             <Text className="text-pink-500">General Privacy Policy</Text>.
           </Text>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };

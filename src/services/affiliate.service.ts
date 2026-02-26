@@ -12,6 +12,8 @@ export interface AffiliateDashboard {
     totalEarnings: number;
     conversionRate: string;
     availableBalance: number;
+    pendingBalance: number;
+    totalWithdrawn: number;
   };
   links: any[];
   topPerformingLinks: any[];

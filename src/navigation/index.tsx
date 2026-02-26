@@ -34,6 +34,14 @@ import VendorBankSetupScreen from '@/components/VendorComponentsScreen/Profile/V
 import VendorOrderDetailScreen from '@/components/VendorComponentsScreen/Orders/VendorOrderDetailScreen';
 import DeleteAccountScreen from '@/components/VendorComponentsScreen/DeleteAccount/DeleteAccountScreen';
 import WriteReviewScreen from '@/components/Reviews/WriteReviewScreen';
+import EditProfileScreen from '@/components/Settings/EditProfileScreen';
+import DisputeCenterScreen from '@/components/Settings/DisputeCenterScreen';
+import NotificationSettingsScreen from '@/components/Settings/NotificationSettingsScreen';
+import SavedAddressesScreen from '@/components/Settings/SavedAddressesScreen';
+import PaymentWebViewScreen from '@/components/Payments/PaymentWebView';
+import FileDisputeScreen from '@/components/Dispute/FileDisputeScreen';
+import DisputeDetailsScreen from '@/components/Dispute/DisputeDetailsScreen';
+import ChallengesScreen from '@/components/Challenges/ChallengesScreen';
 
 export type RootStackParamList = {
   Main: undefined;
@@ -74,6 +82,20 @@ export type RootStackParamList = {
         productImage?: string;
       }>;
    };
+   EditProfile: undefined;
+   DisputeCenter: undefined;
+   DisputeDetails: { disputeId: string; openMessageInput?: boolean };
+   FileDispute: { orderId: string; orderNumber: string; items: any[]; vendorId?: string };
+
+   NotificationSettings: undefined;
+     PaymentWebView: {
+    paymentUrl: string;
+    reference: string;
+    provider: 'paystack' | 'flutterwave';
+    checkoutSnapshot: any;
+  };
+  Challenges: undefined;
+
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -324,6 +346,49 @@ function AppNavigator() {
       component={WriteReviewScreen}
       options={{ headerShown: false }}
     />
+ <Stack.Screen
+      name="EditProfile"
+      component={EditProfileScreen}
+      options={{ headerShown: false }}
+    />
+ <Stack.Screen
+      name="DisputeCenter"
+      component={DisputeCenterScreen}
+      options={{ headerShown: false }}
+    />
+ <Stack.Screen
+      name="NotificationSettings"
+      component={NotificationSettingsScreen}
+      options={{ headerShown: false }}
+    />
+ <Stack.Screen
+      name="SavedAddresses"
+      component={SavedAddressesScreen}
+      options={{ headerShown: false }}
+    />
+
+    <Stack.Screen
+  name="PaymentWebView"
+  component={PaymentWebViewScreen}
+  options={{
+    headerShown: false,
+    // Prevent swipe-back on iOS (user might accidentally cancel payment)
+    gestureEnabled: false,
+  }}
+/>
+
+<Stack.Screen name="FileDispute" component={FileDisputeScreen} options={{ headerShown: false }} />
+<Stack.Screen 
+  name="DisputeDetails" 
+  component={DisputeDetailsScreen} 
+  options={{ headerShown: false }} 
+/>
+<Stack.Screen 
+  name="Challenges" 
+  component={ChallengesScreen} 
+  options={{ headerShown: false }} 
+/>
+
 
     </Stack.Navigator>
   );

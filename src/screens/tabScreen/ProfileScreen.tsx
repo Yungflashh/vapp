@@ -163,7 +163,7 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
         text1: 'Logged Out',
         text2: 'You have been logged out successfully',
       });
-      navigation.reset({
+      navigation.navigate({
         index: 0,
         routes: [{ name: 'Login' }],
       });
@@ -182,11 +182,11 @@ const quickActions = [
   { id: 'orders', icon: 'receipt', label: 'Orders', color: '#EC4899', screen: 'Orders' },
   { id: 'rewards', icon: 'trophy', label: 'Rewards', color: '#F59E0B', screen: 'Rewards' },
   { id: 'addresses', icon: 'location', label: 'Addresses', color: '#10B981', screen: 'SavedAddresses' },
-  { id: 'reviews', icon: 'star', label: 'Reviews', color: '#3B82F6', screen: null },
+  // { id: 'reviews', icon: 'star', label: 'Reviews', color: '#3B82F6', screen: null },
   { id: 'wishlist', icon: 'heart', label: 'Wishlist', color: '#EF4444', screen: 'Wishlist' },
   { id: 'affiliate', icon: 'diamond', label: 'Affiliate', color: '#8B5CF6', screen: 'Affiliate' }, // ✅ Updated this line
-  { id: 'dispute', icon: 'help-circle', label: 'Dispute', color: '#6B7280', screen: null },
-  { id: 'leaderboards', icon: 'bar-chart', label: 'Leaderboards', color: '#06B6D4', screen: null },
+  { id: 'dispute', icon: 'help-circle', label: 'Dispute', color: '#6B7280', screen: 'DisputeCenter' },
+  { id: 'leaderboards', icon: 'bar-chart', label: 'Missions', color: '#06B6D4', screen: 'Challenges' },
 ];
 
 

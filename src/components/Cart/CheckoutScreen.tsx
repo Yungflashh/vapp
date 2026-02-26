@@ -1,5 +1,6 @@
-// EXPO-COMPATIBLE VERSION - FIXED WITH ACTUAL SHIPPING PRICES
-// Passes selected delivery price and courier info to backend
+// screens/CheckoutScreen.tsx
+// ✅ FIXED: Shows all couriers individually, sends correct deliveryType to backend
+// Changes marked with "✅ FIX"
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -28,7 +29,7 @@ import {
   setDefaultAddress,
   CreateAddressRequest,
 } from '@/services/address.service';
-import { getDeliveryRates, createOrder } from '@/services/order.service';
+import { getDeliveryRates, createOrder, initializePayment } from '@/services/order.service';
 import { Cart } from '@/services/cart.service';
 
 interface DeliveryOption {
@@ -81,7 +82,7 @@ const CheckoutScreen = () => {
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
   const [deliveryOptions, setDeliveryOptions] = useState<DeliveryOption[]>([]);
   const [selectedDeliveryOption, setSelectedDeliveryOption] = useState<string>('');
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'paystack' | 'wallet' | 'cash_on_delivery'>('paystack');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'paystack' | 'flutterwave' | 'wallet'>('paystack');
   const [showAddAddressModal, setShowAddAddressModal] = useState(false);
   const [orderNotes, setOrderNotes] = useState('');
   const [formErrors, setFormErrors] = useState<FormErrors>({});
@@ -106,10 +107,17 @@ const CheckoutScreen = () => {
   const paymentMethods: PaymentMethod[] = [
     {
       id: 'paystack',
-      name: 'Pay with Card (Paystack)',
+      name: 'Pay with Paystack',
       icon: 'card-outline',
       color: '#00C3F9',
       description: 'Pay securely with your debit/credit card',
+    },
+    {
+      id: 'flutterwave',
+      name: 'Pay with Flutterwave',
+      icon: 'flash-outline',
+      color: '#F5A623',
+      description: 'Card, bank transfer, USSD & more',
     },
     {
       id: 'wallet',
@@ -117,13 +125,6 @@ const CheckoutScreen = () => {
       icon: 'wallet-outline',
       color: '#6366F1',
       description: 'Use your wallet balance',
-    },
-    {
-      id: 'cash_on_delivery',
-      name: 'Cash on Delivery',
-      icon: 'cash-outline',
-      color: '#10B981',
-      description: 'Pay when you receive your order',
     },
   ];
 
@@ -201,6 +202,7 @@ const CheckoutScreen = () => {
             name: rate.name,
             price: rate.price,
             courier: rate.courier,
+            type: rate.type,
             hasBreakdown: !!rate.vendorBreakdown,
           });
           
@@ -222,11 +224,15 @@ const CheckoutScreen = () => {
         console.log('✅ Formatted delivery options:', formattedRates.length);
         setDeliveryOptions(formattedRates);
         
-        // Auto-select pickup if available
-        const pickupOption = formattedRates.find(r => r.type === 'pickup');
-        if (pickupOption) {
-          setSelectedDeliveryOption(pickupOption.id);
-          console.log('✅ Auto-selected pickup option');
+        // ✅ FIX: Auto-select cheapest non-pickup option, or pickup if only option
+        const nonPickupOptions = formattedRates.filter((r: DeliveryOption) => r.type !== 'pickup');
+        if (nonPickupOptions.length > 0) {
+          // Select the cheapest courier option
+          const cheapest = nonPickupOptions.reduce((min: DeliveryOption, curr: DeliveryOption) => 
+            curr.price < min.price ? curr : min
+          );
+          setSelectedDeliveryOption(cheapest.id);
+          console.log('✅ Auto-selected cheapest option:', cheapest.name, '₦' + cheapest.price);
         } else if (formattedRates.length > 0) {
           setSelectedDeliveryOption(formattedRates[0].id);
           console.log('✅ Auto-selected first option:', formattedRates[0].name);
@@ -283,7 +289,7 @@ const CheckoutScreen = () => {
     ];
     
     setDeliveryOptions(fallbackRates);
-    setSelectedDeliveryOption('pickup-Self Pickup-0');
+    setSelectedDeliveryOption('standard-Standard Courier-1');
   };
 
   const getUserLocation = async () => {
@@ -587,22 +593,6 @@ const CheckoutScreen = () => {
       console.log('📦 ============================================');
       console.log('📦 PLACING ORDER');
       console.log('📦 ============================================');
-      console.log('🚚 Selected delivery option:', {
-        id: selectedRate.id,
-        type: selectedRate.type,
-        name: selectedRate.name,
-        price: selectedRate.price,
-        courier: selectedRate.courier,
-        hasBreakdown: !!selectedRate.vendorBreakdown,
-        breakdownCount: selectedRate.vendorBreakdown?.length || 0,
-      });
-
-      if (selectedRate.vendorBreakdown) {
-        console.log('📦 Vendor breakdown:');
-        selectedRate.vendorBreakdown.forEach((vendor, i) => {
-          console.log(`  ${i + 1}. ${vendor.vendorName}: ₦${vendor.price} (${vendor.courier})`);
-        });
-      }
 
       const shippingAddress = {
         fullName: selectedAddress.fullName,
@@ -614,48 +604,33 @@ const CheckoutScreen = () => {
         postalCode: selectedAddress.postalCode,
       };
       
-      // ✅ CRITICAL FIX: Pass actual delivery price and courier info to backend
-      const orderData = {
+      // ✅ FIX: Map the courier-specific type back to a standard deliveryType
+      const getDeliveryType = (rate: DeliveryOption): 'standard' | 'express' | 'same_day' | 'pickup' => {
+        if (rate.type === 'pickup') return 'pickup';
+        if (rate.type === 'digital') return 'pickup';
+        return 'standard';
+      };
+
+      const checkoutData = {
         shippingAddress,
         paymentMethod: selectedPaymentMethod,
-        deliveryType: selectedRate.type as 'standard' | 'express' | 'same_day' | 'pickup',
+        deliveryType: getDeliveryType(selectedRate),
         notes: orderNotes || undefined,
-        // ✅ NEW: Pass selected delivery details
         selectedDeliveryPrice: selectedRate.price,
         selectedCourier: selectedRate.courier,
         vendorBreakdown: selectedRate.vendorBreakdown,
       };
-      
-      console.log('📤 Order data being sent:', {
-        deliveryType: orderData.deliveryType,
-        selectedDeliveryPrice: orderData.selectedDeliveryPrice,
-        selectedCourier: orderData.selectedCourier,
-        hasVendorBreakdown: !!orderData.vendorBreakdown,
-        breakdownCount: orderData.vendorBreakdown?.length || 0,
-      });
-      
-      const response = await createOrder(orderData);
-      
-      console.log('📥 Order response:', response);
-      console.log('📦 ============================================');
-      
-      if (response.success && response.data.order) {
-        if (selectedPaymentMethod === 'paystack' && response.data.payment) {
-          Toast.show({
-            type: 'info',
-            text1: 'Redirecting to Payment',
-            text2: 'Please complete your payment',
-          });
-          
-          navigation.reset({
-            index: 0,
-            routes: [
-              { name: 'Home' },
-              { name: 'Orders' as any },
-            ],
-          });
-          
-        } else {
+
+      // ✅ NEW FLOW: Payment method determines the path
+      if (selectedPaymentMethod === 'wallet') {
+        // ───────────────────────────────────────────────
+        // WALLET: Create order directly (instant payment)
+        // ───────────────────────────────────────────────
+        console.log('💰 Wallet payment — creating order directly');
+        
+        const response = await createOrder(checkoutData);
+        
+        if (response.success && response.data.order) {
           Toast.show({
             type: 'success',
             text1: 'Order Placed Successfully',
@@ -664,11 +639,47 @@ const CheckoutScreen = () => {
           });
           
           navigation.reset({
-            index: 0,
+            index: 1,
             routes: [
-              { name: 'Home' },
-              { name: 'Orders' as any },
+              { name: 'Main' },
+              { name: 'Orders' },
             ],
+          });
+        }
+      } else {
+        // ───────────────────────────────────────────────
+        // PAYSTACK / FLUTTERWAVE: Initialize payment first
+        // Order is ONLY created after payment is verified
+        // ───────────────────────────────────────────────
+        console.log('💳 Card payment — initializing payment (no order yet)');
+        
+        const response = await initializePayment(checkoutData);
+        
+        if (response.success && response.data.payment) {
+          const paymentUrl = response.data.payment.authorization_url;
+          
+          if (!paymentUrl) {
+            Toast.show({
+              type: 'error',
+              text1: 'Payment Error',
+              text2: 'Could not get payment URL. Please try again.',
+            });
+            return;
+          }
+
+          console.log('🔗 Opening payment WebView:', {
+            provider: selectedPaymentMethod,
+            url: paymentUrl,
+            reference: response.data.payment.reference,
+          });
+
+          // Navigate to in-app payment WebView
+          // Pass checkoutSnapshot so WebView can send it to confirmPayment
+          navigation.navigate('PaymentWebView' as any, {
+            paymentUrl: paymentUrl,
+            reference: response.data.payment.reference,
+            provider: selectedPaymentMethod,
+            checkoutSnapshot: response.data.checkoutSnapshot,
           });
         }
       }
@@ -802,6 +813,12 @@ const CheckoutScreen = () => {
     </View>
   );
 
+  // ✅ FIX: Helper to get icon for courier options
+  const getDeliveryIcon = (option: DeliveryOption) => {
+    if (option.type === 'pickup') return { name: 'storefront', color: '#10B981', bg: 'bg-green-100' };
+    return { name: 'bicycle', color: '#3B82F6', bg: 'bg-blue-100' };
+  };
+
   const renderDeliveryStep = () => (
     <View className="flex-1">
       <Text className="text-lg font-bold text-gray-900 px-6 py-4">
@@ -819,95 +836,106 @@ const CheckoutScreen = () => {
           </View>
         ) : (
           <>
-            {deliveryOptions.map((option) => (
-              <TouchableOpacity
-                key={option.id}
-                onPress={() => setSelectedDeliveryOption(option.id)}
-                className={`bg-white rounded-2xl p-4 mb-3 border-2 ${
-                  selectedDeliveryOption === option.id
-                    ? 'border-pink-500 bg-pink-50'
-                    : 'border-gray-100'
-                }`}
-              >
-                {/* Main Option Header */}
-                <View className="flex-row items-center justify-between mb-3">
-                  <View className="flex-row items-center flex-1">
-                    <View className={`w-12 h-12 rounded-full items-center justify-center mr-3 ${
-                      option.type === 'pickup' ? 'bg-green-100' : 'bg-blue-100'
-                    }`}>
-                      <Icon 
-                        name={option.type === 'pickup' ? 'storefront' : 'car'} 
-                        size={24} 
-                        color={option.type === 'pickup' ? '#10B981' : '#3B82F6'} 
-                      />
-                    </View>
-                    
-                    <View className="flex-1">
-                      <View className="flex-row items-center">
-                        <Text className="text-base font-bold text-gray-900">
-                          {option.name}
-                        </Text>
-                        {option.price === 0 && (
-                          <View className="ml-2 bg-green-100 px-2 py-0.5 rounded">
-                            <Text className="text-xs font-semibold text-green-700">FREE</Text>
-                          </View>
-                        )}
-                      </View>
-                      <Text className="text-xs text-gray-500 mt-1">
-                        {option.estimatedDays}
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View className="items-end">
-                    <Text className={`text-lg font-bold ${option.price === 0 ? 'text-green-600' : 'text-gray-900'}`}>
-                      {option.price === 0 ? 'FREE' : `₦${option.price.toLocaleString()}`}
-                    </Text>
-                    {selectedDeliveryOption === option.id && (
-                      <View className="w-6 h-6 rounded-full bg-pink-500 items-center justify-center mt-1">
-                        <Icon name="checkmark" size={16} color="#FFFFFF" />
-                      </View>
-                    )}
-                  </View>
-                </View>
-
-                <Text className="text-sm text-gray-600 mb-2">{option.description}</Text>
-
-                {/* ✅ Show Vendor Breakdown for Multi-Vendor Orders */}
-                {option.vendorBreakdown && option.vendorBreakdown.length > 0 && (
-                  <View className="mt-3 pt-3 border-t border-gray-200">
-                    <Text className="text-xs font-semibold text-gray-700 mb-2">
-                      Shipping Breakdown:
-                    </Text>
-                    {option.vendorBreakdown.map((vendor, idx) => (
-                      <View key={idx} className="flex-row items-center justify-between py-1.5">
-                        <View className="flex-1">
-                          <Text className="text-xs font-medium text-gray-900">
-                            {vendor.vendorName}
+            {deliveryOptions.map((option) => {
+              const iconInfo = getDeliveryIcon(option);
+              
+              return (
+                <TouchableOpacity
+                  key={option.id}
+                  onPress={() => setSelectedDeliveryOption(option.id)}
+                  className={`bg-white rounded-2xl p-4 mb-3 border-2 ${
+                    selectedDeliveryOption === option.id
+                      ? 'border-pink-500 bg-pink-50'
+                      : 'border-gray-100'
+                  }`}
+                >
+                  {/* Main Option Header */}
+                  <View className="flex-row items-center justify-between mb-3">
+                    <View className="flex-row items-center flex-1">
+                      {/* ✅ FIX: Show courier logo if available, otherwise show icon */}
+                      {option.logo ? (
+                        <Image 
+                          source={{ uri: option.logo }} 
+                          className="w-12 h-12 rounded-full mr-3"
+                          resizeMode="contain"
+                        />
+                      ) : (
+                        <View className={`w-12 h-12 rounded-full items-center justify-center mr-3 ${iconInfo.bg}`}>
+                          <Icon 
+                            name={iconInfo.name} 
+                            size={24} 
+                            color={iconInfo.color} 
+                          />
+                        </View>
+                      )}
+                      
+                      <View className="flex-1">
+                        <View className="flex-row items-center">
+                          <Text className="text-base font-bold text-gray-900">
+                            {option.name}
                           </Text>
-                          <Text className="text-xs text-gray-500">
-                            via {vendor.courier}
+                          {option.price === 0 && (
+                            <View className="ml-2 bg-green-100 px-2 py-0.5 rounded">
+                              <Text className="text-xs font-semibold text-green-700">FREE</Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text className="text-xs text-gray-500 mt-1">
+                          {option.estimatedDays}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View className="items-end">
+                      <Text className={`text-lg font-bold ${option.price === 0 ? 'text-green-600' : 'text-gray-900'}`}>
+                        {option.price === 0 ? 'FREE' : `₦${option.price.toLocaleString()}`}
+                      </Text>
+                      {selectedDeliveryOption === option.id && (
+                        <View className="w-6 h-6 rounded-full bg-pink-500 items-center justify-center mt-1">
+                          <Icon name="checkmark" size={16} color="#FFFFFF" />
+                        </View>
+                      )}
+                    </View>
+                  </View>
+
+                  <Text className="text-sm text-gray-600 mb-2">{option.description}</Text>
+
+                  {/* ✅ Show Vendor Breakdown for Multi-Vendor Orders */}
+                  {option.vendorBreakdown && option.vendorBreakdown.length > 0 && (
+                    <View className="mt-3 pt-3 border-t border-gray-200">
+                      <Text className="text-xs font-semibold text-gray-700 mb-2">
+                        Shipping Breakdown:
+                      </Text>
+                      {option.vendorBreakdown.map((vendor, idx) => (
+                        <View key={idx} className="flex-row items-center justify-between py-1.5">
+                          <View className="flex-1">
+                            <Text className="text-xs font-medium text-gray-900">
+                              {vendor.vendorName}
+                            </Text>
+                            <Text className="text-xs text-gray-500">
+                              via {vendor.courier}
+                            </Text>
+                          </View>
+                          <Text className="text-xs font-semibold text-gray-700">
+                            ₦{vendor.price.toLocaleString()}
                           </Text>
                         </View>
-                        <Text className="text-xs font-semibold text-gray-700">
-                          ₦{vendor.price.toLocaleString()}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
+                      ))}
+                    </View>
+                  )}
 
-                {/* Pickup Address */}
-                {option.pickupAddress && (
-                  <View className="bg-gray-50 rounded-lg p-3 flex-row mt-2">
-                    <Icon name="location" size={16} color="#6B7280" />
-                    <Text className="text-xs text-gray-600 ml-2 flex-1">
-                      {option.pickupAddress}
-                    </Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            ))}
+                  {/* Pickup Address */}
+                  {option.pickupAddress && (
+                    <View className="bg-gray-50 rounded-lg p-3 flex-row mt-2">
+                      <Icon name="location" size={16} color="#6B7280" />
+                      <Text className="text-xs text-gray-600 ml-2 flex-1">
+                        {option.pickupAddress}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
 
             {deliveryOptions.length === 0 && (
               <View className="bg-white rounded-2xl p-8 items-center">
@@ -1008,7 +1036,12 @@ const CheckoutScreen = () => {
             </View>
 
             <View className="flex-row justify-between items-center mb-3">
-              <Text className="text-gray-600">Delivery Fee</Text>
+              <View>
+                <Text className="text-gray-600">Delivery Fee</Text>
+                {selectedDelivery && selectedDelivery.type !== 'pickup' && (
+                  <Text className="text-xs text-gray-400">via {selectedDelivery.courier}</Text>
+                )}
+              </View>
               <Text className={`font-medium ${deliveryFee === 0 ? 'text-green-600' : 'text-gray-900'}`}>
                 {deliveryFee === 0 ? 'FREE' : `₦${deliveryFee.toLocaleString()}`}
               </Text>

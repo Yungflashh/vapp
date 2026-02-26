@@ -228,3 +228,51 @@ export const forgotPassword = async (email: string) => {
     throw error;
   }
 };
+
+
+export const updateProfile = async (data: {
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  avatar?: string;
+}) => {
+  try {
+    const response = await api.put('/auth/profile', data);
+    // Update stored user data
+    if (response.data.success) {
+      const stored = await AsyncStorage.getItem('userData');
+      if (stored) {
+        const userData = JSON.parse(stored);
+        await AsyncStorage.setItem('userData', JSON.stringify({ ...userData, ...data }));
+      }
+    }
+    return response.data;
+  } catch (error) {
+    console.error('❌ Update profile error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};
+
+
+/**
+ * Upload avatar
+ */
+export const uploadAvatar = async (base64Image: string) => {
+  try {
+    console.log('📸 Uploading avatar...');
+    const response = await api.put('/auth/avatar', { base64Image });
+    if (response.data.success) {
+      const stored = await AsyncStorage.getItem('userData');
+      if (stored) {
+        const userData = JSON.parse(stored);
+        await AsyncStorage.setItem('userData', JSON.stringify({ ...userData, avatar: response.data.data.avatar }));
+      }
+    }
+    return response.data;
+  } catch (error) {
+    console.error('❌ Avatar upload error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};

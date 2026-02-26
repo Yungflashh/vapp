@@ -247,26 +247,53 @@ export const cancelOrder = async (orderId: string, cancelReason: string): Promis
   }
 };
 
+
+export const initializePayment = async (data: {
+  shippingAddress: any;
+  paymentMethod: string;
+  deliveryType: string;
+  notes?: string;
+  selectedDeliveryPrice?: number;
+  selectedCourier?: string;
+  vendorBreakdown?: any[];
+}) => {
+  const response = await api.post('/orders/initialize-payment', data);
+  return response.data;
+};
+
+/**
+ * ✅ NEW: Confirm payment AND create order atomically
+ * Called after payment succeeds in WebView
+ * Verifies payment → creates order → clears cart
+ */
+export const confirmPayment = async (
+  reference: string,
+  data: {
+    provider: string;
+    transaction_id?: string;
+    checkoutSnapshot: any;
+  }
+) => {
+  const response = await api.post(`/orders/confirm-payment/${reference}`, data);
+  return response.data;
+};
+
 /**
  * Verify payment
  */
-export const verifyPayment = async (reference: string): Promise<{ success: boolean; message: string; data: { order: Order } }> => {
-  try {
-    console.log('💳 Verifying payment:', reference);
-    
-    const response = await api.get(`/orders/payment/verify/${reference}`);
-    
-    console.log('✅ Payment verified');
-    
-    return response.data;
-  } catch (error)
- {
-    console.error('❌ Verify payment error:', error);
-    handleApiError(error);
-    throw error;
+export const verifyPayment = async (
+  reference: string,
+  provider: string = 'paystack',
+  transactionId?: string
+) => {
+  let url = `/orders/verify-payment/${reference}?provider=${provider}`;
+  if (transactionId) {
+    url += `&transaction_id=${transactionId}`;
   }
+  
+  const response = await api.get(url);
+  return response.data;
 };
-
 /**
  * Get vendor's orders (authenticated vendor)
  */

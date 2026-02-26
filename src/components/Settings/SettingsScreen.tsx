@@ -16,7 +16,7 @@ const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
       iconColor: '#EC4899',
       title: 'Edit Profile',
       description: 'Update your personal info',
-      onPress: () => console.log('Edit Profile'),
+      onPress: () => navigation.navigate("EditProfile"),
     },
     {
       icon: 'location',
@@ -33,7 +33,7 @@ const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
       title: 'Dispute Center',
       description: 'Resolve order issues',
       badge: 2,
-      onPress: () => console.log('Dispute Center'),
+      onPress: () => navigation.navigate('DisputeCenter'),
     },
     {
       icon: 'notifications',
@@ -41,7 +41,7 @@ const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
       iconColor: '#3B82F6',
       title: 'Notifications',
       description: 'Manage alerts & preferences',
-      onPress: () => console.log('Notifications'),
+      onPress: () => navigation.navigate("NotificationSettings"),
     },
     {
       icon: 'settings',

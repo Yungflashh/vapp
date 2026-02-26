@@ -20,7 +20,7 @@ import { useFocusEffect } from '@react-navigation/native';
 
 type OrdersScreenProps = NativeStackScreenProps<RootStackParamList, 'Orders'>;
 
-type OrderStatus = 'pending' | 'processing' | 'shipped' | 'completed' | 'cancelled';
+type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'completed' | 'cancelled';
 
 const OrdersScreen = ({ navigation }: OrdersScreenProps) => {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -32,6 +32,7 @@ const OrdersScreen = ({ navigation }: OrdersScreenProps) => {
   const [cartItemCount, setCartItemCount] = useState(2);
 
   const statusTabs: { label: string; value: OrderStatus | 'all' }[] = [
+    { label: 'All', value: 'all' },
     { label: 'Pending', value: 'pending' },
     { label: 'Processing', value: 'processing' },
     { label: 'Shipped', value: 'shipped' },
@@ -41,14 +42,14 @@ const OrdersScreen = ({ navigation }: OrdersScreenProps) => {
   useFocusEffect(
     useCallback(() => {
       fetchOrders();
-    }, [])
+    }, [selectedStatus, searchQuery])
   );
 
   const fetchOrders = async () => {
     try {
       setIsLoading(true);
       const response = await getOrders(1, 50);
-      
+
       if (response.success) {
         setOrders(response.data.orders);
         filterOrders(response.data.orders, selectedStatus, searchQuery);
@@ -83,6 +84,9 @@ const OrdersScreen = ({ navigation }: OrdersScreenProps) => {
       filtered = filtered.filter((order) => {
         if (status === 'completed') {
           return order.status === 'delivered';
+        }
+        if (status === 'processing') {
+          return order.status === 'processing' || order.status === 'confirmed';
         }
         return order.status === status;
       });
@@ -187,23 +191,31 @@ const OrdersScreen = ({ navigation }: OrdersScreenProps) => {
             )}
           </View>
 
-          {/* Order Details */}
-          <View className="flex-1">
-            <Text className="text-sm font-bold text-gray-900" numberOfLines={1}>
-              {firstItem.productName}
-            </Text>
-            <Text className="text-xs text-gray-500 mt-0.5">
-              Item ID: {order.orderNumber}
-            </Text>
-            <Text className="text-xs text-gray-500 mt-0.5">
-              Date: {formatDate(order.createdAt)}
-            </Text>
-            <Text className="text-xs text-gray-500 mt-0.5">Product Location:</Text>
-            <Text className="text-xs text-gray-600">Yaba, Lagos</Text>
-            <Text className="text-xs text-gray-500 mt-0.5">
-              Shop: {firstItem.productName.split(' ')[0]} Footwear
-            </Text>
-          </View>
+         {/* Order Details */}
+<View className="flex-1">
+  <Text className="text-sm font-bold text-gray-900" numberOfLines={1}>
+    {firstItem.productName}
+  </Text>
+  <Text className="text-xs text-gray-500 mt-0.5">
+    Item ID: {order.orderNumber}
+  </Text>
+  <Text className="text-xs text-gray-500 mt-0.5">
+    Date: {formatDate(order.createdAt)}
+  </Text>
+  {order.vendorShipments?.[0]?.origin && (
+    <>
+      <Text className="text-xs text-gray-500 mt-0.5">Product Location:</Text>
+      <Text className="text-xs text-gray-600">
+        {order.vendorShipments[0].origin.city}, {order.vendorShipments[0].origin.state}
+      </Text>
+    </>
+  )}
+  {order.vendorShipments?.[0]?.vendorName && (
+    <Text className="text-xs text-gray-500 mt-0.5">
+      Shop: {order.vendorShipments[0].vendorName}
+    </Text>
+  )}
+</View>
 
           {/* More Options */}
           <TouchableOpacity className="p-2">
@@ -263,7 +275,7 @@ const OrdersScreen = ({ navigation }: OrdersScreenProps) => {
           <TouchableOpacity className="w-10 h-10 items-center justify-center">
             <Icon name="notifications-outline" size={24} color="#111827" />
           </TouchableOpacity>
-          
+
           <TouchableOpacity
             onPress={() => navigation.navigate('Cart' as any)}
             className="w-10 h-10 items-center justify-center relative"

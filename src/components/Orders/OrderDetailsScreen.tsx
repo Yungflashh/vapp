@@ -20,133 +20,56 @@ import { getOrderById, trackOrder, cancelOrder, Order } from '@/services/order.s
 
 type OrderDetailsScreenProps = NativeStackScreenProps<RootStackParamList, 'OrderDetails'>;
 
+const DISPUTE_WINDOW_DAYS = 7;
+
 const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
   const { orderId } = route.params;
   const [order, setOrder] = useState<Order | null>(null);
   const [tracking, setTracking] = useState<any>(null);
-  const [trackingUrl, setTrackingUrl] = useState<string | null>(null); // ✅ NEW
+  const [trackingUrl, setTrackingUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [isCancelling, setIsCancelling] = useState(false);
 
   useEffect(() => {
-    console.log('🔵 ============ OrderDetailsScreen MOUNTED ============');
-    console.log('📦 Order ID:', orderId);
     fetchOrderDetails();
   }, [orderId]);
 
   const fetchOrderDetails = async () => {
     try {
-      console.log('\n🔄 ============ FETCHING ORDER DETAILS ============');
-      console.log('📦 Fetching order ID:', orderId);
-      
       setIsLoading(true);
       const response = await getOrderById(orderId);
-      
-      console.log('📥 API Response:', JSON.stringify(response, null, 2));
-      console.log('✅ Response success:', response.success);
-      console.log('📊 Has order data:', !!response.data?.order);
-      
+
       if (response.success && response.data?.order) {
         const orderData = response.data.order;
-        
-        console.log('\n✅ ============ ORDER DATA RECEIVED ============');
-        console.log('📋 Order Number:', orderData.orderNumber);
-        console.log('📊 Order Status:', orderData.status);
-        console.log('💰 Order Total:', orderData.total);
-        console.log('💳 Payment Status:', orderData.paymentStatus);
-        console.log('💳 Payment Method:', orderData.paymentMethod);
-        console.log('📦 Items Count:', orderData.items?.length || 0);
-        console.log('🚚 Has Tracking:', !!orderData.trackingNumber);
-        console.log('🚚 Tracking Number:', orderData.trackingNumber || 'none');
-        console.log('🚚 Courier:', orderData.courier || 'none');
-        
-        // Log each item
-        console.log('\n📦 ============ ORDER ITEMS ============');
-        orderData.items?.forEach((item: any, index: number) => {
-          console.log(`  ${index + 1}. ${item.productName}`);
-          console.log(`     - Quantity: ${item.quantity}`);
-          console.log(`     - Price: ₦${item.price.toLocaleString()}`);
-          console.log(`     - Total: ₦${(item.price * item.quantity).toLocaleString()}`);
-          console.log(`     - Has Image: ${!!item.productImage}`);
-          console.log(`     - Image URL: ${item.productImage || 'none'}`);
-        });
-        
-        // Log shipping address
-        console.log('\n📍 ============ SHIPPING ADDRESS ============');
-        console.log('👤 Full Name:', orderData.shippingAddress?.fullName || 'not provided');
-        console.log('📍 Street:', orderData.shippingAddress?.street || 'not provided');
-        console.log('🏙️ City:', orderData.shippingAddress?.city || 'not provided');
-        console.log('🗺️ State:', orderData.shippingAddress?.state || 'not provided');
-        console.log('🌍 Country:', orderData.shippingAddress?.country || 'not provided');
-        console.log('📞 Phone:', orderData.shippingAddress?.phone || 'not provided');
-        
-        // Log payment details
-        console.log('\n💰 ============ PAYMENT DETAILS ============');
-        console.log('💵 Subtotal: ₦', orderData.subtotal?.toLocaleString());
-        console.log('🎁 Discount: ₦', orderData.discount?.toLocaleString());
-        console.log('🚚 Shipping: ₦', orderData.shippingCost?.toLocaleString());
-        console.log('📊 Tax: ₦', orderData.tax?.toLocaleString());
-        console.log('💰 TOTAL: ₦', orderData.total?.toLocaleString());
-        
         setOrder(orderData);
-        
-        // ✅ Fetch tracking if order has tracking number
+
+        // Fetch tracking if order has tracking number
         if (orderData.trackingNumber) {
-          console.log('\n🚚 ============ FETCHING TRACKING ============');
-          console.log('📦 Has tracking number:', orderData.trackingNumber);
-          
           try {
             const trackingResponse = await trackOrder(orderId);
-            console.log('📥 Tracking Response:', trackingResponse);
-            
             if (trackingResponse.success) {
-              console.log('✅ Tracking data received');
-              
-              // ✅ Handle multi-vendor tracking
               if (trackingResponse.data.multiVendor && trackingResponse.data.tracking) {
                 const trackings = trackingResponse.data.tracking;
-                console.log('📦 Multi-vendor tracking:', trackings.length, 'shipments');
-                
-                // Get first shipment's tracking URL
                 if (trackings.length > 0 && trackings[0].trackingUrl) {
                   setTrackingUrl(trackings[0].trackingUrl);
-                  console.log('✅ Tracking URL set:', trackings[0].trackingUrl);
                 }
-                
                 setTracking(trackings[0]?.tracking || null);
               } else {
-                // Single vendor tracking
                 setTracking(trackingResponse.data.tracking);
                 if (trackingResponse.data.trackingUrl) {
                   setTrackingUrl(trackingResponse.data.trackingUrl);
-                  console.log('✅ Tracking URL set:', trackingResponse.data.trackingUrl);
                 }
               }
-              
-              console.log('✅ Tracking info set');
-            } else {
-              console.log('⚠️ Tracking fetch successful but no data');
             }
           } catch (error: any) {
-            console.log('⚠️ Tracking not available:', error.message);
+            console.log('Tracking not available:', error.message);
           }
-        } else {
-          console.log('\nℹ️ No tracking number - skipping tracking fetch');
         }
-        
-        console.log('\n✅ ============ ORDER FETCH COMPLETE ============\n');
-      } else {
-        console.log('❌ Response success is false or no order data');
       }
     } catch (error: any) {
-      console.error('\n❌ ============ FETCH ORDER ERROR ============');
-      console.error('❌ Error message:', error.message);
-      console.error('❌ Error response:', error.response?.data);
-      console.error('❌ Error status:', error.response?.status);
-      console.error('❌ Full error:', error);
-      
+      console.error('Fetch order error:', error.message);
       Toast.show({
         type: 'error',
         text1: 'Error',
@@ -154,16 +77,11 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
       });
     } finally {
       setIsLoading(false);
-      console.log('✅ Loading state set to false\n');
     }
   };
 
   const handleCancelOrder = async () => {
-    console.log('\n🔴 ============ CANCEL ORDER INITIATED ============');
-    console.log('📝 Cancel reason:', cancelReason);
-    
     if (!cancelReason.trim()) {
-      console.log('⚠️ No cancel reason provided');
       Toast.show({
         type: 'error',
         text1: 'Error',
@@ -174,13 +92,8 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
 
     try {
       setIsCancelling(true);
-      console.log('🔄 Sending cancel request for order:', orderId);
-      
       const response = await cancelOrder(orderId, cancelReason);
-      console.log('📥 Cancel response:', response);
-      
       if (response.success) {
-        console.log('✅ Order cancelled successfully');
         Toast.show({
           type: 'success',
           text1: 'Success',
@@ -188,13 +101,8 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
         });
         setShowCancelModal(false);
         await fetchOrderDetails();
-      } else {
-        console.log('❌ Cancel failed:', response.message);
       }
     } catch (error: any) {
-      console.error('❌ Cancel order error:', error.message);
-      console.error('❌ Error response:', error.response?.data);
-      
       Toast.show({
         type: 'error',
         text1: 'Error',
@@ -202,83 +110,104 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
       });
     } finally {
       setIsCancelling(false);
-      console.log('🔴 Cancel order process complete\n');
     }
   };
 
-  // ✅ NEW: Open tracking URL
   const openTrackingUrl = () => {
     if (trackingUrl) {
-      console.log('🔗 Opening tracking URL:', trackingUrl);
       Linking.openURL(trackingUrl);
     }
   };
 
+  // ✅ Check if dispute is available for this order
+  const canDisputeOrder = (): boolean => {
+    if (!order) return false;
+
+    // Must be delivered, confirmed, shipped, or in_transit
+    const disputeStatuses = ['delivered', 'confirmed', 'shipped', 'in_transit'];
+    if (!disputeStatuses.includes(order.status)) return false;
+
+    // Payment must be completed
+    if (order.paymentStatus !== 'completed') return false;
+
+    // Must not already be disputed
+    if (order.status === 'disputed') return false;
+
+    // Check 7-day window
+    const orderDate = new Date((order as any).updatedAt || (order as any).createdAt);
+    const deadline = new Date(orderDate);
+    deadline.setDate(deadline.getDate() + DISPUTE_WINDOW_DAYS);
+    if (new Date() > deadline) return false;
+
+    return true;
+  };
+
+  // ✅ Calculate days remaining for dispute window
+  const getDisputeDeadline = (): string | null => {
+    if (!order) return null;
+    const orderDate = new Date((order as any).updatedAt || (order as any).createdAt);
+    const deadline = new Date(orderDate);
+    deadline.setDate(deadline.getDate() + DISPUTE_WINDOW_DAYS);
+
+    const now = new Date();
+    const diffMs = deadline.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays <= 0) return null;
+    if (diffDays === 1) return '1 day left';
+    return `${diffDays} days left`;
+  };
+
   const getStatusColor = (status: string) => {
-    const color = (() => {
-      switch (status.toLowerCase()) {
-        case 'pending':
-          return '#EC4899';
-        case 'confirmed':
-        case 'processing':
-          return '#F59E0B';
-        case 'shipped':
-        case 'in_transit':
-          return '#3B82F6';
-        case 'delivered':
-          return '#10B981';
-        case 'cancelled':
-          return '#EF4444';
-        default:
-          return '#6B7280';
-      }
-    })();
-    
-    console.log('🎨 Status color for "' + status + '" → ' + color);
-    return color;
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return '#EC4899';
+      case 'confirmed':
+      case 'processing':
+        return '#F59E0B';
+      case 'shipped':
+      case 'in_transit':
+        return '#3B82F6';
+      case 'delivered':
+        return '#10B981';
+      case 'cancelled':
+        return '#EF4444';
+      case 'disputed':
+        return '#7C3AED';
+      default:
+        return '#6B7280';
+    }
   };
 
   const getStatusLabel = (status: string) => {
-    const label = (() => {
-      switch (status.toLowerCase()) {
-        case 'pending':
-          return 'Pending';
-        case 'confirmed':
-          return 'Confirmed';
-        case 'processing':
-          return 'Processing';
-        case 'shipped':
-          return 'Shipped';
-        case 'in_transit':
-          return 'In Transit';
-        case 'delivered':
-          return 'Delivered';
-        case 'cancelled':
-          return 'Cancelled';
-        default:
-          return status;
-      }
-    })();
-    
-    console.log('🏷️ Status label for "' + status + '" → "' + label + '"');
-    return label;
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return 'Pending';
+      case 'confirmed':
+        return 'Confirmed';
+      case 'processing':
+        return 'Processing';
+      case 'shipped':
+        return 'Shipped';
+      case 'in_transit':
+        return 'In Transit';
+      case 'delivered':
+        return 'Delivered';
+      case 'cancelled':
+        return 'Cancelled';
+      case 'disputed':
+        return 'Disputed';
+      default:
+        return status;
+    }
   };
 
   const canCancelOrder = () => {
-    if (!order) {
-      console.log('❌ Cannot cancel: No order loaded');
-      return false;
-    }
-    const canCancel = ['pending', 'confirmed'].includes(order.status);
-    console.log('🔍 Can cancel order?', {
-      status: order.status,
-      canCancel: canCancel,
-    });
-    return canCancel;
+    if (!order) return false;
+    return ['pending', 'confirmed'].includes(order.status);
   };
 
   if (isLoading) {
-    console.log('⏳ Rendering: LOADING STATE');
     return (
       <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
         <View className="flex-1 items-center justify-center">
@@ -290,7 +219,6 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
   }
 
   if (!order) {
-    console.log('❌ Rendering: ORDER NOT FOUND STATE');
     return (
       <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
         <View className="flex-1 items-center justify-center">
@@ -310,19 +238,8 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
   const statusColor = getStatusColor(order.status);
   const statusLabel = getStatusLabel(order.status);
   const canCancel = canCancelOrder();
-
-  console.log('\n🎨 ============ RENDERING ORDER DETAILS SCREEN ============');
-  console.log('📊 Render State:', {
-    orderNumber: order.orderNumber,
-    status: order.status,
-    statusLabel: statusLabel,
-    statusColor: statusColor,
-    itemsCount: order.items?.length || 0,
-    total: order.total,
-    hasTracking: !!order.trackingNumber,
-    hasTrackingUrl: !!trackingUrl,
-    canCancel: canCancel,
-  });
+  const canDispute = canDisputeOrder();
+  const disputeDeadline = getDisputeDeadline();
 
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
@@ -330,10 +247,7 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
       <View className="bg-white px-4 py-3 flex-row items-center justify-between border-b border-gray-100">
         <View className="flex-row items-center">
           <TouchableOpacity
-            onPress={() => {
-              console.log('⬅️ Back button pressed');
-              navigation.goBack();
-            }}
+            onPress={() => navigation.goBack()}
             className="w-10 h-10 items-center justify-center -ml-2"
           >
             <Icon name="arrow-back" size={24} color="#111827" />
@@ -344,10 +258,6 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Status Banner */}
-        {(() => {
-          console.log('🎨 Rendering Status Banner');
-          return null;
-        })()}
         <View className="bg-white px-4 py-6 border-b border-gray-100">
           <View className="items-center">
             <View
@@ -360,6 +270,8 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
                     ? 'checkmark-circle'
                     : order.status === 'cancelled'
                     ? 'close-circle'
+                    : order.status === 'disputed'
+                    ? 'shield-half'
                     : 'time'
                 }
                 size={48}
@@ -371,67 +283,58 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
           </View>
         </View>
 
-        {/* Order Items */}
-        {(() => {
-          console.log('🎨 Rendering Order Items section');
-          console.log('  📦 Items count:', order.items?.length || 0);
-          order.items?.forEach((item: any, i: number) => {
-            console.log(`  ${i + 1}. ${item.productName} - Qty: ${item.quantity}, Price: ₦${item.price.toLocaleString()}`);
-          });
-          return null;
-        })()}
-        <View className="bg-white px-4 py-4 mt-3">
-          <Text className="text-base font-bold text-gray-900 mb-3">Order Items</Text>
-          {order.items.map((item, index) => {
-            console.log(`  🛍️ Rendering item ${index + 1}: ${item.productName}`);
-            return (
-              <View key={index} className="flex-row items-center mb-4">
-                <View className="w-16 h-16 bg-pink-50 rounded-xl overflow-hidden mr-3">
-                  {item.productImage ? (
-                    <Image
-                      source={{ uri: item.productImage }}
-                      className="w-full h-full"
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <View className="w-full h-full items-center justify-center">
-                      <Icon name="image-outline" size={24} color="#EC4899" />
-                    </View>
-                  )}
-                </View>
-                <View className="flex-1">
-                  <Text className="text-sm font-bold text-gray-900" numberOfLines={1}>
-                    {item.productName}
-                  </Text>
-                  <Text className="text-xs text-gray-500 mt-1">Qty: {item.quantity}</Text>
-                </View>
-                <Text className="text-sm font-bold text-gray-900">
-                  ₦{(item.price * item.quantity).toLocaleString()}
+        {/* ✅ Dispute Banner - Show when order is disputed */}
+        {order.status === 'disputed' && (
+          <View className="bg-purple-50 px-4 py-3 border-b border-purple-100">
+            <View className="flex-row items-center">
+              <Icon name="shield-half" size={20} color="#7C3AED" />
+              <View className="ml-3 flex-1">
+                <Text className="text-sm font-bold text-purple-800">Dispute in Progress</Text>
+                <Text className="text-xs text-purple-600 mt-0.5">
+                  Your dispute is being reviewed. You'll be notified of the outcome.
                 </Text>
               </View>
-            );
-          })}
+              <TouchableOpacity
+                onPress={() => navigation.navigate('DisputeCenter' as any)}
+              >
+                <Text className="text-xs font-bold text-purple-700">View</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Order Items */}
+        <View className="bg-white px-4 py-4 mt-3">
+          <Text className="text-base font-bold text-gray-900 mb-3">Order Items</Text>
+          {order.items.map((item, index) => (
+            <View key={index} className="flex-row items-center mb-4">
+              <View className="w-16 h-16 bg-pink-50 rounded-xl overflow-hidden mr-3">
+                {item.productImage ? (
+                  <Image
+                    source={{ uri: item.productImage }}
+                    className="w-full h-full"
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View className="w-full h-full items-center justify-center">
+                    <Icon name="image-outline" size={24} color="#EC4899" />
+                  </View>
+                )}
+              </View>
+              <View className="flex-1">
+                <Text className="text-sm font-bold text-gray-900" numberOfLines={1}>
+                  {item.productName}
+                </Text>
+                <Text className="text-xs text-gray-500 mt-1">Qty: {item.quantity}</Text>
+              </View>
+              <Text className="text-sm font-bold text-gray-900">
+                ₦{(item.price * item.quantity).toLocaleString()}
+              </Text>
+            </View>
+          ))}
         </View>
 
-        {/* Delivery Address - Only show for physical products */}
-        {(() => {
-          const hasShippingAddress = order.shippingAddress && order.shippingAddress.city;
-          console.log('🎨 Rendering Delivery Address section');
-          console.log('  📍 Has shipping address:', hasShippingAddress);
-          console.log('  📍 Delivery type:', order.deliveryType);
-          console.log('  📍 Is digital:', order.isDigital);
-          if (hasShippingAddress) {
-            console.log('  📍 Address:', {
-              fullName: order.shippingAddress?.fullName || 'not provided',
-              street: order.shippingAddress?.street,
-              city: order.shippingAddress?.city,
-              state: order.shippingAddress?.state,
-            });
-          } else {
-            console.log('  ℹ️ No shipping address (digital product)');
-          }
-          return null;
-        })()}
+        {/* Delivery Address */}
         {order.shippingAddress && order.shippingAddress.city && (
           <View className="bg-white px-4 py-4 mt-3">
             <Text className="text-base font-bold text-gray-900 mb-3">Delivery Address</Text>
@@ -467,9 +370,7 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
             <View className="bg-purple-50 rounded-xl p-4">
               <View className="flex-row items-center mb-2">
                 <Icon name="cloud-download" size={24} color="#8B5CF6" />
-                <Text className="text-sm font-bold text-gray-900 ml-3">
-                  Digital Delivery
-                </Text>
+                <Text className="text-sm font-bold text-gray-900 ml-3">Digital Delivery</Text>
               </View>
               <Text className="text-xs text-gray-600">
                 Instant access after payment confirmation
@@ -478,7 +379,7 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
           </View>
         )}
 
-        {/* ✅ Track Shipment Button - Prominent Display */}
+        {/* Track Shipment Button */}
         {trackingUrl && (
           <View className="bg-white px-4 py-4 mt-3">
             <TouchableOpacity
@@ -503,16 +404,6 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
         )}
 
         {/* Tracking Information */}
-        {(() => {
-          const shouldShowTracking = order.trackingNumber;
-          console.log('🎨 Tracking Information section');
-          console.log('  📊 Should show:', shouldShowTracking);
-          console.log('  📊 Status:', order.status);
-          console.log('  📊 Has tracking number:', !!order.trackingNumber);
-          console.log('  📊 Tracking number:', order.trackingNumber || 'none');
-          console.log('  📊 Courier:', order.courier || 'none');
-          return null;
-        })()}
         {order.trackingNumber && (
           <View className="bg-white px-4 py-4 mt-3">
             <Text className="text-base font-bold text-gray-900 mb-3">Tracking Information</Text>
@@ -531,33 +422,18 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
                   <Icon name="copy-outline" size={20} color="#3B82F6" />
                 </TouchableOpacity>
               </View>
-              <Text className="text-sm font-bold text-blue-600">
-                {order.trackingNumber}
-              </Text>
+              <Text className="text-sm font-bold text-blue-600">{order.trackingNumber}</Text>
               {order.courier && (
-                <Text className="text-xs text-gray-600 mt-2">
-                  Courier: {order.courier}
-                </Text>
+                <Text className="text-xs text-gray-600 mt-2">Courier: {order.courier}</Text>
               )}
             </View>
           </View>
         )}
 
         {/* Payment Summary */}
-        {(() => {
-          console.log('🎨 Rendering Payment Summary section');
-          console.log('  💰 Subtotal:', order.subtotal);
-          console.log('  🎁 Discount:', order.discount);
-          console.log('  🚚 Shipping:', order.shippingCost);
-          console.log('  📊 Tax:', order.tax);
-          console.log('  💰 Total:', order.total);
-          console.log('  💳 Method:', order.paymentMethod);
-          console.log('  ✅ Status:', order.paymentStatus);
-          return null;
-        })()}
         <View className="bg-white px-4 py-4 mt-3">
           <Text className="text-base font-bold text-gray-900 mb-3">Payment Summary</Text>
-          
+
           <View className="flex-row justify-between mb-2">
             <Text className="text-sm text-gray-600">Subtotal</Text>
             <Text className="text-sm text-gray-900">₦{order.subtotal.toLocaleString()}</Text>
@@ -566,17 +442,13 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
           {order.discount > 0 && (
             <View className="flex-row justify-between mb-2">
               <Text className="text-sm text-gray-600">Discount</Text>
-              <Text className="text-sm text-green-600">
-                -₦{order.discount.toLocaleString()}
-              </Text>
+              <Text className="text-sm text-green-600">-₦{order.discount.toLocaleString()}</Text>
             </View>
           )}
 
           <View className="flex-row justify-between mb-2">
             <Text className="text-sm text-gray-600">Shipping</Text>
-            <Text className="text-sm text-gray-900">
-              ₦{order.shippingCost.toLocaleString()}
-            </Text>
+            <Text className="text-sm text-gray-900">₦{order.shippingCost.toLocaleString()}</Text>
           </View>
 
           {order.tax > 0 && (
@@ -622,22 +494,11 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
         </View>
 
         {/* Action Buttons */}
-        {(() => {
-          console.log('🎨 Rendering Action Buttons section');
-          console.log('  🔴 Can cancel:', canCancel);
-          console.log('  🔴 Show cancel button:', canCancel);
-          console.log('  📥 Is digital order:', order.deliveryType === 'digital');
-          console.log('  🚚 Show legacy track:', !trackingUrl && order.deliveryType !== 'digital' && ['confirmed', 'shipped', 'in_transit', 'processing'].includes(order.status));
-          return null;
-        })()}
         <View className="px-4 py-6">
           {/* Download Digital Products Button */}
           {order.deliveryType === 'digital' && order.paymentStatus === 'completed' && (
             <TouchableOpacity
-              onPress={() => {
-                console.log('📥 Download button pressed for digital order');
-                navigation.navigate('MyDigitalProducts' as any);
-              }}
+              onPress={() => navigation.navigate('MyDigitalProducts' as any)}
               className="bg-purple-500 py-4 rounded-xl mb-3"
             >
               <View className="flex-row items-center justify-center">
@@ -647,35 +508,32 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
             </TouchableOpacity>
           )}
 
-          {/* Track Order Button - Legacy (only show if no tracking URL) */}
-          {!trackingUrl && order.deliveryType !== 'digital' && ['confirmed', 'shipped', 'in_transit', 'processing'].includes(order.status) && (
-            <TouchableOpacity
-              onPress={() => {
-                console.log('🚚 Track order button pressed (legacy)');
-                navigation.navigate('TrackOrder', { orderId: order._id });
-              }}
-              className="bg-pink-500 py-4 rounded-xl mb-3"
-            >
-              <View className="flex-row items-center justify-center">
-                <Icon name="location" size={20} color="#FFFFFF" />
-                <Text className="text-white font-bold ml-2">Track Order</Text>
-              </View>
-            </TouchableOpacity>
-          )}
+          {/* Track Order Button - Legacy */}
+          {!trackingUrl &&
+            order.deliveryType !== 'digital' &&
+            ['confirmed', 'shipped', 'in_transit', 'processing'].includes(order.status) && (
+              <TouchableOpacity
+                onPress={() => navigation.navigate('TrackOrder', { orderId: order._id })}
+                className="bg-pink-500 py-4 rounded-xl mb-3"
+              >
+                <View className="flex-row items-center justify-center">
+                  <Icon name="location" size={20} color="#FFFFFF" />
+                  <Text className="text-white font-bold ml-2">Track Order</Text>
+                </View>
+              </TouchableOpacity>
+            )}
 
+          {/* Cancel Order Button */}
           {canCancel && (
             <TouchableOpacity
-              onPress={() => {
-                console.log('🔴 Cancel button pressed');
-                setShowCancelModal(true);
-              }}
+              onPress={() => setShowCancelModal(true)}
               className="bg-red-500 py-4 rounded-xl mb-3"
             >
               <Text className="text-white font-bold text-center">Cancel Order</Text>
             </TouchableOpacity>
           )}
 
-        {/* Write Review Button */}
+          {/* Write Review Button */}
           {order.status === 'delivered' && order.paymentStatus === 'completed' && (
             <TouchableOpacity
               onPress={() => {
@@ -697,13 +555,53 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
             </TouchableOpacity>
           )}
 
+          {/* ✅ NEW: Dispute Order Button */}
+          {canDispute && (
+            <TouchableOpacity
+              onPress={() => {
+                // Extract vendorId properly — could be populated object or string
+                const firstVendor = order.items[0]?.vendor;
+                const vendorId = typeof firstVendor === 'object'
+                  ? (firstVendor as any)?._id
+                  : firstVendor;
+
+                navigation.navigate('FileDispute' as any, {
+                  orderId: order._id,
+                  orderNumber: order.orderNumber,
+                  items: order.items.map((item: any) => ({
+                    product: typeof item.product === 'object' ? item.product._id : item.product,
+                    productName: item.productName,
+                    productImage: item.productImage,
+                    quantity: item.quantity,
+                    price: item.price,
+                    vendor: typeof item.vendor === 'object' ? (item.vendor as any)?._id : item.vendor,
+                  })),
+                  vendorId,
+                });
+              }}
+              className="py-4 rounded-xl mb-3 border-2 border-red-400"
+              style={{ backgroundColor: '#FEF2F2' }}
+              activeOpacity={0.7}
+            >
+              <View className="flex-row items-center justify-center">
+                <Icon name="shield-half" size={20} color="#EF4444" />
+                <Text className="text-red-600 font-bold ml-2">Dispute Order</Text>
+              </View>
+              {disputeDeadline && (
+                <Text className="text-xs text-red-400 text-center mt-1">
+                  {disputeDeadline} to file a dispute
+                </Text>
+              )}
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
             onPress={() => {
-              console.log('ℹ️ Help button pressed');
+              // Could navigate to help/support
             }}
             className="bg-gray-100 py-4 rounded-xl"
           >
-            <Text className="text-gray-900 font-bold text-center">Need Help oo?</Text>
+            <Text className="text-gray-900 font-bold text-center">Need Help?</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -743,7 +641,6 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
               <TouchableOpacity
                 className="flex-1 py-3 rounded-lg border border-gray-300"
                 onPress={() => {
-                  console.log('🔙 Cancel modal - Go Back pressed');
                   setShowCancelModal(false);
                   setCancelReason('');
                 }}
