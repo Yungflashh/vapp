@@ -1,4 +1,4 @@
-// screens/HomeScreen.tsx
+// screens/HomeScreen.tsx - FIXED WITH UNIFIED SEARCH
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, FlatList, ActivityIndicator, RefreshControl, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,7 +24,7 @@ import {
   unfollowVendor,
   Vendor,
 } from '@/services/vendor.service';
-import { getCategories } from '@/services/category.service';
+import { getCategories, type Category } from '@/services/category.service';
 
 type HomeScreenProps = CompositeScreenProps<
   BottomTabScreenProps<BottomTabParamList, 'Home'>,
@@ -36,7 +36,8 @@ type SortOption = 'newest' | 'price_asc' | 'price_desc' | 'rating' | 'popular';
 
 const HomeScreen = ({ navigation }: HomeScreenProps) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'popular' | 'product' | 'vendor'>('popular');
+  const [activeSearchQuery, setActiveSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState<'popular' | 'product' | 'vendor' | 'search'>('popular');
   const [activeCategory, setActiveCategory] = useState<CategoryFilter>('all');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [cartCount] = useState(3);
@@ -45,7 +46,9 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [trendingProducts, setTrendingProducts] = useState<Product[]>([]);
   const [topVendors, setTopVendors] = useState<Vendor[]>([]);
+  const [allVendors, setAllVendors] = useState<Vendor[]>([]);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [allCategories, setAllCategories] = useState<Category[]>([]);
   const [categoriesMap, setCategoriesMap] = useState<Map<string, string>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
@@ -53,6 +56,12 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSortMenu, setShowSortMenu] = useState(false);
+
+  // Search results state
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchProducts, setSearchProducts] = useState<Product[]>([]);
+  const [searchVendors, setSearchVendors] = useState<Vendor[]>([]);
+  const [searchCategories, setSearchCategories] = useState<Category[]>([]);
 
   const categories = [
     { id: 'all', label: 'All', icon: 'grid' },
@@ -78,6 +87,9 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
   }, []);
 
   useEffect(() => {
+    // Only fetch when NOT in search mode
+    if (activeTab === 'search') return;
+
     if (activeTab === 'product') {
       fetchAllProducts();
     } else if (activeTab === 'vendor') {
@@ -107,7 +119,6 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
 
   const fetchCategoriesMap = async () => {
     try {
-      console.log('📂 Fetching categories for mapping...');
       const response = await getCategories();
       
       if (response.success && response.data.categories) {
@@ -116,8 +127,7 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
           map.set(cat.slug, cat._id);
         });
         setCategoriesMap(map);
-        console.log('✅ Categories map built:', map.size, 'categories');
-        console.log('📋 Category mappings:', Array.from(map.entries()));
+        setAllCategories(response.data.categories);
       }
     } catch (err) {
       console.error('❌ Error fetching categories map:', err);
@@ -152,6 +162,7 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
       const response = await getTopVendors(10, 'rating');
       if (response.success && response.data.vendors) {
         setTopVendors(response.data.vendors);
+        setAllVendors(response.data.vendors);
       }
     } catch (err) {
       console.error('Error fetching top vendors:', err);
@@ -172,32 +183,23 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
         const categoryId = categoriesMap.get(activeCategory);
         if (categoryId) {
           filters.category = categoryId;
-          console.log(`📦 Using category ID: ${categoryId} for slug: ${activeCategory}`);
-        } else {
-          console.warn(`⚠️ Category ID not found for slug: ${activeCategory}`);
-          if (categoriesMap.size === 0) {
-            console.log('🔄 Categories map is empty, fetching...');
-            await fetchCategoriesMap();
-            const retryId = categoriesMap.get(activeCategory);
-            if (retryId) {
-              filters.category = retryId;
-              console.log(`📦 Retry - Using category ID: ${retryId} for slug: ${activeCategory}`);
-            }
+        } else if (categoriesMap.size === 0) {
+          await fetchCategoriesMap();
+          const retryId = categoriesMap.get(activeCategory);
+          if (retryId) {
+            filters.category = retryId;
           }
         }
       }
 
-      console.log('📦 Fetching products with filters:', filters);
       const response = await getProducts(filters);
       
       if (response.success && response.data.products) {
         setAllProducts(response.data.products);
-        console.log(`✅ Loaded ${response.data.products.length} products for category: ${activeCategory}`);
       }
     } catch (err: any) {
       console.error('Error fetching all products:', err);
       setError('Failed to load products');
-      Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to load products.' });
     } finally {
       setIsLoadingProducts(false);
     }
@@ -210,20 +212,86 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
       const response = await getTopVendors(50, 'rating');
       if (response.success && response.data.vendors) {
         setTopVendors(response.data.vendors);
-        console.log(`✅ Loaded ${response.data.vendors.length} vendors`);
+        setAllVendors(response.data.vendors);
       }
     } catch (err: any) {
       console.error('Error fetching all vendors:', err);
       setError('Failed to load vendors');
-      Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to load vendors.' });
     } finally {
       setIsLoadingVendors(false);
     }
   };
 
+  // ==================== UNIFIED SEARCH ====================
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) {
+      Toast.show({ type: 'warning', text1: 'Empty Search', text2: 'Please enter a search term' });
+      return;
+    }
+
+    const query = searchQuery.trim().toLowerCase();
+    setActiveSearchQuery(query);
+    setActiveTab('search');
+    setIsSearching(true);
+
+    try {
+      // Search all three in parallel
+      const [productRes, vendorRes] = await Promise.all([
+        getProducts({ search: query, limit: 20 }).catch(() => null),
+        getTopVendors(50, 'rating').catch(() => null),
+      ]);
+
+      // Products from server
+      if (productRes?.success && productRes.data.products) {
+        setSearchProducts(productRes.data.products);
+      } else {
+        setSearchProducts([]);
+      }
+
+      // Vendors - client-side filter (server doesn't have vendor search)
+      if (vendorRes?.success && vendorRes.data.vendors) {
+        const filteredVendors = vendorRes.data.vendors.filter(
+          (v) =>
+            v.name.toLowerCase().includes(query) ||
+            v.description?.toLowerCase().includes(query) ||
+            v.location?.toLowerCase().includes(query)
+        );
+        setSearchVendors(filteredVendors);
+      } else {
+        setSearchVendors([]);
+      }
+
+      // Categories - client-side filter
+      const filteredCategories = allCategories.filter(
+        (c) =>
+          c.name.toLowerCase().includes(query) ||
+          c.slug.toLowerCase().includes(query) ||
+          c.description?.toLowerCase().includes(query)
+      );
+      setSearchCategories(filteredCategories);
+
+    } catch (err) {
+      console.error('❌ Search error:', err);
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Search failed. Please try again.' });
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const clearSearch = () => {
+    setSearchQuery('');
+    setActiveSearchQuery('');
+    setSearchProducts([]);
+    setSearchVendors([]);
+    setSearchCategories([]);
+    setActiveTab('popular');
+  };
+
   const onRefresh = async () => {
     setIsRefreshing(true);
-    if (activeTab === 'popular') {
+    if (activeTab === 'search' && activeSearchQuery) {
+      await handleSearch();
+    } else if (activeTab === 'popular') {
       await fetchInitialData();
     } else if (activeTab === 'product') {
       await fetchAllProducts();
@@ -231,14 +299,6 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
       await fetchAllVendors();
     }
     setIsRefreshing(false);
-  };
-
-  const handleSearch = () => {
-    if (!searchQuery.trim()) {
-      Toast.show({ type: 'warning', text1: 'Empty Search', text2: 'Please enter a search term' });
-      return;
-    }
-    Toast.show({ type: 'info', text1: 'Searching...', text2: `Looking for "${searchQuery}"` });
   };
 
   const handleShare = async (vendor: Vendor) => {
@@ -257,10 +317,12 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
       if (vendor.isFollowing) {
         await unfollowVendor(vendor.id);
         setTopVendors(prev => prev.map(v => v.id === vendor.id ? { ...v, isFollowing: false } : v));
+        setSearchVendors(prev => prev.map(v => v.id === vendor.id ? { ...v, isFollowing: false } : v));
         Toast.show({ type: 'success', text1: 'Unfollowed', text2: `You unfollowed ${vendor.name}` });
       } else {
         await followVendor(vendor.id);
         setTopVendors(prev => prev.map(v => v.id === vendor.id ? { ...v, isFollowing: true } : v));
+        setSearchVendors(prev => prev.map(v => v.id === vendor.id ? { ...v, isFollowing: true } : v));
         Toast.show({ type: 'success', text1: 'Following', text2: `You are now following ${vendor.name}` });
       }
     } catch (err) {
@@ -271,12 +333,30 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
   const handleSortChange = (sort: SortOption) => {
     setSortBy(sort);
     setShowSortMenu(false);
-    Toast.show({ 
-      type: 'info', 
-      text1: 'Sorting', 
-      text2: sortOptions.find(o => o.id === sort)?.label 
-    });
   };
+
+  const handleCategoryPress = (category: Category) => {
+    // Find matching slug in our category filter list
+    const matchingFilter = categories.find(
+      (c) => c.id === category.slug || c.label.toLowerCase() === category.name.toLowerCase()
+    );
+
+    if (matchingFilter) {
+      setActiveCategory(matchingFilter.id as CategoryFilter);
+    }
+
+    clearSearch();
+    setActiveTab('product');
+
+    // If no matching filter, navigate with category ID
+    if (!matchingFilter) {
+      // Fallback: just go to product tab with all
+      setActiveCategory('all');
+      setActiveTab('product');
+    }
+  };
+
+  // ==================== RENDER HELPERS ====================
 
   const renderTopVendorRow = ({ item }: { item: Vendor }) => (
     <TouchableOpacity 
@@ -359,7 +439,6 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
               </View>
             )}
           </View>
-          
           <View className="flex-row items-center mb-2">
             <Icon name="star" size={12} color="#FBBF24" />
             <Text className="text-xs text-gray-600 ml-1">{item.rating.toFixed(1)}</Text>
@@ -461,6 +540,195 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
     </View>
   );
 
+  // ==================== SEARCH RESULTS TAB ====================
+  const renderSearchTab = () => {
+    const totalResults = searchProducts.length + searchVendors.length + searchCategories.length;
+
+    if (isSearching) {
+      return (
+        <View className="items-center justify-center py-20">
+          <ActivityIndicator size="large" color="#EC4899" />
+          <Text className="text-gray-500 mt-4">Searching for "{activeSearchQuery}"...</Text>
+        </View>
+      );
+    }
+
+    if (totalResults === 0) {
+      return (
+        <View className="items-center justify-center py-20 px-4">
+          <View className="w-20 h-20 bg-gray-100 rounded-full items-center justify-center mb-4">
+            <Icon name="search-outline" size={36} color="#9CA3AF" />
+          </View>
+          <Text className="text-base font-semibold text-gray-700 mb-1">No results found</Text>
+          <Text className="text-sm text-gray-500 text-center px-8 mb-4">
+            We couldn't find anything matching "{activeSearchQuery}". Try a different search term.
+          </Text>
+          <TouchableOpacity onPress={clearSearch} className="bg-pink-500 px-6 py-3 rounded-xl">
+            <Text className="text-white font-bold">Clear Search</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    return (
+      <View className="px-4 py-4">
+        {/* Search Header */}
+        <View className="flex-row items-center justify-between mb-4 bg-pink-50 px-4 py-3 rounded-xl">
+          <View className="flex-1">
+            <Text className="text-sm text-gray-700">
+              Results for "<Text className="font-bold text-pink-500">{activeSearchQuery}</Text>"
+            </Text>
+            <Text className="text-xs text-gray-500 mt-0.5">
+              {totalResults} {totalResults === 1 ? 'result' : 'results'} found
+            </Text>
+          </View>
+          <TouchableOpacity onPress={clearSearch} className="bg-white px-3 py-1.5 rounded-full border border-gray-200">
+            <Text className="text-xs text-gray-600 font-medium">Clear</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Categories Results */}
+        {searchCategories.length > 0 && (
+          <View className="mb-6">
+            <View className="flex-row items-center mb-3">
+              <Icon name="grid-outline" size={18} color="#8B5CF6" />
+              <Text className="text-base font-bold text-gray-900 ml-2">Categories</Text>
+              <View className="bg-purple-100 px-2 py-0.5 rounded-full ml-2">
+                <Text className="text-xs font-bold text-purple-600">{searchCategories.length}</Text>
+              </View>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {searchCategories.map((cat) => (
+                <TouchableOpacity
+                  key={cat._id}
+                  onPress={() => handleCategoryPress(cat)}
+                  className="mr-3 bg-white rounded-2xl p-4 shadow-sm items-center"
+                  style={{ width: 110 }}
+                >
+                  <View className="w-12 h-12 bg-purple-100 rounded-xl items-center justify-center mb-2">
+                    {cat.image ? (
+                      <Image source={{ uri: cat.image }} className="w-full h-full rounded-xl" resizeMode="cover" />
+                    ) : (
+                      <Icon name="folder-outline" size={22} color="#8B5CF6" />
+                    )}
+                  </View>
+                  <Text className="text-xs font-semibold text-gray-900 text-center" numberOfLines={2}>
+                    {cat.name}
+                  </Text>
+                  <Text className="text-xs text-gray-400 mt-0.5">
+                    {cat.productCount || 0} items
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Vendors Results */}
+        {searchVendors.length > 0 && (
+          <View className="mb-6">
+            <View className="flex-row items-center mb-3">
+              <Icon name="storefront-outline" size={18} color="#EC4899" />
+              <Text className="text-base font-bold text-gray-900 ml-2">Vendors</Text>
+              <View className="bg-pink-100 px-2 py-0.5 rounded-full ml-2">
+                <Text className="text-xs font-bold text-pink-600">{searchVendors.length}</Text>
+              </View>
+            </View>
+
+            {searchVendors.length <= 3 ? (
+              // Show full cards for few results
+              searchVendors.map((vendor) => (
+                <TouchableOpacity
+                  key={vendor.id}
+                  className="bg-white rounded-xl p-3 mb-3 flex-row items-center shadow-sm"
+                  onPress={() => navigation.navigate('VendorProfile', { vendorId: vendor.id })}
+                >
+                  <View className="w-14 h-14 rounded-full bg-gray-200 overflow-hidden mr-3 border-2 border-pink-200">
+                    {vendor.image ? (
+                      <Image source={{ uri: vendor.image }} className="w-full h-full" resizeMode="cover" />
+                    ) : (
+                      <View className="w-full h-full items-center justify-center bg-pink-50">
+                        <Icon name="person" size={24} color="#EC4899" />
+                      </View>
+                    )}
+                  </View>
+                  <View className="flex-1">
+                    <View className="flex-row items-center">
+                      <Text className="text-sm font-bold text-gray-900">{vendor.name}</Text>
+                      {vendor.verified && (
+                        <Icon name="checkmark-circle" size={14} color="#3B82F6" style={{ marginLeft: 4 }} />
+                      )}
+                    </View>
+                    <Text className="text-xs text-gray-500 mt-0.5" numberOfLines={1}>
+                      {vendor.description || vendor.location || 'VendorSpot Seller'}
+                    </Text>
+                    <View className="flex-row items-center mt-1">
+                      <Icon name="star" size={10} color="#FBBF24" />
+                      <Text className="text-xs text-gray-600 ml-1">{vendor.rating.toFixed(1)}</Text>
+                      <Text className="text-xs text-gray-400 ml-1">({vendor.reviews} reviews)</Text>
+                    </View>
+                  </View>
+                  <Icon name="chevron-forward" size={20} color="#D1D5DB" />
+                </TouchableOpacity>
+              ))
+            ) : (
+              // Show horizontal scroll for many results
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                {searchVendors.map((vendor) => (
+                  <TouchableOpacity
+                    key={vendor.id}
+                    className="items-center mr-4 w-20"
+                    onPress={() => navigation.navigate('VendorProfile', { vendorId: vendor.id })}
+                  >
+                    <View className="w-16 h-16 rounded-full bg-gray-200 border-2 border-pink-500 overflow-hidden">
+                      {vendor.image ? (
+                        <Image source={{ uri: vendor.image }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                      ) : (
+                        <View className="flex-1 items-center justify-center">
+                          <Icon name="person" size={28} color="#9CA3AF" />
+                        </View>
+                      )}
+                    </View>
+                    <Text className="text-xs text-gray-900 mt-2 text-center font-medium" numberOfLines={1}>
+                      {vendor.name}
+                    </Text>
+                    <View className="flex-row items-center mt-0.5">
+                      <Icon name="star" size={10} color="#FBBF24" />
+                      <Text className="text-xs text-gray-600 ml-1">{vendor.rating.toFixed(1)}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        )}
+
+        {/* Products Results */}
+        {searchProducts.length > 0 && (
+          <View className="mb-4">
+            <View className="flex-row items-center mb-3">
+              <Icon name="cube-outline" size={18} color="#3B82F6" />
+              <Text className="text-base font-bold text-gray-900 ml-2">Products</Text>
+              <View className="bg-blue-100 px-2 py-0.5 rounded-full ml-2">
+                <Text className="text-xs font-bold text-blue-600">{searchProducts.length}</Text>
+              </View>
+            </View>
+            <View className="flex-row flex-wrap justify-between">
+              {searchProducts.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  onPress={(product) => navigation.navigate('ProductDetails', { productId: product.id })}
+                />
+              ))}
+            </View>
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  // ==================== PRODUCT TAB ====================
   const renderProductTab = () => (
     <View className="bg-gray-50 px-4 py-4">
       {renderCategoryFilters()}
@@ -487,10 +755,7 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
           <Icon name="alert-circle-outline" size={48} color="#EF4444" />
           <Text className="text-gray-900 font-semibold mt-4">Failed to load products</Text>
           <Text className="text-gray-500 mt-2 text-center">{error}</Text>
-          <TouchableOpacity 
-            className="bg-pink-500 px-6 py-3 rounded-lg mt-4" 
-            onPress={fetchAllProducts}
-          >
+          <TouchableOpacity className="bg-pink-500 px-6 py-3 rounded-lg mt-4" onPress={fetchAllProducts}>
             <Text className="text-white font-semibold">Retry</Text>
           </TouchableOpacity>
         </View>
@@ -518,6 +783,7 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
     </View>
   );
 
+  // ==================== VENDOR TAB ====================
   const renderVendorTab = () => (
     <View className="bg-gray-50 px-4 py-4">
       <View className="flex-row justify-between items-center mb-4">
@@ -541,11 +807,7 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
         <View className="items-center justify-center py-20">
           <Icon name="storefront-outline" size={48} color="#EF4444" />
           <Text className="text-gray-900 font-semibold mt-4">Failed to load vendors</Text>
-          <Text className="text-gray-500 mt-2 text-center">{error}</Text>
-          <TouchableOpacity 
-            className="bg-pink-500 px-6 py-3 rounded-lg mt-4" 
-            onPress={fetchAllVendors}
-          >
+          <TouchableOpacity className="bg-pink-500 px-6 py-3 rounded-lg mt-4" onPress={fetchAllVendors}>
             <Text className="text-white font-semibold">Retry</Text>
           </TouchableOpacity>
         </View>
@@ -570,16 +832,14 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
     </View>
   );
 
+  // ==================== POPULAR TAB ====================
   const renderPopularTab = () => (
     <>
-      {/* Top Vendors Section */}
+      {/* Top Vendors */}
       <View className="bg-white px-4 py-4 mb-2">
         <View className="flex-row justify-between items-center mb-4">
           <Text className="text-xl font-bold text-gray-900">Top Vendors</Text>
-          <TouchableOpacity 
-            className="flex-row items-center"
-            onPress={() => setActiveTab('vendor')}
-          >
+          <TouchableOpacity className="flex-row items-center" onPress={() => { clearSearch(); setActiveTab('vendor'); }}>
             <Text className="text-pink-500 font-medium mr-1">See All</Text>
             <Icon name="chevron-forward" size={18} color="#EC4899" />
           </TouchableOpacity>
@@ -600,11 +860,11 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
         )}
       </View>
 
-      {/* Recommended Products Section */}
+      {/* Recommended Products */}
       <View className="bg-white px-4 py-4 mb-2">
         <View className="flex-row justify-between items-center mb-4">
           <Text className="text-xl font-bold text-gray-900">Recommended for You</Text>
-          <TouchableOpacity onPress={() => setActiveTab('product')}>
+          <TouchableOpacity onPress={() => { clearSearch(); setActiveTab('product'); }}>
             <Text className="text-pink-500 font-medium">View All</Text>
           </TouchableOpacity>
         </View>
@@ -643,6 +903,7 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
           className="bg-purple-600 rounded-2xl p-6" 
           activeOpacity={0.9}
           onPress={() => {
+            clearSearch();
             setActiveCategory('digital-products');
             setActiveTab('product');
           }}
@@ -664,11 +925,11 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
         </TouchableOpacity>
       </View>
 
-      {/* Trending Products Section */}
+      {/* Trending Products */}
       <View className="bg-white px-4 py-4 mb-2">
         <View className="flex-row justify-between items-center mb-4">
           <Text className="text-xl font-bold text-gray-900">Trending Now</Text>
-          <TouchableOpacity onPress={() => setActiveTab('product')}>
+          <TouchableOpacity onPress={() => { clearSearch(); setActiveTab('product'); }}>
             <Text className="text-pink-500 font-medium">View All</Text>
           </TouchableOpacity>
         </View>
@@ -722,6 +983,7 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
     </>
   );
 
+  // ==================== MAIN RENDER ====================
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
       {/* Header */}
@@ -732,7 +994,7 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
         </Text>
         <View className="flex-row items-center gap-4">
           <TouchableOpacity onPress={() => navigation.navigate('Categories')}>
-            <Icon name="search-outline" size={24} color="#111827" />
+            <Icon name="grid-outline" size={24} color="#111827" />
           </TouchableOpacity>
           <TouchableOpacity className="relative">
             <Icon name="notifications-outline" size={24} color="#111827" />
@@ -742,10 +1004,7 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
               </View>
             )}
           </TouchableOpacity>
-          <TouchableOpacity 
-            className="relative"
-            onPress={() => navigation.navigate('Cart')}
-          >
+          <TouchableOpacity className="relative" onPress={() => navigation.navigate('Cart')}>
             <Icon name="cart-outline" size={24} color="#111827" />
             {cartCount > 0 && (
               <View className="absolute -top-1 -right-1 w-4 h-4 bg-pink-500 rounded-full items-center justify-center">
@@ -776,12 +1035,24 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
             <Icon name="search" size={20} color="#9CA3AF" style={{ marginLeft: 16 }} />
             <TextInput
               className="flex-1 px-3 py-3 text-base text-gray-900"
-              placeholder="Search for products, brand, categories or vendors"
+              placeholder="Search products, categories or vendors"
               placeholderTextColor="#9CA3AF"
               value={searchQuery}
               onChangeText={setSearchQuery}
               onSubmitEditing={handleSearch}
+              returnKeyType="search"
             />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity
+                onPress={() => {
+                  setSearchQuery('');
+                  if (activeSearchQuery) clearSearch();
+                }}
+                className="px-2"
+              >
+                <Icon name="close-circle" size={20} color="#9CA3AF" />
+              </TouchableOpacity>
+            )}
             <TouchableOpacity className="bg-yellow-400 px-6 py-3 rounded-r-lg" onPress={handleSearch}>
               <Text className="text-gray-900 font-semibold">Search</Text>
             </TouchableOpacity>
@@ -791,43 +1062,65 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
         {/* Tab Navigation */}
         <View className="px-4 py-4 bg-white">
           <View className="flex-row gap-3">
-            <TouchableOpacity
-              className={`px-6 py-2.5 rounded-full flex-row items-center ${
-                activeTab === 'popular' ? 'bg-white border border-gray-300' : 'bg-gray-100'
-              }`}
-              onPress={() => setActiveTab('popular')}
-            >
-              <Icon name="flame" size={18} color={activeTab === 'popular' ? '#111827' : '#6B7280'} />
-              <Text className={`ml-2 font-medium ${activeTab === 'popular' ? 'text-gray-900' : 'text-gray-600'}`}>
-                Popular
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              className={`px-6 py-2.5 rounded-full flex-row items-center ${
-                activeTab === 'product' ? 'bg-yellow-400' : 'bg-gray-100'
-              }`}
-              onPress={() => setActiveTab('product')}
-            >
-              <MaterialIcon name="package-variant" size={18} color={activeTab === 'product' ? '#111827' : '#6B7280'} />
-              <Text className={`ml-2 font-medium ${activeTab === 'product' ? 'text-gray-900' : 'text-gray-600'}`}>
-                Product
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              className={`px-6 py-2.5 rounded-full flex-row items-center ${
-                activeTab === 'vendor' ? 'bg-white border border-gray-300' : 'bg-gray-100'
-              }`}
-              onPress={() => setActiveTab('vendor')}
-            >
-              <Icon name="person" size={18} color={activeTab === 'vendor' ? '#111827' : '#6B7280'} />
-              <Text className={`ml-2 font-medium ${activeTab === 'vendor' ? 'text-gray-900' : 'text-gray-600'}`}>
-                Vendor
-              </Text>
-            </TouchableOpacity>
+            {activeTab === 'search' ? (
+              // Show search active state
+              <View className="flex-row gap-3 flex-1">
+                <View className="px-6 py-2.5 rounded-full flex-row items-center bg-pink-500 flex-1 justify-center">
+                  <Icon name="search" size={18} color="#FFFFFF" />
+                  <Text className="ml-2 font-medium text-white" numberOfLines={1}>
+                    "{activeSearchQuery}"
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  className="px-4 py-2.5 rounded-full flex-row items-center bg-gray-100"
+                  onPress={clearSearch}
+                >
+                  <Icon name="close" size={18} color="#6B7280" />
+                  <Text className="ml-1 font-medium text-gray-600">Clear</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <>
+                <TouchableOpacity
+                  className={`px-6 py-2.5 rounded-full flex-row items-center ${
+                    activeTab === 'popular' ? 'bg-white border border-gray-300' : 'bg-gray-100'
+                  }`}
+                  onPress={() => { clearSearch(); setActiveTab('popular'); }}
+                >
+                  <Icon name="flame" size={18} color={activeTab === 'popular' ? '#111827' : '#6B7280'} />
+                  <Text className={`ml-2 font-medium ${activeTab === 'popular' ? 'text-gray-900' : 'text-gray-600'}`}>
+                    Popular
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  className={`px-6 py-2.5 rounded-full flex-row items-center ${
+                    activeTab === 'product' ? 'bg-yellow-400' : 'bg-gray-100'
+                  }`}
+                  onPress={() => { clearSearch(); setActiveTab('product'); }}
+                >
+                  <MaterialIcon name="package-variant" size={18} color={activeTab === 'product' ? '#111827' : '#6B7280'} />
+                  <Text className={`ml-2 font-medium ${activeTab === 'product' ? 'text-gray-900' : 'text-gray-600'}`}>
+                    Product
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  className={`px-6 py-2.5 rounded-full flex-row items-center ${
+                    activeTab === 'vendor' ? 'bg-white border border-gray-300' : 'bg-gray-100'
+                  }`}
+                  onPress={() => { clearSearch(); setActiveTab('vendor'); }}
+                >
+                  <Icon name="person" size={18} color={activeTab === 'vendor' ? '#111827' : '#6B7280'} />
+                  <Text className={`ml-2 font-medium ${activeTab === 'vendor' ? 'text-gray-900' : 'text-gray-600'}`}>
+                    Vendor
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         </View>
 
         {/* Tab Content */}
+        {activeTab === 'search' && renderSearchTab()}
         {activeTab === 'popular' && renderPopularTab()}
         {activeTab === 'product' && renderProductTab()}
         {activeTab === 'vendor' && renderVendorTab()}
