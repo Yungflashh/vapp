@@ -3,12 +3,15 @@ import { View, TouchableOpacity, Text } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import Icon from 'react-native-vector-icons/Ionicons';
 import MaterialIcon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useSocket } from '@/context/SocketContext';
 
 interface CustomTabBarProps extends BottomTabBarProps {
   isVendor?: boolean;
 }
 
 const CustomTabBar = ({ state, descriptors, navigation, isVendor = false }: CustomTabBarProps) => {
+  const { unreadMessageCount } = useSocket();
+
   const getTabIcon = (routeName: string, isFocused: boolean) => {
     const color = isFocused ? '#EC4899' : '#9CA3AF';
     const size = 24;
@@ -124,7 +127,16 @@ const CustomTabBar = ({ state, descriptors, navigation, isVendor = false }: Cust
             onLongPress={onLongPress}
             className="flex-1 items-center justify-center py-2"
           >
-            {getTabIcon(route.name, isFocused)}
+            <View className="relative">
+              {getTabIcon(route.name, isFocused)}
+              {route.name === 'Messages' && unreadMessageCount > 0 && (
+                <View className="absolute -top-1 -right-2 bg-pink-500 rounded-full min-w-[16px] h-4 items-center justify-center px-1">
+                  <Text className="text-[10px] text-white font-bold">
+                    {unreadMessageCount > 9 ? '9+' : unreadMessageCount}
+                  </Text>
+                </View>
+              )}
+            </View>
             <Text
               className={`text-xs mt-1 ${
                 isFocused ? 'text-pink-500 font-semibold' : 'text-gray-500'

@@ -272,7 +272,7 @@ const OrdersScreen = ({ navigation }: OrdersScreenProps) => {
         </View>
 
         <View className="flex-row items-center gap-3">
-          <TouchableOpacity className="w-10 h-10 items-center justify-center">
+          <TouchableOpacity className="w-10 h-10 items-center justify-center" onPress={() => navigation.navigate('Notifications' as any)}>
             <Icon name="notifications-outline" size={24} color="#111827" />
           </TouchableOpacity>
 

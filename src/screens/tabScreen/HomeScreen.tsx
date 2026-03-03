@@ -1,9 +1,9 @@
 // screens/HomeScreen.tsx - FIXED WITH UNIFIED SEARCH
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, FlatList, ActivityIndicator, RefreshControl, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
-import { CompositeScreenProps } from '@react-navigation/native';
+import { CompositeScreenProps, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/navigation';
 import { BottomTabParamList } from '@/navigation/BottomTabNavigator';
@@ -11,20 +11,22 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import MaterialIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Toast from 'react-native-toast-message';
 import { ProductCard } from '@/components/Products/ProductCard';
-import { 
+import {
   getProducts,
-  getRecommendedProducts, 
-  getTrendingProducts, 
-  Product, 
+  getRecommendedProducts,
+  getTrendingProducts,
+  Product,
   ProductFilters,
 } from '@/services/product.service';
-import { 
+import {
   getTopVendors,
   followVendor,
   unfollowVendor,
   Vendor,
 } from '@/services/vendor.service';
 import { getCategories, type Category } from '@/services/category.service';
+import { getCart } from '@/services/cart.service';
+import { useNotifications } from '@/context/NotificationContext';
 
 type HomeScreenProps = CompositeScreenProps<
   BottomTabScreenProps<BottomTabParamList, 'Home'>,
@@ -35,13 +37,13 @@ type CategoryFilter = 'all' | 'fashion' | 'electronics' | 'beauty' | 'home' | 'b
 type SortOption = 'newest' | 'price_asc' | 'price_desc' | 'rating' | 'popular';
 
 const HomeScreen = ({ navigation }: HomeScreenProps) => {
+  const { unreadCount: notificationCount } = useNotifications();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeSearchQuery, setActiveSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'popular' | 'product' | 'vendor' | 'search'>('popular');
   const [activeCategory, setActiveCategory] = useState<CategoryFilter>('all');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
-  const [cartCount] = useState(3);
-  const [notificationCount] = useState(2);
+  const [cartCount, setCartCount] = useState(0);
   
   const [products, setProducts] = useState<Product[]>([]);
   const [trendingProducts, setTrendingProducts] = useState<Product[]>([]);
@@ -86,6 +88,13 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
     fetchInitialData();
   }, []);
 
+  // Refresh cart count when screen comes into focus (e.g., returning from Cart)
+  useFocusEffect(
+    useCallback(() => {
+      fetchCartCount();
+    }, [])
+  );
+
   useEffect(() => {
     // Only fetch when NOT in search mode
     if (activeTab === 'search') return;
@@ -107,7 +116,8 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
       await Promise.all([
         fetchProducts(),
         fetchTrendingProducts(),
-        fetchTopVendors()
+        fetchTopVendors(),
+        fetchCartCount(),
       ]);
     } catch (err: any) {
       setError('Failed to load data');
@@ -154,6 +164,18 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
       }
     } catch (err) {
       console.error('Error fetching trending products:', err);
+    }
+  };
+
+  const fetchCartCount = async () => {
+    try {
+      const response = await getCart();
+      if (response.success && response.data?.cart) {
+        setCartCount(response.data.cart.items?.length || 0);
+      }
+    } catch (err) {
+      // Cart might not exist yet - that's fine
+      setCartCount(0);
     }
   };
 
@@ -996,7 +1018,7 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
           <TouchableOpacity onPress={() => navigation.navigate('Categories')}>
             <Icon name="grid-outline" size={24} color="#111827" />
           </TouchableOpacity>
-          <TouchableOpacity className="relative">
+          <TouchableOpacity className="relative" onPress={() => navigation.navigate('Notifications')}>
             <Icon name="notifications-outline" size={24} color="#111827" />
             {notificationCount > 0 && (
               <View className="absolute -top-1 -right-1 w-4 h-4 bg-pink-500 rounded-full items-center justify-center">

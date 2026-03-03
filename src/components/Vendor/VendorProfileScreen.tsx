@@ -23,6 +23,7 @@ import {
   Vendor,
 } from '@/services/vendor.service';
 import { Product } from '@/services/product.service';
+import { startConversation } from '@/services/message.service';
 
 type VendorProfileScreenProps = NativeStackScreenProps<RootStackParamList, 'VendorProfile'>;
 
@@ -220,12 +221,26 @@ const VendorProfileScreen = ({ route, navigation }: VendorProfileScreenProps) =>
   }
 };
 
-  const handleChatNow = () => {
-    Toast.show({
-      type: 'info',
-      text1: 'Chat',
-      text2: 'Chat feature coming soon',
-    });
+  const handleChatNow = async () => {
+    if (!vendor) return;
+    try {
+      const response = await startConversation(vendor.id);
+      if (response.success && response.data.conversation) {
+        const convo = response.data.conversation;
+        navigation.navigate('Chat', {
+          conversationId: convo._id,
+          receiverId: vendor.id,
+          receiverName: vendor.name,
+          receiverAvatar: vendor.image,
+        });
+      }
+    } catch (error: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: error?.response?.data?.message || 'Failed to start conversation',
+      });
+    }
   };
 
   const handleCall = () => {

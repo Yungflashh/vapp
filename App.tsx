@@ -6,6 +6,8 @@ import * as Linking from 'expo-linking';
 import { useEffect, useRef } from 'react';
 
 import { AuthProvider } from './src/context/AuthContext';
+import { NotificationProvider } from './src/context/NotificationContext';
+import { SocketProvider } from './src/context/SocketContext';
 import RootNavigator from './src/navigation';
 import Toast from 'react-native-toast-message';
 import { toastConfig } from '@/config/toastConfig';
@@ -29,11 +31,15 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <NavigationContainer linking={linking}>
-          <RootNavigator />
-          <StatusBar style="auto" />
-        </NavigationContainer>   
-        <Toast config={toastConfig} />
+        <NotificationProvider>
+          <SocketProvider>
+            <NavigationContainer linking={linking}>
+              <RootNavigator />
+              <StatusBar style="auto" />
+            </NavigationContainer>
+            <Toast config={toastConfig} />
+          </SocketProvider>
+        </NotificationProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );

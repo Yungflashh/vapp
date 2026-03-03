@@ -42,6 +42,8 @@ import PaymentWebViewScreen from '@/components/Payments/PaymentWebView';
 import FileDisputeScreen from '@/components/Dispute/FileDisputeScreen';
 import DisputeDetailsScreen from '@/components/Dispute/DisputeDetailsScreen';
 import ChallengesScreen from '@/components/Challenges/ChallengesScreen';
+import NotificationsScreen from '@/screens/NotificationsScreen';
+import ChatScreen from '@/screens/ChatScreen';
 
 export type RootStackParamList = {
   Main: undefined;
@@ -87,7 +89,14 @@ export type RootStackParamList = {
    DisputeDetails: { disputeId: string; openMessageInput?: boolean };
    FileDispute: { orderId: string; orderNumber: string; items: any[]; vendorId?: string };
 
+   Notifications: undefined;
    NotificationSettings: undefined;
+   Chat: {
+     conversationId: string;
+     receiverId: string;
+     receiverName: string;
+     receiverAvatar?: string;
+   };
      PaymentWebView: {
     paymentUrl: string;
     reference: string;
@@ -354,6 +363,16 @@ function AppNavigator() {
  <Stack.Screen
       name="DisputeCenter"
       component={DisputeCenterScreen}
+      options={{ headerShown: false }}
+    />
+ <Stack.Screen
+      name="Notifications"
+      component={NotificationsScreen}
+      options={{ headerShown: false }}
+    />
+ <Stack.Screen
+      name="Chat"
+      component={ChatScreen}
       options={{ headerShown: false }}
     />
  <Stack.Screen

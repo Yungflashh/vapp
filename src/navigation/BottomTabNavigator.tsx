@@ -1,6 +1,7 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import HomeScreen from '@/screens/tabScreen/HomeScreen';
-import { CategoriesScreen, MessagesScreen } from '@/screens/TabScreens';
+import { CategoriesScreen } from '@/screens/TabScreens';
+import ConversationsScreen from '@/screens/ConversationsScreen';
 import CustomTabBar from '@/components/CustomTabBar';
 import WishlistScreen from '@/screens/tabScreen/WishlistScreen';
 import ProfileScreen from '@/screens/tabScreen/ProfileScreen';
@@ -26,7 +27,7 @@ function BottomTabNavigator() {
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Categories" component={CategoriesScreen} />
       <Tab.Screen name="Wishlist" component={WishlistScreen} />
-      <Tab.Screen name="Messages" component={MessagesScreen} />
+      <Tab.Screen name="Messages" component={ConversationsScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );

@@ -1,5 +1,5 @@
 // screens/NotificationSettingsScreen.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/navigation';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Toast from 'react-native-toast-message';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type NotificationSettingsScreenProps = NativeStackScreenProps<
   RootStackParamList,
@@ -147,8 +148,14 @@ const NotificationSettingsScreen = ({ navigation }: NotificationSettingsScreenPr
   const handleSave = async () => {
     try {
       setIsSaving(true);
-      // TODO: Replace with actual API call
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      // Save preferences locally
+      const preferences = {
+        pushEnabled,
+        order: orderNotifications.map(n => ({ id: n.id, enabled: n.enabled })),
+        promo: promoNotifications.map(n => ({ id: n.id, enabled: n.enabled })),
+        social: socialNotifications.map(n => ({ id: n.id, enabled: n.enabled })),
+      };
+      await AsyncStorage.setItem('notificationPreferences', JSON.stringify(preferences));
 
       Toast.show({
         type: 'success',

@@ -23,6 +23,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { BarChart, LineChart } from 'react-native-chart-kit';
 import { getVendorDashboard } from '@/services/vendor.service';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useNotifications } from '@/context/NotificationContext';
 
 const { width } = Dimensions.get('window');
 const CHART_WIDTH = width - 92;
@@ -182,6 +183,7 @@ interface DashboardHeaderProps {
   businessLogo?: string;
   onSettingsPress: () => void;
   onNotificationsPress: () => void;
+  notificationCount?: number;
 }
 
 const DashboardHeader: React.FC<DashboardHeaderProps> = ({
@@ -189,6 +191,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   businessLogo,
   onSettingsPress,
   onNotificationsPress,
+  notificationCount = 0,
 }) => (
   <View className="px-6 pt-4 pb-6">
     <View className="flex-row items-center justify-between">
@@ -227,7 +230,11 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           activeOpacity={0.7}
         >
           <Icon name="notifications-outline" size={26} color="#6B7280" />
-          <View className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-pink-500" />
+          {notificationCount > 0 && (
+            <View className="absolute -top-1 -right-1 w-4 h-4 bg-pink-500 rounded-full items-center justify-center">
+              <Text className="text-[10px] text-white font-bold">{notificationCount}</Text>
+            </View>
+          )}
         </TouchableOpacity>
         <TouchableOpacity onPress={onSettingsPress} activeOpacity={0.7}>
           <Icon name="settings-outline" size={26} color="#6B7280" />
@@ -529,6 +536,7 @@ const ErrorState: React.FC<ErrorStateProps> = ({ onRetry }) => (
 
 const VendorDashboardScreen: React.FC = () => {
   const navigation = useNavigation();
+  const { unreadCount: notificationCount } = useNotifications();
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -565,7 +573,7 @@ const VendorDashboardScreen: React.FC = () => {
   };
 
   const handleNotificationsPress = () => {
-    navigation.navigate('VendorNotifications' as never);
+    navigation.navigate('Notifications' as never);
   };
 
   const handleVerificationPress = () => {
@@ -643,6 +651,7 @@ const VendorDashboardScreen: React.FC = () => {
           businessLogo={dashboard.profile.businessLogo}
           onSettingsPress={handleSettingsPress}
           onNotificationsPress={handleNotificationsPress}
+          notificationCount={notificationCount}
         />
 
         {/* Stats Grid */}

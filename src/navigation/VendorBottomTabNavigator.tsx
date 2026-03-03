@@ -1,6 +1,6 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import HomeScreen from '@/screens/tabScreen/HomeScreen';
-import { MessagesScreen } from '@/screens/TabScreens';
+import ConversationsScreen from '@/screens/ConversationsScreen';
 import CustomTabBar from '@/components/CustomTabBar';
 import ProfileScreen from '@/screens/vendor/VendorProfileScreen';
 import VendorDashboardScreen from '@/screens/vendor/VendorDashboardScreen';
@@ -30,7 +30,7 @@ function VendorBottomTabNavigator() {
       <Tab.Screen name="Dashboard" component={VendorDashboardScreen} />
       <Tab.Screen name="Products" component={VendorProductsScreen} />
       <Tab.Screen name="VendorOrders" component={VendorOrdersScreen} />
-      <Tab.Screen name="Messages" component={MessagesScreen} />
+      <Tab.Screen name="Messages" component={ConversationsScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
