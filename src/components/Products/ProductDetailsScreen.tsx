@@ -22,6 +22,8 @@ import Toast from 'react-native-toast-message';
 import { getProductById, getSimilarProducts, Product as ApiProduct } from '../../services/product.service';
 import { addToCart } from '@/services/cart.service';
 import { generateAffiliateLink } from '@/services/affiliate.service';
+import { useAuth } from '@/context/AuthContext';
+import SignInModal from '@/components/SignInModal';
 import { getProductReviews, Review } from '@/services/review.service';
 import {
   askQuestion,
@@ -214,6 +216,8 @@ const QuestionCard = ({
 // ============================================================
 const ProductDetailsScreen = ({ route, navigation }: Props) => {
   const { productId } = route.params;
+  const { isGuest, exitGuestMode } = useAuth();
+  const [showSignInModal, setShowSignInModal] = useState(false);
 
   const [product, setProduct] = useState<ApiProduct | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -414,6 +418,10 @@ const ProductDetailsScreen = ({ route, navigation }: Props) => {
   // ============================================================
   const handleAddToCart = async () => {
     if (!product) return;
+    if (isGuest) {
+      setShowSignInModal(true);
+      return;
+    }
     if (product.productType === 'physical' && !selectedSize) {
       Toast.show({ type: 'warning', text1: 'Size Required', text2: 'Please select a size' });
       return;
@@ -492,7 +500,7 @@ const ProductDetailsScreen = ({ route, navigation }: Props) => {
   if (isLoading) {
     return (
       <View className="flex-1 bg-white items-center justify-center">
-        <ActivityIndicator size="large" color="#EC4899" />
+        <ActivityIndicator size="large" color="#CC3366" />
         <Text className="text-gray-500 mt-4">Loading product...</Text>
       </View>
     );
@@ -530,12 +538,12 @@ const ProductDetailsScreen = ({ route, navigation }: Props) => {
             <Icon name="share-outline" size={24} color="#FFFFFF" />
           </TouchableOpacity>
           <TouchableOpacity onPress={toggleFavorite} className="w-10 h-10 bg-black/30 rounded-full items-center justify-center">
-            <Icon name={isFavorite ? 'heart' : 'heart-outline'} size={24} color={isFavorite ? '#EC4899' : '#FFFFFF'} />
+            <Icon name={isFavorite ? 'heart' : 'heart-outline'} size={24} color={isFavorite ? '#CC3366' : '#FFFFFF'} />
           </TouchableOpacity>
         </View>
       </View>
 
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#EC4899']} />}>
+      <ScrollView className="flex-1" showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#CC3366']} />}>
         {/* Image Carousel */}
         <View style={{ height: 400 }}>
           <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} onMomentumScrollEnd={(e) => setCurrentImageIndex(Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH))}>
@@ -566,7 +574,7 @@ const ProductDetailsScreen = ({ route, navigation }: Props) => {
             </View>
             <View className="flex-row items-center">
               <View className="bg-pink-50 px-3 py-1.5 rounded-full flex-row items-center mr-2">
-                <Icon name="checkmark-circle" size={16} color="#EC4899" />
+                <Icon name="checkmark-circle" size={16} color="#CC3366" />
                 <Text className="text-pink-500 text-xs font-semibold ml-1">Verified</Text>
               </View>
               <Icon name="chevron-forward" size={20} color="#9CA3AF" />
@@ -605,7 +613,7 @@ const ProductDetailsScreen = ({ route, navigation }: Props) => {
             }}
             className="flex-1 bg-white border-2 border-pink-500 py-3.5 rounded-xl flex-row items-center justify-center"
           >
-            <Icon name="chatbubble-outline" size={20} color="#EC4899" />
+            <Icon name="chatbubble-outline" size={20} color="#CC3366" />
             <Text className="text-pink-500 font-semibold ml-2">Ask a Question</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={handleViewStore} className="flex-1 bg-white border-2 border-gray-900 py-3.5 rounded-xl flex-row items-center justify-center">
@@ -619,15 +627,15 @@ const ProductDetailsScreen = ({ route, navigation }: Props) => {
           {!affiliateLink ? (
             <TouchableOpacity onPress={handleGenerateAffiliateLink} disabled={isGeneratingLink} className="bg-white border-2 border-pink-500 py-3.5 rounded-xl flex-row items-center justify-center" style={{ opacity: isGeneratingLink ? 0.6 : 1 }}>
               {isGeneratingLink ? (
-                <><ActivityIndicator size="small" color="#EC4899" /><Text className="text-pink-500 font-semibold ml-2">Generating...</Text></>
+                <><ActivityIndicator size="small" color="#CC3366" /><Text className="text-pink-500 font-semibold ml-2">Generating...</Text></>
               ) : (
-                <><MaterialIcon name="link-variant" size={20} color="#EC4899" /><Text className="text-pink-500 font-semibold ml-2">Generate Referral Link</Text></>
+                <><MaterialIcon name="link-variant" size={20} color="#CC3366" /><Text className="text-pink-500 font-semibold ml-2">Generate Referral Link</Text></>
               )}
             </TouchableOpacity>
           ) : (
             <View className="bg-pink-50 border border-pink-200 rounded-xl p-3">
               <View className="flex-row items-center mb-2">
-                <Icon name="checkmark-circle" size={18} color="#EC4899" />
+                <Icon name="checkmark-circle" size={18} color="#CC3366" />
                 <Text className="text-pink-600 font-semibold text-sm ml-1">Referral Link Generated</Text>
               </View>
               <View className="bg-white rounded-lg px-3 py-2.5 flex-row items-center">
@@ -787,12 +795,12 @@ const ProductDetailsScreen = ({ route, navigation }: Props) => {
               <View className="flex-row items-center justify-between mb-3">
                 <Text className="text-gray-900 font-semibold text-base">Customer Reviews</Text>
                 <TouchableOpacity onPress={() => { const next = reviewSortBy === 'createdAt' ? 'rating' : 'createdAt'; setReviewSortBy(next); setReviews([]); setTimeout(() => fetchReviews(1), 100); }} className="flex-row items-center">
-                  <Icon name="swap-vertical" size={16} color="#EC4899" />
+                  <Icon name="swap-vertical" size={16} color="#CC3366" />
                   <Text className="text-pink-500 text-sm ml-1">{reviewSortBy === 'createdAt' ? 'Most Recent' : 'Highest Rated'}</Text>
                 </TouchableOpacity>
               </View>
               {isLoadingReviews && reviews.length === 0 ? (
-                <View className="py-8 items-center"><ActivityIndicator size="small" color="#EC4899" /><Text className="text-gray-500 mt-2">Loading reviews...</Text></View>
+                <View className="py-8 items-center"><ActivityIndicator size="small" color="#CC3366" /><Text className="text-gray-500 mt-2">Loading reviews...</Text></View>
               ) : reviews.length === 0 ? (
                 <View className="py-8 items-center"><Icon name="chatbubble-outline" size={48} color="#D1D5DB" /><Text className="text-gray-500 mt-3 text-center">No reviews yet.{'\n'}Be the first to review this product!</Text></View>
               ) : (
@@ -800,7 +808,7 @@ const ProductDetailsScreen = ({ route, navigation }: Props) => {
                   {reviews.map((review) => <ReviewCard key={review._id} review={review} />)}
                   {reviewsMeta.page < reviewsMeta.totalPages && (
                     <TouchableOpacity onPress={() => fetchReviews(reviewsMeta.page + 1)} disabled={isLoadingReviews} className="bg-gray-100 py-3 rounded-xl items-center mt-2">
-                      {isLoadingReviews ? <ActivityIndicator size="small" color="#EC4899" /> : <Text className="text-gray-700 font-semibold">Load More Reviews</Text>}
+                      {isLoadingReviews ? <ActivityIndicator size="small" color="#CC3366" /> : <Text className="text-gray-700 font-semibold">Load More Reviews</Text>}
                     </TouchableOpacity>
                   )}
                 </>
@@ -850,7 +858,7 @@ const ProductDetailsScreen = ({ route, navigation }: Props) => {
               {/* Questions List */}
               {isLoadingQuestions && questions.length === 0 ? (
                 <View className="py-8 items-center">
-                  <ActivityIndicator size="small" color="#EC4899" />
+                  <ActivityIndicator size="small" color="#CC3366" />
                   <Text className="text-gray-500 mt-2">Loading questions...</Text>
                 </View>
               ) : questions.length === 0 ? (
@@ -872,7 +880,7 @@ const ProductDetailsScreen = ({ route, navigation }: Props) => {
                       className="bg-gray-100 py-3 rounded-xl items-center mt-2"
                     >
                       {isLoadingQuestions ? (
-                        <ActivityIndicator size="small" color="#EC4899" />
+                        <ActivityIndicator size="small" color="#CC3366" />
                       ) : (
                         <Text className="text-gray-700 font-semibold">Load More Questions</Text>
                       )}
@@ -910,7 +918,7 @@ const ProductDetailsScreen = ({ route, navigation }: Props) => {
           <View className="px-4 pb-6">
             <Text className="text-gray-900 font-bold text-xl mb-4">Similar Products</Text>
             {isLoadingSimilar ? (
-              <View className="py-8 items-center"><ActivityIndicator size="small" color="#EC4899" /></View>
+              <View className="py-8 items-center"><ActivityIndicator size="small" color="#CC3366" /></View>
             ) : (
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 {similarProducts.map((item) => (
@@ -970,7 +978,7 @@ const ProductDetailsScreen = ({ route, navigation }: Props) => {
                     {product.images?.[0] ? (
                       <Image source={{ uri: product.images[0] }} className="w-full h-full" resizeMode="cover" />
                     ) : (
-                      <View className="w-full h-full items-center justify-center"><Icon name="image-outline" size={20} color="#EC4899" /></View>
+                      <View className="w-full h-full items-center justify-center"><Icon name="image-outline" size={20} color="#CC3366" /></View>
                     )}
                   </View>
                   <Text className="flex-1 text-gray-900 font-semibold text-sm" numberOfLines={2}>
@@ -1006,7 +1014,7 @@ const ProductDetailsScreen = ({ route, navigation }: Props) => {
                     onPress={handleAskQuestion}
                     disabled={!newQuestion.trim() || isSubmittingQuestion}
                     className="flex-1 py-3.5 rounded-xl"
-                    style={{ backgroundColor: newQuestion.trim() ? '#EC4899' : '#E5E7EB' }}
+                    style={{ backgroundColor: newQuestion.trim() ? '#CC3366' : '#E5E7EB' }}
                   >
                     {isSubmittingQuestion ? (
                       <ActivityIndicator size="small" color="#FFFFFF" />
@@ -1022,6 +1030,16 @@ const ProductDetailsScreen = ({ route, navigation }: Props) => {
           </TouchableOpacity>
         </KeyboardAvoidingView>
       </Modal>
+
+      <SignInModal
+        visible={showSignInModal}
+        onClose={() => setShowSignInModal(false)}
+        onSignIn={() => {
+          setShowSignInModal(false);
+          exitGuestMode();
+        }}
+        message="Sign in or create an account to add items to your cart."
+      />
     </View>
   );
 };

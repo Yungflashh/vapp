@@ -352,7 +352,7 @@ const TrackOrderScreen = ({ route, navigation }: TrackOrderScreenProps) => {
     return (
       <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#EC4899" />
+          <ActivityIndicator size="large" color="#CC3366" />
           <Text className="text-gray-500 mt-4">Loading tracking information...</Text>
         </View>
       </SafeAreaView>
@@ -436,8 +436,8 @@ const TrackOrderScreen = ({ route, navigation }: TrackOrderScreenProps) => {
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={handleRefresh}
-            tintColor="#EC4899"
-            colors={["#EC4899"]}
+            tintColor="#CC3366"
+            colors={["#CC3366"]}
           />
         }
       >
@@ -488,8 +488,8 @@ const TrackOrderScreen = ({ route, navigation }: TrackOrderScreenProps) => {
         <View className="mx-4 mt-4">
           <View className="bg-gradient-to-r from-pink-500 to-red-500 rounded-2xl p-4"
             style={{
-              backgroundColor: '#EC4899',
-              shadowColor: '#EC4899',
+              backgroundColor: '#CC3366',
+              shadowColor: '#CC3366',
               shadowOffset: { width: 0, height: 4 },
               shadowOpacity: 0.3,
               shadowRadius: 8,
@@ -699,7 +699,7 @@ const TrackOrderScreen = ({ route, navigation }: TrackOrderScreenProps) => {
         <View className="bg-white mx-4 mt-4 rounded-2xl p-4 mb-6">
           <Text className="text-base font-bold text-gray-900 mb-3">Delivery Address</Text>
           <View className="flex-row items-start">
-            <Icon name="location" size={20} color="#EC4899" className="mt-1" />
+            <Icon name="location" size={20} color="#CC3366" className="mt-1" />
             <View className="flex-1 ml-3">
               <Text className="text-sm font-semibold text-gray-900">
                 {order.shippingAddress.fullName || 'Customer'}

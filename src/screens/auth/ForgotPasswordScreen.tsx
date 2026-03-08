@@ -61,17 +61,17 @@ const ForgotPasswordScreen = ({ navigation }: ForgotPasswordScreenProps) => {
       console.log('📧 Requesting password reset for:', email);
       
       const response = await forgotPassword(email);
-      
-      console.log('✅ Password reset response:', response.data);
-      
-      if (response.data.success) {
+
+      console.log('✅ Password reset response:', response);
+
+      if (response.success) {
         Toast.show({
           type: 'success',
-          text1: 'Reset Link Sent',
-          text2: 'Check your email for the password reset link',
+          text1: 'Reset Code Sent',
+          text2: 'Check your email for the password reset code',
           visibilityTime: 4000,
         });
-        
+
         setTimeout(() => {
           navigation.navigate('ResetPassword', { email });
         }, 1500);
@@ -79,7 +79,7 @@ const ForgotPasswordScreen = ({ navigation }: ForgotPasswordScreenProps) => {
         Toast.show({
           type: 'error',
           text1: 'Request Failed',
-          text2: response.data.message || 'Unable to send reset link',
+          text2: response.message || 'Unable to send reset code',
         });
       }
     } catch (error: any) {
@@ -133,7 +133,7 @@ const ForgotPasswordScreen = ({ navigation }: ForgotPasswordScreenProps) => {
             onPress={() => navigation.goBack()}
             disabled={isLoading}
           >
-            <Icon name="arrow-back" size={24} color="#EC4899" />
+            <Icon name="arrow-back" size={24} color="#CC3366" />
             <Text className="text-pink-500 text-base font-medium ml-2">Back to Sign in</Text>
           </TouchableOpacity>
 
@@ -181,7 +181,7 @@ const ForgotPasswordScreen = ({ navigation }: ForgotPasswordScreenProps) => {
           {/* Helper Text */}
           <View className="bg-pink-50 rounded-lg p-4 mb-6">
             <View className="flex-row items-start">
-              <Icon name="information-circle-outline" size={20} color="#EC4899" />
+              <Icon name="information-circle-outline" size={20} color="#CC3366" />
               <View className="flex-1 ml-3">
                 <Text className="text-sm text-gray-700 leading-5">
                   We'll send you an email with a secure link to reset your password. 

@@ -302,7 +302,7 @@ const VendorProfileScreen = ({ route, navigation }: VendorProfileScreenProps) =>
     return (
       <SafeAreaView className="flex-1 bg-gray-50">
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#EC4899" />
+          <ActivityIndicator size="large" color="#CC3366" />
           <Text className="text-gray-500 mt-4">Loading vendor profile...</Text>
         </View>
       </SafeAreaView>
@@ -351,8 +351,8 @@ const VendorProfileScreen = ({ route, navigation }: VendorProfileScreenProps) =>
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={onRefresh}
-            colors={['#EC4899']}
-            tintColor="#EC4899"
+            colors={['#CC3366']}
+            tintColor="#CC3366"
           />
         }
       >
@@ -457,14 +457,14 @@ const VendorProfileScreen = ({ route, navigation }: VendorProfileScreenProps) =>
             onPress={handleCall}
             activeOpacity={0.8}
           >
-            <Icon name="call" size={24} color="#EC4899" />
+            <Icon name="call" size={24} color="#CC3366" />
           </TouchableOpacity>
         </View>
 
         {/* Products Section */}
         <View className="px-4 mt-6 mb-6">
           <View className="flex-row items-center mb-4">
-            <MaterialIcon name="package-variant" size={24} color="#EC4899" />
+            <MaterialIcon name="package-variant" size={24} color="#CC3366" />
             <Text className="text-lg font-bold text-gray-900 ml-2">
               Products ({products.length})
             </Text>

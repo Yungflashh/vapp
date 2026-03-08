@@ -1,0 +1,27 @@
+# Dependencies (EAS installs these during build)
+node_modules/
+
+# Git
+.git/
+
+# Expo
+.expo/
+dist/
+web-build/
+
+# Debug logs
+npm-debug.*
+
+# macOS
+.DS_Store
+
+# Metro health checks
+.metro-health-check*
+
+# Credentials/keys (should not be in archive)
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*

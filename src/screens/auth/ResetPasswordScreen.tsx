@@ -67,26 +67,29 @@ const ResetPasswordScreen = ({ navigation, route }: ResetPasswordScreenProps) =>
         code: resetCode.toUpperCase().trim(),
         password: newPassword,
       });
-      
-      console.log('✅ Password reset response:', response.data);
-      
-      if (response.data.success) {
+
+      console.log('✅ Password reset response:', response);
+
+      if (response.success) {
         Toast.show({
           type: 'success',
-          text1: 'Password Reset Successful! 🎉',
+          text1: 'Password Reset Successful!',
           text2: 'You can now log in with your new password',
           visibilityTime: 3000,
         });
-        
+
         // Navigate to Login screen
         setTimeout(() => {
-          navigation.navigate('Login');
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Login' }],
+          });
         }, 1500);
       } else {
         Toast.show({
           type: 'error',
           text1: 'Reset Failed',
-          text2: response.data.message || 'Unable to reset password',
+          text2: response.message || 'Unable to reset password',
         });
       }
     } catch (error: any) {
@@ -166,7 +169,7 @@ const ResetPasswordScreen = ({ navigation, route }: ResetPasswordScreenProps) =>
             onPress={() => navigation.goBack()}
             disabled={isLoading}
           >
-            <Icon name="arrow-back" size={24} color="#EC4899" />
+            <Icon name="arrow-back" size={24} color="#CC3366" />
             <Text className="text-pink-500 text-base font-medium ml-2">Back</Text>
           </TouchableOpacity>
 
@@ -335,6 +338,7 @@ const ResetPasswordScreen = ({ navigation, route }: ResetPasswordScreenProps) =>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      <Toast />
     </SafeAreaView>
   );
 };

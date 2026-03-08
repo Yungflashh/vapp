@@ -339,7 +339,7 @@ const CartScreen = () => {
                 className="w-8 h-8 items-center justify-center"
                 disabled={isUpdating}
               >
-                <Icon name="add" size={16} color="#EC4899" />
+                <Icon name="add" size={16} color="#CC3366" />
               </TouchableOpacity>
             </View>
 
@@ -385,7 +385,7 @@ const CartScreen = () => {
           <View className="w-10" />
         </View>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#EC4899" />
+          <ActivityIndicator size="large" color="#CC3366" />
           <Text className="text-gray-500 mt-4">Loading cart...</Text>
         </View>
       </SafeAreaView>

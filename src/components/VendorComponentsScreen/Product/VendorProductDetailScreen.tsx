@@ -473,7 +473,7 @@ const VendorProductDetailScreen = () => {
       <SafeAreaView className="flex-1 bg-white" edges={['top']}>
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
         <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#EC4899" />
+          <ActivityIndicator size="large" color="#CC3366" />
           <Text className="text-gray-500 mt-4">Loading product...</Text>
         </View>
       </SafeAreaView>
@@ -697,7 +697,7 @@ const VendorProductDetailScreen = () => {
               {/* Reviews List */}
               {isLoadingReviews && reviews.length === 0 ? (
                 <View className="py-8 items-center">
-                  <ActivityIndicator size="small" color="#EC4899" />
+                  <ActivityIndicator size="small" color="#CC3366" />
                   <Text className="text-gray-500 mt-2">Loading reviews...</Text>
                 </View>
               ) : reviews.length === 0 ? (
@@ -712,7 +712,7 @@ const VendorProductDetailScreen = () => {
                   ))}
                   {reviewsMeta.page < reviewsMeta.totalPages && (
                     <TouchableOpacity onPress={() => fetchReviews(reviewsMeta.page + 1)} disabled={isLoadingReviews} className="bg-gray-100 py-3 rounded-xl items-center mt-2">
-                      {isLoadingReviews ? <ActivityIndicator size="small" color="#EC4899" /> : <Text className="text-gray-700 font-semibold">Load More Reviews</Text>}
+                      {isLoadingReviews ? <ActivityIndicator size="small" color="#CC3366" /> : <Text className="text-gray-700 font-semibold">Load More Reviews</Text>}
                     </TouchableOpacity>
                   )}
                 </>
@@ -755,7 +755,7 @@ const VendorProductDetailScreen = () => {
               {/* Questions List */}
               {isLoadingQuestions && questions.length === 0 ? (
                 <View className="py-8 items-center">
-                  <ActivityIndicator size="small" color="#EC4899" />
+                  <ActivityIndicator size="small" color="#CC3366" />
                   <Text className="text-gray-500 mt-2">Loading questions...</Text>
                 </View>
               ) : questions.length === 0 ? (
@@ -774,7 +774,7 @@ const VendorProductDetailScreen = () => {
                   ))}
                   {questionsMeta.page < questionsMeta.totalPages && (
                     <TouchableOpacity onPress={() => fetchQuestions(questionsMeta.page + 1)} disabled={isLoadingQuestions} className="bg-gray-100 py-3 rounded-xl items-center mt-2">
-                      {isLoadingQuestions ? <ActivityIndicator size="small" color="#EC4899" /> : <Text className="text-gray-700 font-semibold">Load More Questions</Text>}
+                      {isLoadingQuestions ? <ActivityIndicator size="small" color="#CC3366" /> : <Text className="text-gray-700 font-semibold">Load More Questions</Text>}
                     </TouchableOpacity>
                   )}
                 </>
@@ -794,7 +794,7 @@ const VendorProductDetailScreen = () => {
             onPress={handleUpdateStock}
             className="flex-1 bg-white border-2 border-pink-500 py-4 rounded-xl mr-2 flex-row items-center justify-center"
           >
-            <Icon name="cube-outline" size={20} color="#EC4899" />
+            <Icon name="cube-outline" size={20} color="#CC3366" />
             <Text className="text-base font-bold text-pink-500 ml-2">Update Stock</Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -806,7 +806,7 @@ const VendorProductDetailScreen = () => {
               ]);
             }}
             className="flex-1 bg-pink-500 py-4 rounded-xl ml-2 flex-row items-center justify-center"
-            style={{ shadowColor: '#EC4899', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 }}
+            style={{ shadowColor: '#CC3366', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 }}
           >
             <Icon name="settings-outline" size={20} color="#FFFFFF" />
             <Text className="text-base font-bold text-white ml-2">Manage</Text>
@@ -866,7 +866,7 @@ const VendorProductDetailScreen = () => {
                     onPress={handleSubmitAnswer}
                     disabled={!answerText.trim() || isSubmittingAnswer}
                     className="flex-1 py-3.5 rounded-xl"
-                    style={{ backgroundColor: answerText.trim() ? '#EC4899' : '#E5E7EB' }}
+                    style={{ backgroundColor: answerText.trim() ? '#CC3366' : '#E5E7EB' }}
                   >
                     {isSubmittingAnswer ? (
                       <ActivityIndicator size="small" color="#FFFFFF" />

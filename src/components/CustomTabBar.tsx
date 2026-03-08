@@ -13,7 +13,7 @@ const CustomTabBar = ({ state, descriptors, navigation, isVendor = false }: Cust
   const { unreadMessageCount } = useSocket();
 
   const getTabIcon = (routeName: string, isFocused: boolean) => {
-    const color = isFocused ? '#EC4899' : '#9CA3AF';
+    const color = isFocused ? '#CC3366' : '#9CA3AF';
     const size = 24;
 
     // Vendor-specific icons

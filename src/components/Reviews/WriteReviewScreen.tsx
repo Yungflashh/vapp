@@ -210,7 +210,7 @@ const WriteReviewScreen = ({ route, navigation }: WriteReviewScreenProps) => {
                       i < currentIndex
                         ? '#10B981'
                         : i === currentIndex
-                        ? '#EC4899'
+                        ? '#CC3366'
                         : '#E5E7EB',
                   }}
                 />
@@ -231,7 +231,7 @@ const WriteReviewScreen = ({ route, navigation }: WriteReviewScreenProps) => {
                 />
               ) : (
                 <View className="w-full h-full items-center justify-center">
-                  <Icon name="image-outline" size={24} color="#EC4899" />
+                  <Icon name="image-outline" size={24} color="#CC3366" />
                 </View>
               )}
             </View>
@@ -287,7 +287,7 @@ const WriteReviewScreen = ({ route, navigation }: WriteReviewScreenProps) => {
             disabled={!canSubmitCurrent || isSubmitting}
             className="py-4 rounded-xl mb-3"
             style={{
-              backgroundColor: canSubmitCurrent ? '#EC4899' : '#E5E7EB',
+              backgroundColor: canSubmitCurrent ? '#CC3366' : '#E5E7EB',
             }}
           >
             {isSubmitting ? (

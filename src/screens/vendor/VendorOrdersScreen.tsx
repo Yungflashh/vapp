@@ -526,7 +526,7 @@ const VendorOrdersScreen: React.FC = () => {
                 active ? 'bg-pink-500' : 'bg-gray-100'
               }`}
               style={active ? {
-                shadowColor: '#EC4899',
+                shadowColor: '#CC3366',
                 shadowOffset: { width: 0, height: 3 },
                 shadowOpacity: 0.3,
                 shadowRadius: 6,
@@ -614,7 +614,7 @@ const VendorOrdersScreen: React.FC = () => {
           {/* Customer Info */}
           <View className="flex-row items-center mb-4 pb-4 border-b border-gray-100">
             <View className="w-10 h-10 rounded-full bg-pink-100 items-center justify-center mr-3">
-              <Ionicons name="person" size={18} color="#EC4899" />
+              <Ionicons name="person" size={18} color="#CC3366" />
             </View>
             <View className="flex-1">
               <Text className="text-sm font-semibold text-gray-900" numberOfLines={1}>
@@ -792,7 +792,7 @@ const VendorOrdersScreen: React.FC = () => {
                     activeOpacity={0.8}
                     className="flex-1 min-w-[140px]"
                     style={{
-                      shadowColor: '#EC4899',
+                      shadowColor: '#CC3366',
                       shadowOffset: { width: 0, height: 3 },
                       shadowOpacity: 0.3,
                       shadowRadius: 6,
@@ -800,7 +800,7 @@ const VendorOrdersScreen: React.FC = () => {
                     }}
                   >
                     <LinearGradient
-                      colors={['#EC4899', '#DB2777']}
+                      colors={['#CC3366', '#DB2777']}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
                       style={{
@@ -832,7 +832,7 @@ const VendorOrdersScreen: React.FC = () => {
                   activeOpacity={0.8}
                   className="flex-row items-center justify-center border-2 border-pink-500 px-4 py-3 rounded-xl flex-1 min-w-[120px]"
                 >
-                  <Ionicons name="eye-outline" size={18} color="#EC4899" />
+                  <Ionicons name="eye-outline" size={18} color="#CC3366" />
                   <Text className="text-pink-500 text-sm font-bold ml-2">
                     View Details
                   </Text>
@@ -899,7 +899,7 @@ const VendorOrdersScreen: React.FC = () => {
             onPress={() => setActiveTab('all')}
             activeOpacity={0.8}
             style={{
-              shadowColor: '#EC4899',
+              shadowColor: '#CC3366',
               shadowOffset: { width: 0, height: 3 },
               shadowOpacity: 0.3,
               shadowRadius: 6,
@@ -907,7 +907,7 @@ const VendorOrdersScreen: React.FC = () => {
             }}
           >
             <LinearGradient
-              colors={['#EC4899', '#DB2777']}
+              colors={['#CC3366', '#DB2777']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={{
@@ -936,14 +936,14 @@ const VendorOrdersScreen: React.FC = () => {
           <View 
             className="w-20 h-20 rounded-3xl bg-white items-center justify-center mb-5"
             style={{
-              shadowColor: '#EC4899',
+              shadowColor: '#CC3366',
               shadowOffset: { width: 0, height: 6 },
               shadowOpacity: 0.15,
               shadowRadius: 12,
               elevation: 8,
             }}
           >
-            <ActivityIndicator size="large" color="#EC4899" />
+            <ActivityIndicator size="large" color="#CC3366" />
           </View>
           <Text className="text-base font-semibold text-gray-900">Loading Orders</Text>
           <Text className="text-sm text-gray-500 mt-2">Please wait...</Text>
@@ -974,8 +974,8 @@ const VendorOrdersScreen: React.FC = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#EC4899']}
-            tintColor="#EC4899"
+            colors={['#CC3366']}
+            tintColor="#CC3366"
           />
         }
         onEndReached={onLoadMore}
@@ -984,7 +984,7 @@ const VendorOrdersScreen: React.FC = () => {
         ListFooterComponent={
           loadingMore ? (
             <View className="py-8 items-center">
-              <ActivityIndicator size="small" color="#EC4899" />
+              <ActivityIndicator size="small" color="#CC3366" />
             </View>
           ) : null
         }

@@ -27,6 +27,8 @@ import {
 import { getCategories, type Category } from '@/services/category.service';
 import { getCart } from '@/services/cart.service';
 import { useNotifications } from '@/context/NotificationContext';
+import { useAuth } from '@/context/AuthContext';
+import SignInModal from '@/components/SignInModal';
 
 type HomeScreenProps = CompositeScreenProps<
   BottomTabScreenProps<BottomTabParamList, 'Home'>,
@@ -37,7 +39,10 @@ type CategoryFilter = 'all' | 'fashion' | 'electronics' | 'beauty' | 'home' | 'b
 type SortOption = 'newest' | 'price_asc' | 'price_desc' | 'rating' | 'popular';
 
 const HomeScreen = ({ navigation }: HomeScreenProps) => {
+  const { isGuest, exitGuestMode } = useAuth();
   const { unreadCount: notificationCount } = useNotifications();
+  const [showSignInModal, setShowSignInModal] = useState(false);
+  const [signInMessage, setSignInMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeSearchQuery, setActiveSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'popular' | 'product' | 'vendor' | 'search'>('popular');
@@ -168,6 +173,10 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
   };
 
   const fetchCartCount = async () => {
+    if (isGuest) {
+      setCartCount(0);
+      return;
+    }
     try {
       const response = await getCart();
       if (response.success && response.data?.cart) {
@@ -424,7 +433,7 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
             <Image source={{ uri: item.coverImage }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
           ) : (
             <View className="w-full h-full bg-pink-100 items-center justify-center">
-              <Icon name="storefront-outline" size={32} color="#EC4899" />
+              <Icon name="storefront-outline" size={32} color="#CC3366" />
             </View>
           )}
           <TouchableOpacity 
@@ -477,7 +486,7 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
                 handleShare(item);
               }}
             >
-              <Icon name="share-social-outline" size={14} color="#EC4899" />
+              <Icon name="share-social-outline" size={14} color="#CC3366" />
               <Text className="text-pink-500 text-xs font-semibold ml-1">Share</Text>
             </TouchableOpacity>
             <TouchableOpacity 
@@ -548,7 +557,7 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
               <Icon 
                 name={option.icon as any} 
                 size={18} 
-                color={sortBy === option.id ? '#EC4899' : '#6B7280'} 
+                color={sortBy === option.id ? '#CC3366' : '#6B7280'} 
               />
               <Text className={`ml-3 text-sm ${
                 sortBy === option.id ? 'text-pink-500 font-semibold' : 'text-gray-700'
@@ -569,7 +578,7 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
     if (isSearching) {
       return (
         <View className="items-center justify-center py-20">
-          <ActivityIndicator size="large" color="#EC4899" />
+          <ActivityIndicator size="large" color="#CC3366" />
           <Text className="text-gray-500 mt-4">Searching for "{activeSearchQuery}"...</Text>
         </View>
       );
@@ -650,7 +659,7 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
         {searchVendors.length > 0 && (
           <View className="mb-6">
             <View className="flex-row items-center mb-3">
-              <Icon name="storefront-outline" size={18} color="#EC4899" />
+              <Icon name="storefront-outline" size={18} color="#CC3366" />
               <Text className="text-base font-bold text-gray-900 ml-2">Vendors</Text>
               <View className="bg-pink-100 px-2 py-0.5 rounded-full ml-2">
                 <Text className="text-xs font-bold text-pink-600">{searchVendors.length}</Text>
@@ -670,7 +679,7 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
                       <Image source={{ uri: vendor.image }} className="w-full h-full" resizeMode="cover" />
                     ) : (
                       <View className="w-full h-full items-center justify-center bg-pink-50">
-                        <Icon name="person" size={24} color="#EC4899" />
+                        <Icon name="person" size={24} color="#CC3366" />
                       </View>
                     )}
                   </View>
@@ -767,7 +776,7 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
 
       {isLoadingProducts && (
         <View className="items-center justify-center py-20">
-          <ActivityIndicator size="large" color="#EC4899" />
+          <ActivityIndicator size="large" color="#CC3366" />
           <Text className="text-gray-500 mt-4">Loading products...</Text>
         </View>
       )}
@@ -820,7 +829,7 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
 
       {isLoadingVendors && (
         <View className="items-center justify-center py-20">
-          <ActivityIndicator size="large" color="#EC4899" />
+          <ActivityIndicator size="large" color="#CC3366" />
           <Text className="text-gray-500 mt-4">Loading vendors...</Text>
         </View>
       )}
@@ -863,7 +872,7 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
           <Text className="text-xl font-bold text-gray-900">Top Vendors</Text>
           <TouchableOpacity className="flex-row items-center" onPress={() => { clearSearch(); setActiveTab('vendor'); }}>
             <Text className="text-pink-500 font-medium mr-1">See All</Text>
-            <Icon name="chevron-forward" size={18} color="#EC4899" />
+            <Icon name="chevron-forward" size={18} color="#CC3366" />
           </TouchableOpacity>
         </View>
         {topVendors.length > 0 ? (
@@ -892,7 +901,7 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
         </View>
         {isLoading ? (
           <View className="items-center justify-center py-10">
-            <ActivityIndicator size="large" color="#EC4899" />
+            <ActivityIndicator size="large" color="#CC3366" />
           </View>
         ) : error ? (
           <View className="items-center justify-center py-10">
@@ -973,7 +982,7 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
                     )}
                   </View>
                   <TouchableOpacity className="absolute top-2 right-2 w-8 h-8 bg-white rounded-full items-center justify-center">
-                    <Icon name="heart-outline" size={18} color="#EC4899" />
+                    <Icon name="heart-outline" size={18} color="#CC3366" />
                   </TouchableOpacity>
                 </View>
                 <View className="p-3">
@@ -1018,7 +1027,14 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
           <TouchableOpacity onPress={() => navigation.navigate('Categories')}>
             <Icon name="grid-outline" size={24} color="#111827" />
           </TouchableOpacity>
-          <TouchableOpacity className="relative" onPress={() => navigation.navigate('Notifications')}>
+          <TouchableOpacity className="relative" onPress={() => {
+            if (isGuest) {
+              setSignInMessage('Sign in to view your notifications and stay updated.');
+              setShowSignInModal(true);
+              return;
+            }
+            navigation.navigate('Notifications');
+          }}>
             <Icon name="notifications-outline" size={24} color="#111827" />
             {notificationCount > 0 && (
               <View className="absolute -top-1 -right-1 w-4 h-4 bg-pink-500 rounded-full items-center justify-center">
@@ -1026,7 +1042,14 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
               </View>
             )}
           </TouchableOpacity>
-          <TouchableOpacity className="relative" onPress={() => navigation.navigate('Cart')}>
+          <TouchableOpacity className="relative" onPress={() => {
+            if (isGuest) {
+              setSignInMessage('Sign in to add items to your cart and start shopping.');
+              setShowSignInModal(true);
+              return;
+            }
+            navigation.navigate('Cart');
+          }}>
             <Icon name="cart-outline" size={24} color="#111827" />
             {cartCount > 0 && (
               <View className="absolute -top-1 -right-1 w-4 h-4 bg-pink-500 rounded-full items-center justify-center">
@@ -1043,8 +1066,8 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
           <RefreshControl 
             refreshing={isRefreshing} 
             onRefresh={onRefresh} 
-            colors={['#EC4899']} 
-            tintColor="#EC4899" 
+            colors={['#CC3366']} 
+            tintColor="#CC3366" 
           />
         }
       >
@@ -1147,6 +1170,16 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
         {activeTab === 'product' && renderProductTab()}
         {activeTab === 'vendor' && renderVendorTab()}
       </ScrollView>
+
+      <SignInModal
+        visible={showSignInModal}
+        onClose={() => setShowSignInModal(false)}
+        onSignIn={() => {
+          setShowSignInModal(false);
+          exitGuestMode();
+        }}
+        message={signInMessage}
+      />
     </SafeAreaView>
   );
 };

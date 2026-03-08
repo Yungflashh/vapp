@@ -87,7 +87,7 @@ const PointsHistoryScreen = ({ navigation }: PointsHistoryScreenProps) => {
       case 'login':
         return '#3B82F6';
       case 'redeem':
-        return '#EC4899';
+        return '#CC3366';
       default:
         return '#6B7280';
     }
@@ -106,7 +106,7 @@ const PointsHistoryScreen = ({ navigation }: PointsHistoryScreenProps) => {
     return (
       <SafeAreaView className="flex-1 bg-white" edges={['top']}>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#EC4899" />
+          <ActivityIndicator size="large" color="#CC3366" />
           <Text className="text-gray-500 mt-4">Loading history...</Text>
         </View>
       </SafeAreaView>
@@ -132,8 +132,8 @@ const PointsHistoryScreen = ({ navigation }: PointsHistoryScreenProps) => {
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={onRefresh}
-            colors={['#EC4899']}
-            tintColor="#EC4899"
+            colors={['#CC3366']}
+            tintColor="#CC3366"
           />
         }
       >

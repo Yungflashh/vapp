@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator, useWindowDimensions, Keyboard, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, useWindowDimensions, Keyboard, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '@/navigation/AuthNavigator';
 import { verifyOTP, resendOTP } from '@/services/auth.service';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Toast from 'react-native-toast-message';
 
 type OTPVerificationScreenProps = NativeStackScreenProps<AuthStackParamList, 'OTPVerification'>;
 
@@ -62,6 +63,15 @@ const OTPVerificationScreen = ({ navigation, route }: OTPVerificationScreenProps
     if (value && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
+
+    // Auto-verify when all 6 digits are entered
+    if (value && index === 5) {
+      const otpCode = newOtp.join('');
+      if (otpCode.length === 6) {
+        Keyboard.dismiss();
+        setTimeout(() => handleVerify(otpCode), 300);
+      }
+    }
   };
 
   const handleKeyPress = (e: any, index: number) => {
@@ -70,10 +80,10 @@ const OTPVerificationScreen = ({ navigation, route }: OTPVerificationScreenProps
     }
   };
 
-  const handleVerify = async () => {
-    const otpCode = otp.join('');
+  const handleVerify = async (prefilledCode?: string) => {
+    const otpCode = prefilledCode || otp.join('');
     if (otpCode.length !== 6) {
-      Alert.alert('Invalid OTP', 'Please enter all 6 digits');
+      Toast.show({ type: 'error', text1: 'Invalid OTP', text2: 'Please enter all 6 digits' });
       return;
     }
 
@@ -89,25 +99,18 @@ const OTPVerificationScreen = ({ navigation, route }: OTPVerificationScreenProps
 
       console.log('✅ OTP verification successful:', response);
 
-      Alert.alert(
-        'Success',
-        'Email verified successfully!',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              if (isVendor) {
-                navigation.navigate('VendorSetup');
-              } else {
-                navigation.reset({
-                  index: 0,
-                  routes: [{ name: 'Login' }],
-                });
-              }
-            },
-          },
-        ]
-      );
+      Toast.show({ type: 'success', text1: 'Success', text2: 'Email verified successfully!' });
+
+      setTimeout(() => {
+        if (isVendor) {
+          navigation.navigate('VendorSetup');
+        } else {
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Login' }],
+          });
+        }
+      }, 1000);
     } catch (error: any) {
       console.error('❌ OTP verification error:', error);
 
@@ -122,7 +125,7 @@ const OTPVerificationScreen = ({ navigation, route }: OTPVerificationScreenProps
       setOtp(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
 
-      Alert.alert('Verification Failed', errorMessage);
+      Toast.show({ type: 'error', text1: 'Verification Failed', text2: errorMessage });
     } finally {
       setLoading(false);
     }
@@ -148,7 +151,7 @@ const OTPVerificationScreen = ({ navigation, route }: OTPVerificationScreenProps
       setOtp(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
 
-      Alert.alert('Success', 'A new verification code has been sent to your email');
+      Toast.show({ type: 'success', text1: 'Code Sent', text2: 'A new verification code has been sent to your email' });
     } catch (error: any) {
       console.error('❌ Resend OTP error:', error);
 
@@ -160,7 +163,7 @@ const OTPVerificationScreen = ({ navigation, route }: OTPVerificationScreenProps
         errorMessage = error.message;
       }
 
-      Alert.alert('Resend Failed', errorMessage);
+      Toast.show({ type: 'error', text1: 'Resend Failed', text2: errorMessage });
     } finally {
       setResending(false);
     }
@@ -222,7 +225,7 @@ const OTPVerificationScreen = ({ navigation, route }: OTPVerificationScreenProps
               disabled={!canResend || resending}
             >
               {resending ? (
-                <ActivityIndicator size="small" color="#EC4899" />
+                <ActivityIndicator size="small" color="#CC3366" />
               ) : (
                 <Text className={`text-sm font-medium ${canResend ? 'text-pink-500' : 'text-gray-400'}`}>
                   {canResend ? 'Resend Code' : `Resend in ${countdown}s`}
@@ -259,6 +262,7 @@ const OTPVerificationScreen = ({ navigation, route }: OTPVerificationScreenProps
           </TouchableOpacity>
         </View>
       </ScrollView>
+      <Toast />
     </SafeAreaView>
   );
 };

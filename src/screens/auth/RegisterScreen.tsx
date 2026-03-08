@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, useWindowDimensions, Keyboard, TextInput as RNTextInput } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, useWindowDimensions, Keyboard, TextInput as RNTextInput, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '@/navigation/AuthNavigator';
 import Icon from 'react-native-vector-icons/Ionicons';
+import Toast from 'react-native-toast-message';
 import { register } from '@/services/auth.service';
 
 type RegisterScreenProps = NativeStackScreenProps<AuthStackParamList, 'Register'>;
@@ -16,6 +17,7 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [hearAbout, setHearAbout] = useState('');
+  const [showHearAboutPicker, setShowHearAboutPicker] = useState(false);
   const [loading, setLoading] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const { width } = useWindowDimensions();
@@ -70,39 +72,39 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
   // Form validation
   const validateForm = (): boolean => {
     if (!fullName.trim()) {
-      Alert.alert('Validation Error', 'Please enter your full name');
+      Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Please enter your full name' });
       return false;
     }
 
     const nameParts = fullName.trim().split(' ');
     if (nameParts.length < 2) {
-      Alert.alert('Validation Error', 'Please enter both first and last name');
+      Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Please enter both first and last name' });
       return false;
     }
 
     if (!email.trim()) {
-      Alert.alert('Validation Error', 'Please enter your email');
+      Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Please enter your email' });
       return false;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      Alert.alert('Validation Error', 'Please enter a valid email address');
+      Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Please enter a valid email address' });
       return false;
     }
 
     if (!phone.trim()) {
-      Alert.alert('Validation Error', 'Please enter your phone number');
+      Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Please enter your phone number' });
       return false;
     }
 
     if (!password) {
-      Alert.alert('Validation Error', 'Please enter a password');
+      Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Please enter a password' });
       return false;
     }
 
     if (password.length < 6) {
-      Alert.alert('Validation Error', 'Password must be at least 6 characters');
+      Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Password must be at least 6 characters' });
       return false;
     }
 
@@ -141,21 +143,14 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
 
       console.log('✅ Registration successful:', response);
 
-      Alert.alert(
-        'Success',
-        'Registration successful! Please check your email for the verification code.',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              navigation.navigate('OTPVerification', {
-                email: email.trim().toLowerCase(),
-                isVendor: isVendor,
-              });
-            },
-          },
-        ]
-      );
+      Toast.show({ type: 'success', text1: 'Success', text2: 'Please check your email for the verification code.' });
+
+      setTimeout(() => {
+        navigation.navigate('OTPVerification', {
+          email: email.trim().toLowerCase(),
+          isVendor: isVendor,
+        });
+      }, 1000);
     } catch (error: any) {
       console.error('❌ Registration error:', error);
 
@@ -167,7 +162,7 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
         errorMessage = error.message;
       }
 
-      Alert.alert('Registration Failed', errorMessage);
+      Toast.show({ type: 'error', text1: 'Registration Failed', text2: errorMessage });
     } finally {
       setLoading(false);
     }
@@ -244,7 +239,7 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
               disabled={loading}
             >
               <Text className={`text-center font-medium ${!isVendor ? 'text-pink-500' : 'text-gray-400'}`}>
-                Sign up as customer
+                Buy only
               </Text>
             </TouchableOpacity>
           </View>
@@ -337,23 +332,19 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
           </Text>
 
           {/* How did you hear about us */}
-          <View className="border border-gray-200 rounded-lg px-4 py-3 mb-6">
-            <Text className="text-sm text-gray-400 mb-2">
-              How did you hear about Vendorspot? (Optional)
+          <Text className="text-sm text-gray-400 mb-2">
+            How did you hear about Vendorspot? (Optional)
+          </Text>
+          <TouchableOpacity
+            className="border border-gray-200 rounded-lg px-4 py-3 mb-6 flex-row justify-between items-center"
+            onPress={() => { if (!loading) setShowHearAboutPicker(true); }}
+            disabled={loading}
+          >
+            <Text className={`text-base ${hearAbout ? 'text-gray-900' : 'text-gray-400'}`}>
+              {hearAbout || 'Select option'}
             </Text>
-            <TextInput
-              ref={hearAboutRef}
-              className="text-base text-gray-900"
-              placeholder="Select option"
-              placeholderTextColor="#9CA3AF"
-              value={hearAbout}
-              onChangeText={setHearAbout}
-              editable={!loading}
-              returnKeyType="done"
-              onFocus={() => handleInputFocus(hearAboutRef)}
-              onSubmitEditing={() => Keyboard.dismiss()}
-            />
-          </View>
+            <Icon name="chevron-down" size={20} color="#9CA3AF" />
+          </TouchableOpacity>
 
           {/* Create Account Button */}
           <TouchableOpacity 
@@ -374,11 +365,43 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
           {/* Terms and Conditions */}
           <Text className="text-xs text-gray-400 text-center leading-5 mb-6">
             By continuing, I agree to the{' '}
-            <Text className="text-pink-500">Vendorspot General Terms of Use</Text> &{' '}
-            <Text className="text-pink-500">General Privacy Policy</Text>.
+            <Text className="text-pink-500" onPress={() => navigation.navigate('Legal', { tab: 'terms' })}>Vendorspot General Terms of Use</Text> &{' '}
+            <Text className="text-pink-500" onPress={() => navigation.navigate('Legal', { tab: 'privacy' })}>General Privacy Policy</Text>.
           </Text>
         </View>
       </ScrollView>
+
+      {/* How did you hear picker modal */}
+      <Modal visible={showHearAboutPicker} transparent animationType="slide" onRequestClose={() => setShowHearAboutPicker(false)}>
+        <TouchableOpacity className="flex-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} activeOpacity={1} onPress={() => setShowHearAboutPicker(false)}>
+          <View className="mt-auto bg-white rounded-t-2xl">
+            <View className="flex-row justify-between items-center px-6 py-4 border-b border-gray-100">
+              <Text className="text-lg font-bold text-gray-900">How did you hear about us?</Text>
+              <TouchableOpacity onPress={() => setShowHearAboutPicker(false)}>
+                <Icon name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            <View className="px-6 py-2">
+              {['Google', 'X (Twitter)', 'Instagram', 'Facebook', 'TikTok', 'Friend', 'Vendor', 'Others'].map((option) => (
+                <TouchableOpacity
+                  key={option}
+                  className="py-3.5 border-b border-gray-50"
+                  onPress={() => {
+                    setHearAbout(option);
+                    setShowHearAboutPicker(false);
+                  }}
+                >
+                  <Text className={`text-base ${hearAbout === option ? 'font-semibold' : 'text-gray-700'}`} style={hearAbout === option ? { color: '#CC3366' } : undefined}>
+                    {option}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      <Toast />
     </SafeAreaView>
   );
 };

@@ -111,7 +111,7 @@ const FeatureItem = ({
 }) => (
   <View className="flex-row items-start space-x-3 bg-gray-50 p-4 rounded-lg">
     <View className="w-10 h-10 rounded-full bg-pink-100 items-center justify-center mt-1">
-      <Icon name={icon} size={20} color="#EC4899" />
+      <Icon name={icon} size={20} color="#CC3366" />
     </View>
     <View className="flex-1">
       <Text className="text-base font-semibold text-gray-900 mb-1">

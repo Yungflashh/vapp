@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, FlatList, Dimensions, NativeSyntheticEven
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '@/navigation/AuthNavigator';
+import { useAuth } from '@/context/AuthContext';
 
 type OnboardingScreenProps = NativeStackScreenProps<AuthStackParamList, 'Onboarding'>;
 
@@ -37,6 +38,7 @@ const slides: OnboardingSlide[] = [
 ];
 
 const OnboardingScreen = ({ navigation }: OnboardingScreenProps) => {
+  const { enterGuestMode } = useAuth();
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
 
@@ -144,6 +146,13 @@ const OnboardingScreen = ({ navigation }: OnboardingScreenProps) => {
           <TouchableOpacity onPress={handleSkip}>
             <Text className="text-pink-500 text-sm font-medium text-center">
               Create account
+            </Text>
+          </TouchableOpacity>
+
+          {/* Browse as Guest */}
+          <TouchableOpacity onPress={enterGuestMode} className="mt-4">
+            <Text className="text-gray-400 text-sm text-center">
+              Guest Mode
             </Text>
           </TouchableOpacity>
         </View>

@@ -161,7 +161,7 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'pending':
-        return '#EC4899';
+        return '#CC3366';
       case 'confirmed':
       case 'processing':
         return '#F59E0B';
@@ -211,7 +211,7 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
     return (
       <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#EC4899" />
+          <ActivityIndicator size="large" color="#CC3366" />
           <Text className="text-gray-500 mt-4">Loading order details...</Text>
         </View>
       </SafeAreaView>
@@ -317,7 +317,7 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
                   />
                 ) : (
                   <View className="w-full h-full items-center justify-center">
-                    <Icon name="image-outline" size={24} color="#EC4899" />
+                    <Icon name="image-outline" size={24} color="#CC3366" />
                   </View>
                 )}
               </View>
@@ -339,7 +339,7 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
           <View className="bg-white px-4 py-4 mt-3">
             <Text className="text-base font-bold text-gray-900 mb-3">Delivery Address</Text>
             <View className="flex-row items-start">
-              <Icon name="location" size={20} color="#EC4899" />
+              <Icon name="location" size={20} color="#CC3366" />
               <View className="flex-1 ml-3">
                 <Text className="text-sm font-semibold text-gray-900">
                   {order.shippingAddress.fullName || 'Customer'}

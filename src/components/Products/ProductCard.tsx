@@ -152,7 +152,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 <Icon 
                   name={isInWishlist ? "heart" : "heart-outline"} 
                   size={16} 
-                  color="#EC4899" 
+                  color="#CC3366" 
                 />
               </TouchableOpacity>
             )}
@@ -222,7 +222,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               <Icon 
                 name={isInWishlist ? "heart" : "heart-outline"} 
                 size={20} 
-                color="#EC4899" 
+                color="#CC3366" 
               />
             </TouchableOpacity>
           )}

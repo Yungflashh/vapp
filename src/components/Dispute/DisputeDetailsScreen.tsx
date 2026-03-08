@@ -208,7 +208,7 @@ const DisputeDetailsScreen = ({ route, navigation }: DisputeDetailsScreenProps) 
   const getSenderColor = (role: string) => {
     switch (role) {
       case 'customer':
-        return '#EC4899';
+        return '#CC3366';
       case 'vendor':
         return '#6366F1';
       case 'admin':
@@ -252,7 +252,7 @@ const DisputeDetailsScreen = ({ route, navigation }: DisputeDetailsScreenProps) 
     return (
       <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#EC4899" />
+          <ActivityIndicator size="large" color="#CC3366" />
           <Text className="text-gray-500 mt-4">Loading dispute...</Text>
         </View>
       </SafeAreaView>
@@ -322,8 +322,8 @@ const DisputeDetailsScreen = ({ route, navigation }: DisputeDetailsScreenProps) 
             <RefreshControl
               refreshing={isRefreshing}
               onRefresh={onRefresh}
-              colors={['#EC4899']}
-              tintColor="#EC4899"
+              colors={['#CC3366']}
+              tintColor="#CC3366"
             />
           }
           contentContainerStyle={{ paddingBottom: isResolved ? 20 : 0 }}

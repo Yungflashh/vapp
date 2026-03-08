@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '@/navigation/AuthNavigator';
@@ -15,6 +15,8 @@ const PaymentSetupScreen = ({ navigation }: PaymentSetupScreenProps) => {
   const [bankName, setBankName] = useState('');
   const [bankCode, setBankCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showBankPicker, setShowBankPicker] = useState(false);
+  const [showSkipModal, setShowSkipModal] = useState(false);
 
   // Get Nigerian banks with codes
   const banks = getNigerianBanks();
@@ -95,10 +97,12 @@ const PaymentSetupScreen = ({ navigation }: PaymentSetupScreenProps) => {
         text2: 'Payment information saved successfully!',
       });
 
-      // Small delay to show toast
+      // Small delay to show toast, then go to dashboard
       setTimeout(() => {
-        // Navigate to registration success screen
-        navigation.navigate('RegistrationSuccess');
+        (navigation as any).reset({
+          index: 0,
+          routes: [{ name: 'VendorMain' }],
+        });
       }, 1000);
     } catch (error: any) {
       console.error('❌ Payment setup error:', error);
@@ -161,19 +165,7 @@ const PaymentSetupScreen = ({ navigation }: PaymentSetupScreenProps) => {
             className="border border-gray-200 rounded-lg px-4 py-3 mb-4 flex-row justify-between items-center"
             onPress={() => {
               if (loading) return;
-              // Show bank picker
-              Alert.alert(
-                'Select Bank',
-                'Choose your bank',
-                [
-                  ...banks.map((bank) => ({
-                    text: bank.name,
-                    onPress: () => handleBankSelection(bank),
-                  })),
-                  { text: 'Cancel', style: 'cancel' },
-                ],
-                { cancelable: true }
-              );
+              setShowBankPicker(true);
             }}
             disabled={loading}
           >
@@ -246,26 +238,9 @@ const PaymentSetupScreen = ({ navigation }: PaymentSetupScreenProps) => {
           </TouchableOpacity>
 
           {/* Skip Button (Optional) */}
-          <TouchableOpacity 
+          <TouchableOpacity
             className="mb-6"
-            onPress={() => {
-              Alert.alert(
-                'Skip Payment Setup',
-                'You can add payment information later from your profile. Note: You won\'t be able to receive payments until this is completed.',
-                [
-                  {
-                    text: 'Cancel',
-                    style: 'cancel',
-                  },
-                  {
-                    text: 'Skip',
-                    onPress: () => {
-                      navigation.navigate('RegistrationSuccess');
-                    },
-                  },
-                ]
-              );
-            }}
+            onPress={() => setShowSkipModal(true)}
             disabled={loading}
           >
             <Text className="text-sm text-gray-500 text-center">
@@ -275,7 +250,68 @@ const PaymentSetupScreen = ({ navigation }: PaymentSetupScreenProps) => {
         </ScrollView>
       </KeyboardAvoidingView>
       
-      {/* Toast */}
+      {/* Bank Picker Modal */}
+      <Modal visible={showBankPicker} transparent animationType="slide" onRequestClose={() => setShowBankPicker(false)}>
+        <TouchableOpacity className="flex-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} activeOpacity={1} onPress={() => setShowBankPicker(false)}>
+          <View className="mt-auto bg-white rounded-t-2xl max-h-[70%]">
+            <View className="flex-row justify-between items-center px-6 py-4 border-b border-gray-100">
+              <Text className="text-lg font-bold text-gray-900">Select Bank</Text>
+              <TouchableOpacity onPress={() => setShowBankPicker(false)}>
+                <Icon name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView className="px-6 py-2">
+              {banks.map((bank) => (
+                <TouchableOpacity
+                  key={bank.code}
+                  className="py-3.5 border-b border-gray-50"
+                  onPress={() => {
+                    handleBankSelection(bank);
+                    setShowBankPicker(false);
+                  }}
+                >
+                  <Text className={`text-base ${bankName === bank.name ? 'text-pink-500 font-semibold' : 'text-gray-700'}`}>
+                    {bank.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Skip Payment Modal */}
+      <Modal visible={showSkipModal} transparent animationType="fade" onRequestClose={() => setShowSkipModal(false)}>
+        <View className="flex-1 justify-center items-center" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <View className="bg-white rounded-2xl mx-6 p-6 w-[85%] max-w-[340px]">
+            <View className="items-center mb-4">
+              <View className="w-14 h-14 rounded-full bg-yellow-50 justify-center items-center mb-3">
+                <Icon name="time-outline" size={28} color="#F59E0B" />
+              </View>
+              <Text className="text-lg font-bold text-gray-900 text-center mb-2">Skip Payment Setup?</Text>
+              <Text className="text-sm text-gray-500 text-center leading-5">
+                You can add payment information later from your profile. You won't be able to receive payments until this is completed.
+              </Text>
+            </View>
+            <TouchableOpacity
+              className="bg-pink-500 py-3.5 rounded-xl mb-3"
+              onPress={() => {
+                setShowSkipModal(false);
+                (navigation as any).reset({
+                  index: 0,
+                  routes: [{ name: 'VendorMain' }],
+                });
+              }}
+            >
+              <Text className="text-white text-base font-semibold text-center">Skip for Now</Text>
+            </TouchableOpacity>
+            <TouchableOpacity className="py-3" onPress={() => setShowSkipModal(false)}>
+              <Text className="text-gray-400 text-sm font-medium text-center">Continue Setup</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <Toast />
     </SafeAreaView>
   );

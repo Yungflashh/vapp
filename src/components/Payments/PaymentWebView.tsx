@@ -189,7 +189,7 @@ const PaymentWebViewScreen = () => {
     return (
       <SafeAreaView className="flex-1 bg-white" edges={['top']}>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#EC4899" />
+          <ActivityIndicator size="large" color="#CC3366" />
           <Text className="text-gray-700 font-semibold text-lg mt-4">
             Confirming Payment...
           </Text>
@@ -236,7 +236,7 @@ const PaymentWebViewScreen = () => {
       <View className="flex-1">
         {isLoading && (
           <View className="absolute inset-0 z-10 items-center justify-center bg-white">
-            <ActivityIndicator size="large" color="#EC4899" />
+            <ActivityIndicator size="large" color="#CC3366" />
             <Text className="text-gray-500 mt-4">Loading payment page...</Text>
           </View>
         )}

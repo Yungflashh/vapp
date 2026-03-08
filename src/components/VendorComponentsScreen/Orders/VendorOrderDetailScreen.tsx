@@ -262,7 +262,7 @@ const Section: React.FC<SectionProps> = ({
   icon,
   title,
   children,
-  iconColor = '#EC4899',
+  iconColor = '#CC3366',
   badge,
 }) => (
   <View
@@ -473,14 +473,14 @@ const VendorOrderDetailScreen: React.FC = () => {
           <View
             className="w-20 h-20 rounded-3xl bg-white items-center justify-center mb-5"
             style={{
-              shadowColor: '#EC4899',
+              shadowColor: '#CC3366',
               shadowOffset: { width: 0, height: 6 },
               shadowOpacity: 0.15,
               shadowRadius: 12,
               elevation: 8,
             }}
           >
-            <ActivityIndicator size="large" color="#EC4899" />
+            <ActivityIndicator size="large" color="#CC3366" />
           </View>
           <Text className="text-base font-semibold text-gray-900">Loading Order</Text>
           <Text className="text-sm text-gray-500 mt-2">Please wait...</Text>
@@ -541,7 +541,7 @@ const VendorOrderDetailScreen: React.FC = () => {
             onPress={() => fetchOrder()}
             activeOpacity={0.8}
             style={{
-              shadowColor: '#EC4899',
+              shadowColor: '#CC3366',
               shadowOffset: { width: 0, height: 3 },
               shadowOpacity: 0.3,
               shadowRadius: 6,
@@ -549,7 +549,7 @@ const VendorOrderDetailScreen: React.FC = () => {
             }}
           >
             <LinearGradient
-              colors={['#EC4899', '#DB2777']}
+              colors={['#CC3366', '#DB2777']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={{
@@ -640,8 +640,8 @@ const VendorOrderDetailScreen: React.FC = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => fetchOrder(true)}
-            colors={['#EC4899']}
-            tintColor="#EC4899"
+            colors={['#CC3366']}
+            tintColor="#CC3366"
           />
         }
         contentContainerStyle={{ paddingBottom: 140 }}
@@ -660,7 +660,7 @@ const VendorOrderDetailScreen: React.FC = () => {
           >
             <View className="flex-row items-center mb-5">
               <View className="w-10 h-10 rounded-xl bg-pink-100 items-center justify-center mr-3">
-                <Ionicons name="git-branch-outline" size={20} color="#EC4899" />
+                <Ionicons name="git-branch-outline" size={20} color="#CC3366" />
               </View>
               <Text className="text-lg font-bold text-gray-900" style={{ letterSpacing: -0.5 }}>
                 Order Progress
@@ -688,7 +688,7 @@ const VendorOrderDetailScreen: React.FC = () => {
                         style={
                           current
                             ? {
-                                shadowColor: '#EC4899',
+                                shadowColor: '#CC3366',
                                 shadowOffset: { width: 0, height: 3 },
                                 shadowOpacity: 0.4,
                                 shadowRadius: 6,
@@ -829,7 +829,7 @@ const VendorOrderDetailScreen: React.FC = () => {
         <Section
           icon="cube-outline"
           title="Order Items"
-          iconColor="#EC4899"
+          iconColor="#CC3366"
           badge={`${order.items.length} ${order.items.length === 1 ? 'item' : 'items'}`}
         >
           {order.items.map((item, idx) => {
@@ -1184,7 +1184,7 @@ const VendorOrderDetailScreen: React.FC = () => {
                 activeOpacity={0.8}
                 className="flex-1"
                 style={{
-                  shadowColor: '#EC4899',
+                  shadowColor: '#CC3366',
                   shadowOffset: { width: 0, height: 3 },
                   shadowOpacity: 0.3,
                   shadowRadius: 6,
@@ -1192,7 +1192,7 @@ const VendorOrderDetailScreen: React.FC = () => {
                 }}
               >
                 <LinearGradient
-                  colors={['#EC4899', '#DB2777']}
+                  colors={['#CC3366', '#DB2777']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={{

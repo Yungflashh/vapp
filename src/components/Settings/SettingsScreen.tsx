@@ -13,7 +13,7 @@ const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
     {
       icon: 'person',
       iconBg: '#FED7E2',
-      iconColor: '#EC4899',
+      iconColor: '#CC3366',
       title: 'Edit Profile',
       description: 'Update your personal info',
       onPress: () => navigation.navigate("EditProfile"),

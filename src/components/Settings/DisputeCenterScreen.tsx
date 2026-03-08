@@ -161,7 +161,7 @@ const DisputeCenterScreen = ({ navigation: screenNavigation }: DisputeCenterScre
     return (
       <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#EC4899" />
+          <ActivityIndicator size="large" color="#CC3366" />
           <Text className="text-gray-500 mt-4">Loading disputes...</Text>
         </View>
       </SafeAreaView>
@@ -192,8 +192,8 @@ const DisputeCenterScreen = ({ navigation: screenNavigation }: DisputeCenterScre
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={onRefresh}
-            colors={['#EC4899']}
-            tintColor="#EC4899"
+            colors={['#CC3366']}
+            tintColor="#CC3366"
           />
         }
       >

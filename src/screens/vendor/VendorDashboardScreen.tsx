@@ -257,7 +257,7 @@ const VerificationBanner: React.FC<VerificationBannerProps> = ({
     <View
       className="bg-white rounded-2xl p-5 overflow-hidden"
       style={{
-        shadowColor: '#EC4899',
+        shadowColor: '#CC3366',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.1,
         shadowRadius: 8,
@@ -279,7 +279,7 @@ const VerificationBanner: React.FC<VerificationBannerProps> = ({
           className="bg-pink-500 px-5 py-2.5 rounded-lg"
           activeOpacity={0.8}
           style={{
-            shadowColor: '#EC4899',
+            shadowColor: '#CC3366',
             shadowOffset: { width: 0, height: 2 },
             shadowOpacity: 0.3,
             shadowRadius: 4,
@@ -292,7 +292,7 @@ const VerificationBanner: React.FC<VerificationBannerProps> = ({
 
       <View className="h-2 bg-pink-100 rounded-full overflow-hidden">
         <LinearGradient
-          colors={['#EC4899', '#F97316']}
+          colors={['#CC3366', '#F97316']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={{
@@ -410,7 +410,7 @@ const SalesChart: React.FC<SalesChartProps> = ({
     <View
       className="bg-white rounded-2xl p-5"
       style={{
-        shadowColor: '#EC4899',
+        shadowColor: '#CC3366',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.1,
         shadowRadius: 8,
@@ -494,7 +494,7 @@ const LoadingState: React.FC = () => (
   >
     <StatusBar barStyle="dark-content" backgroundColor="#FFF0F5" />
     <View className="flex-1 items-center justify-center">
-      <ActivityIndicator size="large" color="#EC4899" />
+      <ActivityIndicator size="large" color="#CC3366" />
       <Text className="text-gray-600 mt-4 text-base">Loading dashboard...</Text>
     </View>
   </SafeAreaView>
@@ -594,18 +594,18 @@ const VendorDashboardScreen: React.FC = () => {
       label: "Today's Sales",
       value: formatCurrency(dashboard.overview.todaySales),
       change: dashboard.overview.todaySalesChange,
-      iconColor: '#EC4899',
+      iconColor: '#CC3366',
       iconBg: 'bg-pink-100',
-      shadowColor: '#EC4899',
+      shadowColor: '#CC3366',
     },
     {
       icon: 'bag-handle-outline',
       label: 'Total Orders',
       value: dashboard.overview.todayOrders.toString(),
       change: dashboard.overview.ordersChange,
-      iconColor: '#EC4899',
+      iconColor: '#CC3366',
       iconBg: 'bg-pink-100',
-      shadowColor: '#EC4899',
+      shadowColor: '#CC3366',
     },
     {
       icon: 'eye-outline',
@@ -621,9 +621,9 @@ const VendorDashboardScreen: React.FC = () => {
       label: 'Total Revenue',
       value: formatCurrency(dashboard.overview.totalRevenue),
       change: dashboard.overview.revenueChange,
-      iconColor: '#EC4899',
+      iconColor: '#CC3366',
       iconBg: 'bg-pink-100',
-      shadowColor: '#EC4899',
+      shadowColor: '#CC3366',
     },
   ];
 
@@ -641,8 +641,8 @@ const VendorDashboardScreen: React.FC = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#EC4899"
-            colors={['#EC4899']}
+            tintColor="#CC3366"
+            colors={['#CC3366']}
           />
         }
       >

@@ -29,7 +29,7 @@ const getNotificationIcon = (type: string) => {
     case 'order':
     case 'order_update':
     case 'order_status':
-      return { name: 'receipt', color: '#EC4899', bg: '#FED7E2' };
+      return { name: 'receipt', color: '#CC3366', bg: '#FED7E2' };
     case 'delivery':
     case 'shipping':
       return { name: 'bicycle', color: '#3B82F6', bg: '#DBEAFE' };
@@ -46,7 +46,7 @@ const getNotificationIcon = (type: string) => {
     case 'system':
       return { name: 'information-circle', color: '#6B7280', bg: '#F3F4F6' };
     default:
-      return { name: 'notifications', color: '#EC4899', bg: '#FED7E2' };
+      return { name: 'notifications', color: '#CC3366', bg: '#FED7E2' };
   }
 };
 
@@ -265,7 +265,7 @@ const NotificationsScreen = ({ navigation }: NotificationsScreenProps) => {
         <View className="flex-row items-center gap-3">
           {unreadNotifications.length > 0 && (
             <TouchableOpacity onPress={handleMarkAllRead}>
-              <Icon name="checkmark-done" size={22} color="#EC4899" />
+              <Icon name="checkmark-done" size={22} color="#CC3366" />
             </TouchableOpacity>
           )}
           {notifications.length > 0 && (
@@ -282,7 +282,7 @@ const NotificationsScreen = ({ navigation }: NotificationsScreenProps) => {
       {/* Content */}
       {isLoading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#EC4899" />
+          <ActivityIndicator size="large" color="#CC3366" />
         </View>
       ) : notifications.length === 0 ? (
         <View className="flex-1 items-center justify-center px-8">
@@ -303,8 +303,8 @@ const NotificationsScreen = ({ navigation }: NotificationsScreenProps) => {
             <RefreshControl
               refreshing={isRefreshing}
               onRefresh={handleRefresh}
-              colors={['#EC4899']}
-              tintColor="#EC4899"
+              colors={['#CC3366']}
+              tintColor="#CC3366"
             />
           }
           onEndReached={handleLoadMore}
@@ -312,7 +312,7 @@ const NotificationsScreen = ({ navigation }: NotificationsScreenProps) => {
           ListFooterComponent={
             isLoadingMore ? (
               <View className="py-4">
-                <ActivityIndicator size="small" color="#EC4899" />
+                <ActivityIndicator size="small" color="#CC3366" />
               </View>
             ) : null
           }

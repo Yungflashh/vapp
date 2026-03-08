@@ -225,7 +225,7 @@ const ChallengesScreen = ({ navigation }: ChallengesScreenProps) => {
     return (
       <SafeAreaView className="flex-1 bg-white" edges={['top']}>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#EC4899" />
+          <ActivityIndicator size="large" color="#CC3366" />
           <Text className="text-gray-500 mt-4">Loading challenges...</Text>
         </View>
       </SafeAreaView>
@@ -300,8 +300,8 @@ const ChallengesScreen = ({ navigation }: ChallengesScreenProps) => {
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={onRefresh}
-            colors={['#EC4899']}
-            tintColor="#EC4899"
+            colors={['#CC3366']}
+            tintColor="#CC3366"
           />
         }
         className="flex-1"
@@ -637,7 +637,7 @@ const ChallengesScreen = ({ navigation }: ChallengesScreenProps) => {
 
             {loadingLeaderboard ? (
               <View className="py-12 items-center">
-                <ActivityIndicator size="large" color="#EC4899" />
+                <ActivityIndicator size="large" color="#CC3366" />
                 <Text className="text-gray-500 mt-3">Loading leaderboard...</Text>
               </View>
             ) : leaderboardData.length === 0 ? (

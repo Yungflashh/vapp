@@ -170,7 +170,7 @@ const VendorProfileScreen = () => {
       id: 'store-setup',
       icon: 'storefront-outline',
       iconBg: '#FEE2E2',
-      iconColor: '#EC4899',
+      iconColor: '#CC3366',
       title: 'Store Setup',
       subtitle: 'Customize, verify & setup bank',
       onPress: () => navigation.navigate('VendorStoreSetup' as never),
@@ -250,7 +250,7 @@ const VendorProfileScreen = () => {
       <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
         <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#EC4899" />
+          <ActivityIndicator size="large" color="#CC3366" />
         </View>
       </SafeAreaView>
     );
@@ -303,7 +303,7 @@ const VendorProfileScreen = () => {
                 <View 
                   className="w-20 h-20 rounded-2xl bg-gradient-to-br from-pink-100 to-purple-100 items-center justify-center overflow-hidden"
                   style={{
-                    shadowColor: '#EC4899',
+                    shadowColor: '#CC3366',
                     shadowOffset: { width: 0, height: 2 },
                     shadowOpacity: 0.1,
                     shadowRadius: 4,
@@ -333,7 +333,7 @@ const VendorProfileScreen = () => {
                 <View 
                   className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-pink-500 items-center justify-center"
                   style={{
-                    shadowColor: '#EC4899',
+                    shadowColor: '#CC3366',
                     shadowOffset: { width: 0, height: 2 },
                     shadowOpacity: 0.3,
                     shadowRadius: 4,

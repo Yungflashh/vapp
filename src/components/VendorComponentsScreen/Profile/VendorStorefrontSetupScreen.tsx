@@ -24,7 +24,7 @@ import { getMyVendorProfile, updateVendorProfile, uploadVendorImage } from '@/se
 import Toast from 'react-native-toast-message';
 
 const THEME_OPTIONS = [
-  { id: 'modern', name: 'Modern', color: '#EC4899', description: 'Clean & contemporary' },
+  { id: 'modern', name: 'Modern', color: '#CC3366', description: 'Clean & contemporary' },
   { id: 'classic', name: 'Classic', color: '#3B82F6', description: 'Traditional & professional' },
   { id: 'vibrant', name: 'Vibrant', color: '#F59E0B', description: 'Bold & colorful' },
   { id: 'minimal', name: 'Minimal', color: '#6B7280', description: 'Simple & elegant' },
@@ -156,7 +156,7 @@ const VendorStorefrontSetupScreen = () => {
       <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
         <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#EC4899" />
+          <ActivityIndicator size="large" color="#CC3366" />
         </View>
       </SafeAreaView>
     );
@@ -211,13 +211,13 @@ const VendorStorefrontSetupScreen = () => {
                 )}
                 
                 <View className="absolute bottom-4 right-4 bg-white rounded-full p-3">
-                  <Icon name="camera" size={20} color="#EC4899" />
+                  <Icon name="camera" size={20} color="#CC3366" />
                 </View>
               </View>
             ) : (
               <View className="h-48 items-center justify-center bg-gray-50">
                 {uploading ? (
-                  <ActivityIndicator size="large" color="#EC4899" />
+                  <ActivityIndicator size="large" color="#CC3366" />
                 ) : (
                   <>
                     <Icon name="image-outline" size={48} color="#D1D5DB" />
@@ -330,7 +330,7 @@ const VendorStorefrontSetupScreen = () => {
           disabled={saving || uploading}
           className="bg-pink-500 py-4 rounded-xl items-center"
           style={{
-            shadowColor: '#EC4899',
+            shadowColor: '#CC3366',
             shadowOffset: { width: 0, height: 4 },
             shadowOpacity: 0.3,
             shadowRadius: 8,

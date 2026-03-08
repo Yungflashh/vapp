@@ -154,7 +154,7 @@ const VendorBankSetupScreen = () => {
       <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
         <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#EC4899" />
+          <ActivityIndicator size="large" color="#CC3366" />
         </View>
       </SafeAreaView>
     );
@@ -301,7 +301,7 @@ const VendorBankSetupScreen = () => {
             !accountName || !accountNumber || !selectedBank ? 'bg-gray-300' : 'bg-pink-500'
           }`}
           style={{
-            shadowColor: '#EC4899',
+            shadowColor: '#CC3366',
             shadowOffset: { width: 0, height: 4 },
             shadowOpacity: !accountName || !accountNumber || !selectedBank ? 0 : 0.3,
             shadowRadius: 8,
@@ -369,7 +369,7 @@ const VendorBankSetupScreen = () => {
                 >
                   <View className="flex-row items-center flex-1">
                     <View className="w-10 h-10 rounded-full bg-pink-50 items-center justify-center">
-                      <Icon name="business" size={18} color="#EC4899" />
+                      <Icon name="business" size={18} color="#CC3366" />
                     </View>
                     <View className="flex-1 ml-3">
                       <Text className="text-base font-semibold text-gray-900">
@@ -382,7 +382,7 @@ const VendorBankSetupScreen = () => {
                   </View>
                   
                   {selectedBank?.code === bank.code && (
-                    <Icon name="checkmark-circle" size={24} color="#EC4899" />
+                    <Icon name="checkmark-circle" size={24} color="#CC3366" />
                   )}
                 </TouchableOpacity>
               ))}

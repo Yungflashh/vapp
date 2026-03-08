@@ -191,7 +191,7 @@ const RewardsScreen = ({ navigation }: RewardsScreenProps) => {
       points: '+20',
       description:
         '20 points per approved review. Only for verified purchases. One review per product and must meet quality guidelines.',
-      color: '#EC4899',
+      color: '#CC3366',
     },
     {
       id: 'sharing-products',
@@ -208,7 +208,7 @@ const RewardsScreen = ({ navigation }: RewardsScreenProps) => {
     return (
       <SafeAreaView className="flex-1 bg-white" edges={['top']}>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#EC4899" />
+          <ActivityIndicator size="large" color="#CC3366" />
           <Text className="text-gray-500 mt-4">Loading rewards...</Text>
         </View>
       </SafeAreaView>
@@ -236,8 +236,8 @@ const RewardsScreen = ({ navigation }: RewardsScreenProps) => {
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={onRefresh}
-            colors={['#EC4899']}
-            tintColor="#EC4899"
+            colors={['#CC3366']}
+            tintColor="#CC3366"
           />
         }
       >
@@ -434,7 +434,7 @@ const RewardsScreen = ({ navigation }: RewardsScreenProps) => {
         <View className="flex-1 bg-black/50 items-center justify-center px-6">
           <View className="bg-white rounded-2xl p-6 w-full max-w-sm">
             <View className="w-16 h-16 bg-pink-100 rounded-full items-center justify-center self-center mb-4">
-              <MaterialCommunityIcons name="gift" size={32} color="#EC4899" />
+              <MaterialCommunityIcons name="gift" size={32} color="#CC3366" />
             </View>
 
             <Text className="text-xl font-bold text-gray-900 text-center mb-2">

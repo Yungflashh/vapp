@@ -105,7 +105,7 @@ const VendorStoreSetupScreen = () => {
       <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
         <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#EC4899" />
+          <ActivityIndicator size="large" color="#CC3366" />
         </View>
       </SafeAreaView>
     );

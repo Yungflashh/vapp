@@ -2,8 +2,8 @@ import axios, { AxiosInstance, AxiosError } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // API Base URL
-// const API_URL = 'http://10.195.208.66:5000/api/v1';
-const API_URL = 'http://192.168.152.66:5000/api/v1';
+const API_URL = 'https://vapp-be.onrender.com/api/v1';
+// const API_URL = 'http://192.168.222.66:5000/api/v1';
 
 // Create Axios instance
 const api: AxiosInstance = axios.create({
@@ -37,10 +37,12 @@ api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     if (error.response?.status === 401) {
-      // Token expired or invalid - clear storage and redirect to login
-      await AsyncStorage.removeItem('authToken');
-      await AsyncStorage.removeItem('userData');
-      // You can emit an event here to redirect to login
+      // Only clear auth if we actually had a token (not a guest user)
+      const token = await AsyncStorage.getItem('authToken');
+      if (token) {
+        await AsyncStorage.removeItem('authToken');
+        await AsyncStorage.removeItem('userData');
+      }
     }
     return Promise.reject(error);
   }

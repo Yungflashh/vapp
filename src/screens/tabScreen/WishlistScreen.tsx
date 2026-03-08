@@ -211,7 +211,7 @@ const WishlistScreen = ({ navigation }: WishlistScreenProps) => {
               className="absolute top-1 right-1 w-7 h-7 bg-white rounded-full items-center justify-center shadow-sm"
               onPress={() => handleRemoveFromWishlist(product.id)}
             >
-              <Icon name="heart" size={16} color="#EC4899" />
+              <Icon name="heart" size={16} color="#CC3366" />
             </TouchableOpacity>
 
             {/* Low Stock Badge */}
@@ -299,7 +299,7 @@ const WishlistScreen = ({ navigation }: WishlistScreenProps) => {
     return (
       <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#EC4899" />
+          <ActivityIndicator size="large" color="#CC3366" />
           <Text className="text-gray-500 mt-4">Loading wishlist...</Text>
         </View>
       </SafeAreaView>
@@ -396,8 +396,8 @@ const WishlistScreen = ({ navigation }: WishlistScreenProps) => {
             <RefreshControl
               refreshing={isRefreshing}
               onRefresh={onRefresh}
-              colors={['#EC4899']}
-              tintColor="#EC4899"
+              colors={['#CC3366']}
+              tintColor="#CC3366"
             />
           }
         >
@@ -422,8 +422,8 @@ const WishlistScreen = ({ navigation }: WishlistScreenProps) => {
             <RefreshControl
               refreshing={isRefreshing}
               onRefresh={onRefresh}
-              colors={['#EC4899']}
-              tintColor="#EC4899"
+              colors={['#CC3366']}
+              tintColor="#CC3366"
             />
           }
         >

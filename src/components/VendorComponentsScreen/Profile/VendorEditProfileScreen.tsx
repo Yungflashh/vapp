@@ -235,7 +235,7 @@ const VendorEditProfileScreen = () => {
       <SafeAreaView className="flex-1 bg-white" edges={['top']}>
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#EC4899" />
+          <ActivityIndicator size="large" color="#CC3366" />
         </View>
       </SafeAreaView>
     );
@@ -272,7 +272,7 @@ const VendorEditProfileScreen = () => {
               className="w-32 h-32 rounded-full overflow-hidden items-center justify-center"
               style={{
                 borderWidth: 4,
-                borderColor: '#EC4899',
+                borderColor: '#CC3366',
               }}
             >
               {profileImage ? (
@@ -382,7 +382,7 @@ const VendorEditProfileScreen = () => {
             disabled={saving || uploading}
             className="bg-pink-500 py-4 rounded-xl items-center"
             style={{
-              shadowColor: '#EC4899',
+              shadowColor: '#CC3366',
               shadowOffset: { width: 0, height: 4 },
               shadowOpacity: 0.3,
               shadowRadius: 8,
@@ -438,7 +438,7 @@ const VendorEditProfileScreen = () => {
                     {item}
                   </Text>
                   {formData.category === item && (
-                    <Icon name="checkmark-circle" size={24} color="#EC4899" />
+                    <Icon name="checkmark-circle" size={24} color="#CC3366" />
                   )}
                 </TouchableOpacity>
               )}

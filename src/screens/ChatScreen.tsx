@@ -356,7 +356,7 @@ const ChatScreen = ({ navigation, route }: ChatScreenProps) => {
       >
         {isLoading ? (
           <View className="flex-1 items-center justify-center">
-            <ActivityIndicator size="large" color="#EC4899" />
+            <ActivityIndicator size="large" color="#CC3366" />
           </View>
         ) : messages.length === 0 ? (
           <View className="flex-1 items-center justify-center px-8">

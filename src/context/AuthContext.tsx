@@ -13,17 +13,21 @@ interface User {
 
 interface AuthContextType {
   isAuthenticated: boolean;
+  isGuest: boolean;
   user: User | null;
   login: () => void;
   logout: () => void;
+  enterGuestMode: () => void;
+  exitGuestMode: () => void;
   updateUser: (userData: User) => void;
-  refreshUser: () => Promise<void>; // ✅ Add this
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isGuest, setIsGuest] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -57,6 +61,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const parsedUser = JSON.parse(userData);
         setUser(parsedUser);
       }
+      setIsGuest(false);
       setIsAuthenticated(true);
     } catch (error) {
       console.error('Error during login:', error);
@@ -73,6 +78,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('Error during logout:', error);
     }
+  };
+
+  const enterGuestMode = () => {
+    setIsGuest(true);
+    setIsAuthenticated(false);
+    setUser(null);
+  };
+
+  const exitGuestMode = () => {
+    setIsGuest(false);
   };
 
   const updateUser = (userData: User) => {
@@ -102,13 +117,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   return (
-    <AuthContext.Provider value={{ 
-      isAuthenticated, 
-      user, 
-      login, 
-      logout, 
+    <AuthContext.Provider value={{
+      isAuthenticated,
+      isGuest,
+      user,
+      login,
+      logout,
+      enterGuestMode,
+      exitGuestMode,
       updateUser,
-      refreshUser // ✅ Add this
+      refreshUser,
     }}>
       {children}
     </AuthContext.Provider>

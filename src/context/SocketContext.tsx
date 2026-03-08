@@ -6,7 +6,7 @@ import { useAuth } from './AuthContext';
 import { getUnreadMessageCount } from '@/services/message.service';
 
 // Extract base URL (remove /api/v1 suffix) for socket connection
-const SOCKET_URL = 'http://192.168.152.66:5000';
+const SOCKET_URL = 'https://vapp-be.onrender.com';
 
 interface SocketContextType {
   socket: Socket | null;

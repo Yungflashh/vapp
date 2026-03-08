@@ -30,7 +30,7 @@ interface NotificationContextType {
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isGuest } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
   const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
   const notificationListener = useRef<ReturnType<typeof Notifications.addNotificationReceivedListener> | null>(null);
@@ -71,7 +71,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
           name: 'Default',
           importance: Notifications.AndroidImportance.MAX,
           vibrationPattern: [0, 250, 250, 250],
-          lightColor: '#EC4899',
+          lightColor: '#CC3366',
         });
       }
 
@@ -174,9 +174,9 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     return () => subscription.remove();
   }, [refreshUnreadCount]);
 
-  // Unregister token on logout
+  // Unregister token on logout (skip for guest mode - never had a token)
   useEffect(() => {
-    if (!isAuthenticated && expoPushToken) {
+    if (!isAuthenticated && !isGuest && expoPushToken) {
       const cleanup = async () => {
         try {
           await unregisterFcmToken(expoPushToken);
@@ -188,7 +188,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       };
       cleanup();
     }
-  }, [isAuthenticated, expoPushToken]);
+  }, [isAuthenticated, isGuest, expoPushToken]);
 
   return (
     <NotificationContext.Provider value={{ unreadCount, expoPushToken, refreshUnreadCount }}>

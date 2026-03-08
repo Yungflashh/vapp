@@ -755,7 +755,7 @@ const AddProductScreen = () => {
                   className="border-2 border-dashed border-gray-300 rounded-xl p-6 items-center bg-gray-50"
                 >
                   <View className="w-16 h-16 rounded-full bg-pink-100 items-center justify-center mb-3">
-                    <MaterialIcon name="file-upload" size={32} color="#EC4899" />
+                    <MaterialIcon name="file-upload" size={32} color="#CC3366" />
                   </View>
                   <Text className="text-base font-semibold text-gray-900 mb-1">
                     Upload Digital File
@@ -834,7 +834,7 @@ const AddProductScreen = () => {
                   >
                     <Text className="text-pink-700 font-medium mr-1">#{tag}</Text>
                     <TouchableOpacity onPress={() => removeTag(tag)}>
-                      <Icon name="close-circle" size={16} color="#EC4899" />
+                      <Icon name="close-circle" size={16} color="#CC3366" />
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -1015,7 +1015,7 @@ const AddProductScreen = () => {
                         </View>
                       </View>
                       {category === cat._id && (
-                        <Icon name="checkmark-circle" size={24} color="#EC4899" />
+                        <Icon name="checkmark-circle" size={24} color="#CC3366" />
                       )}
                     </TouchableOpacity>
                   ))}

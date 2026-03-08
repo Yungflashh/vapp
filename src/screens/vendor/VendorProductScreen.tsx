@@ -268,7 +268,7 @@ console.log('My products response:', JSON.stringify(response, null, 2));
         onPress={() => handleViewProduct(product.id)}
         className="bg-white rounded-2xl p-4 mb-3 flex-row"
         style={{
-          shadowColor: '#EC4899',
+          shadowColor: '#CC3366',
           shadowOffset: { width: 0, height: 2 },
           shadowOpacity: 0.08,
           shadowRadius: 8,
@@ -361,7 +361,7 @@ console.log('My products response:', JSON.stringify(response, null, 2));
       <SafeAreaView className="flex-1" style={{ backgroundColor: '#FFF0F5' }} edges={['top', 'bottom']}>
         <StatusBar barStyle="dark-content" backgroundColor="#FFF0F5" />
         <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#EC4899" />
+          <ActivityIndicator size="large" color="#CC3366" />
           <Text className="text-gray-500 mt-4">Loading products...</Text>
         </View>
       </SafeAreaView>
@@ -398,7 +398,7 @@ console.log('My products response:', JSON.stringify(response, null, 2));
             onPress={() => navigation.navigate('AddProduct' as any)}
             className="w-10 h-10 rounded-full bg-pink-500 items-center justify-center"
             style={{
-              shadowColor: '#EC4899',
+              shadowColor: '#CC3366',
               shadowOffset: { width: 0, height: 2 },
               shadowOpacity: 0.3,
               shadowRadius: 4,
@@ -431,7 +431,7 @@ console.log('My products response:', JSON.stringify(response, null, 2));
         className="flex-1"
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#EC4899" colors={['#EC4899']} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#CC3366" colors={['#CC3366']} />
         }
         onScroll={({ nativeEvent }) => {
           const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
@@ -449,7 +449,7 @@ console.log('My products response:', JSON.stringify(response, null, 2));
             'cube',
             'All Products',
             stats.totalProducts,
-            '#EC4899',
+            '#CC3366',
             activeFilter === 'all',
             () => setActiveFilter('all')
           )}
@@ -511,7 +511,7 @@ console.log('My products response:', JSON.stringify(response, null, 2));
           {filteredProducts.length === 0 ? (
             <View className="bg-white rounded-2xl p-8 items-center">
               <View className="w-20 h-20 rounded-full bg-pink-50 items-center justify-center mb-4">
-                <Icon name="cube-outline" size={40} color="#EC4899" />
+                <Icon name="cube-outline" size={40} color="#CC3366" />
               </View>
               <Text className="text-lg font-bold text-gray-900 mb-2">
                 No Products Found
@@ -536,7 +536,7 @@ console.log('My products response:', JSON.stringify(response, null, 2));
 
               {loadingMore && (
                 <View className="py-4 items-center">
-                  <ActivityIndicator size="small" color="#EC4899" />
+                  <ActivityIndicator size="small" color="#CC3366" />
                   <Text className="text-gray-500 text-sm mt-2">Loading more...</Text>
                 </View>
               )}
@@ -544,7 +544,7 @@ console.log('My products response:', JSON.stringify(response, null, 2));
               {!hasMore && filteredProducts.length > 0 && (
                 <View className="py-6 items-center">
                   <View className="w-12 h-12 rounded-full bg-pink-50 items-center justify-center mb-2">
-                    <Icon name="checkmark-circle" size={24} color="#EC4899" />
+                    <Icon name="checkmark-circle" size={24} color="#CC3366" />
                   </View>
                   <Text className="text-gray-400 text-sm">
                     All products loaded

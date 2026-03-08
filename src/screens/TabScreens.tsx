@@ -11,7 +11,7 @@ export { default as CategoriesScreen } from '../screens/tabScreen/CategoriesScre
 export const MessagesScreen = () => (
   <SafeAreaView className="flex-1 bg-white">
     <View className="flex-1 items-center justify-center">
-      <Icon name="chatbubbles-outline" size={64} color="#EC4899" />
+      <Icon name="chatbubbles-outline" size={64} color="#CC3366" />
       <Text className="text-xl font-bold text-gray-900 mt-4">Messages</Text>
       <Text className="text-gray-500 mt-2">Chat with vendors</Text>
     </View>

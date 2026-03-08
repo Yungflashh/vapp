@@ -11,6 +11,7 @@ import RegistrationSuccessScreen from '@/screens/auth/RegistrationSuccessScreen'
 import PaymentSetupScreen from '@/screens/auth/PaymentSetupScreen';
 import ForgotPasswordScreen from '@/screens/auth/ForgotPasswordScreen'
 import ResetPasswordScreen from '@/screens/auth/ResetPasswordScreen';
+import LegalScreen from '@/screens/LegalScreen';
 
 // navigation/AuthNavigator.tsx
 export type AuthStackParamList = {
@@ -26,6 +27,7 @@ export type AuthStackParamList = {
   RegistrationSuccess: undefined;
   ForgotPassword: undefined;
   ResetPassword: { email: string };
+  Legal: { tab?: 'privacy' | 'terms' | 'returns' };
 };
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
@@ -70,6 +72,7 @@ function AuthNavigator() {
         options={{ headerShown: false }}
       />
       <Stack.Screen name="Register" component={RegisterScreen} />
+      <Stack.Screen name="Legal" component={LegalScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }

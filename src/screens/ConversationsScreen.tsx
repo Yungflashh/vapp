@@ -319,12 +319,12 @@ const ConversationsScreen = () => {
       {/* Content */}
       {isLoading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#EC4899" />
+          <ActivityIndicator size="large" color="#CC3366" />
         </View>
       ) : conversations.length === 0 ? (
         <View className="flex-1 items-center justify-center px-8">
           <View className="w-20 h-20 bg-pink-50 rounded-full items-center justify-center mb-4">
-            <Icon name="chatbubbles-outline" size={36} color="#EC4899" />
+            <Icon name="chatbubbles-outline" size={36} color="#CC3366" />
           </View>
           <Text className="text-lg font-bold text-gray-900 mb-2">No messages yet</Text>
           <Text className="text-sm text-gray-500 text-center">
@@ -341,8 +341,8 @@ const ConversationsScreen = () => {
             <RefreshControl
               refreshing={isRefreshing}
               onRefresh={() => fetchConversations(true)}
-              colors={['#EC4899']}
-              tintColor="#EC4899"
+              colors={['#CC3366']}
+              tintColor="#CC3366"
             />
           }
         />

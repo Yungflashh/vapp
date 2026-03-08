@@ -180,7 +180,7 @@ const handlePickImage = async () => {
     return (
       <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#EC4899" />
+          <ActivityIndicator size="large" color="#CC3366" />
           <Text className="text-gray-500 mt-4">Loading profile...</Text>
         </View>
       </SafeAreaView>
@@ -217,7 +217,7 @@ const handlePickImage = async () => {
               <View className="w-24 h-24 rounded-full overflow-hidden border-[3px] border-pink-400">
                 {isUploadingAvatar ? (
                   <View className="w-full h-full items-center justify-center bg-pink-50">
-                    <ActivityIndicator size="small" color="#EC4899" />
+                    <ActivityIndicator size="small" color="#CC3366" />
                   </View>
                 ) : avatar ? (
                   <Image
@@ -227,7 +227,7 @@ const handlePickImage = async () => {
                   />
                 ) : (
                   <View className="w-full h-full items-center justify-center bg-pink-100">
-                    <Icon name="person" size={40} color="#EC4899" />
+                    <Icon name="person" size={40} color="#CC3366" />
                   </View>
                 )}
               </View>

@@ -118,7 +118,7 @@ const OrdersScreen = ({ navigation }: OrdersScreenProps) => {
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'pending':
-        return '#EC4899';
+        return '#CC3366';
       case 'confirmed':
       case 'processing':
         return '#F59E0B';
@@ -186,7 +186,7 @@ const OrdersScreen = ({ navigation }: OrdersScreenProps) => {
               />
             ) : (
               <View className="w-full h-full items-center justify-center">
-                <Icon name="image-outline" size={24} color="#EC4899" />
+                <Icon name="image-outline" size={24} color="#CC3366" />
               </View>
             )}
           </View>
@@ -250,7 +250,7 @@ const OrdersScreen = ({ navigation }: OrdersScreenProps) => {
     return (
       <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#EC4899" />
+          <ActivityIndicator size="large" color="#CC3366" />
           <Text className="text-gray-500 mt-4">Loading orders...</Text>
         </View>
       </SafeAreaView>
@@ -346,8 +346,8 @@ const OrdersScreen = ({ navigation }: OrdersScreenProps) => {
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={onRefresh}
-            colors={['#EC4899']}
-            tintColor="#EC4899"
+            colors={['#CC3366']}
+            tintColor="#CC3366"
           />
         }
       >

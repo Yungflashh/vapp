@@ -41,7 +41,7 @@ const NotificationSettingsScreen = ({ navigation }: NotificationSettingsScreenPr
       title: 'Order Updates',
       description: 'Status changes, shipping & delivery',
       icon: 'receipt',
-      iconColor: '#EC4899',
+      iconColor: '#CC3366',
       iconBg: '#FED7E2',
       enabled: true,
     },
@@ -110,7 +110,7 @@ const NotificationSettingsScreen = ({ navigation }: NotificationSettingsScreenPr
       title: 'Rewards & Points',
       description: 'Points earned, tier updates & rewards',
       icon: 'trophy',
-      iconColor: '#EC4899',
+      iconColor: '#CC3366',
       iconBg: '#FED7E2',
       enabled: true,
     },
@@ -205,7 +205,7 @@ const NotificationSettingsScreen = ({ navigation }: NotificationSettingsScreenPr
               onValueChange={() => togglePreference(section, item.id)}
               disabled={!pushEnabled}
               trackColor={{ false: '#E5E7EB', true: '#F9A8D4' }}
-              thumbColor={pushEnabled && item.enabled ? '#EC4899' : '#D1D5DB'}
+              thumbColor={pushEnabled && item.enabled ? '#CC3366' : '#D1D5DB'}
             />
           </View>
         ))}
@@ -243,7 +243,7 @@ const NotificationSettingsScreen = ({ navigation }: NotificationSettingsScreenPr
               value={pushEnabled}
               onValueChange={setPushEnabled}
               trackColor={{ false: '#E5E7EB', true: '#F9A8D4' }}
-              thumbColor={pushEnabled ? '#EC4899' : '#D1D5DB'}
+              thumbColor={pushEnabled ? '#CC3366' : '#D1D5DB'}
             />
           </View>
         </View>

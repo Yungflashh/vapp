@@ -179,7 +179,7 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
 // Updated ProfileScreen.tsx - Add this line to the quickActions array
 
 const quickActions = [
-  { id: 'orders', icon: 'receipt', label: 'Orders', color: '#EC4899', screen: 'Orders' },
+  { id: 'orders', icon: 'receipt', label: 'Orders', color: '#CC3366', screen: 'Orders' },
   { id: 'rewards', icon: 'trophy', label: 'Rewards', color: '#F59E0B', screen: 'Rewards' },
   { id: 'addresses', icon: 'location', label: 'Addresses', color: '#10B981', screen: 'SavedAddresses' },
   // { id: 'reviews', icon: 'star', label: 'Reviews', color: '#3B82F6', screen: null },
@@ -211,7 +211,7 @@ const quickActions = [
     return (
       <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#EC4899" />
+          <ActivityIndicator size="large" color="#CC3366" />
           <Text className="text-gray-500 mt-4">Loading profile...</Text>
         </View>
       </SafeAreaView>
@@ -249,8 +249,8 @@ const quickActions = [
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={onRefresh}
-            colors={['#EC4899']}
-            tintColor="#EC4899"
+            colors={['#CC3366']}
+            tintColor="#CC3366"
           />
         }
       >
@@ -263,7 +263,7 @@ const quickActions = [
                   <Image source={{ uri: user.avatar }} className="w-full h-full" resizeMode="cover" />
                 ) : (
                   <View className="w-full h-full items-center justify-center bg-pink-100">
-                    <Icon name="person" size={32} color="#EC4899" />
+                    <Icon name="person" size={32} color="#CC3366" />
                   </View>
                 )}
               </View>
@@ -395,7 +395,7 @@ const quickActions = [
                     />
                   ) : (
                     <View className="w-full h-full items-center justify-center">
-                      <Icon name="image-outline" size={24} color="#EC4899" />
+                      <Icon name="image-outline" size={24} color="#CC3366" />
                     </View>
                   )}
                 </View>

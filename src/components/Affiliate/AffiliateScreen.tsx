@@ -268,7 +268,7 @@ const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
         <ScrollView contentContainerClassName="flex-1 justify-center px-6">
           <View className="items-center">
             <View className="w-24 h-24 bg-pink-100 rounded-full items-center justify-center mb-6">
-              <MaterialCommunityIcons name="diamond-outline" size={48} color="#EC4899" />
+              <MaterialCommunityIcons name="diamond-outline" size={48} color="#CC3366" />
             </View>
 
             <Text className="text-2xl font-bold text-gray-900 mb-3 text-center">
@@ -335,7 +335,7 @@ const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
     return (
       <SafeAreaView className="flex-1 bg-white" edges={['top']}>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#EC4899" />
+          <ActivityIndicator size="large" color="#CC3366" />
           <Text className="text-gray-500 mt-4">Loading affiliate data...</Text>
         </View>
       </SafeAreaView>
@@ -370,7 +370,7 @@ const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
           }}
           className="w-10 h-10 items-center justify-center"
         >
-          <Icon name="analytics-outline" size={24} color="#EC4899" />
+          <Icon name="analytics-outline" size={24} color="#CC3366" />
         </TouchableOpacity>
       </View>
 
@@ -380,8 +380,8 @@ const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={onRefresh}
-            colors={['#EC4899']}
-            tintColor="#EC4899"
+            colors={['#CC3366']}
+            tintColor="#CC3366"
           />
         }
       >
@@ -411,7 +411,7 @@ const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
               <View className="bg-white rounded-2xl p-4 shadow-sm">
                 <View className="flex-row items-center justify-between mb-2">
                   <View className="w-10 h-10 bg-pink-100 rounded-xl items-center justify-center">
-                    <MaterialCommunityIcons name="wallet" size={20} color="#EC4899" />
+                    <MaterialCommunityIcons name="wallet" size={20} color="#CC3366" />
                   </View>
                 </View>
                 <Text className="text-xs text-gray-500 mb-1">Total Earnings</Text>
@@ -553,7 +553,7 @@ const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
                           }`}
                         >
                           {isProductLink ? (
-                            <Icon name="pricetag-outline" size={18} color="#EC4899" />
+                            <Icon name="pricetag-outline" size={18} color="#CC3366" />
                           ) : (
                             <Icon name="globe-outline" size={18} color="#8B5CF6" />
                           )}

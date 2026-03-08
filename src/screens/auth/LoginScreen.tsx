@@ -5,7 +5,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '@/navigation/AuthNavigator';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Toast from 'react-native-toast-message';
-import { login as authLogin } from '@/services/auth.service';
+import { login as authLogin, resendOTP } from '@/services/auth.service';
 import { appleLogin } from '@/services/Oauth.service';
 import { useAuth } from '@/context/AuthContext';
 import * as AppleAuthentication from 'expo-apple-authentication';
@@ -18,7 +18,7 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isAppleAvailable, setIsAppleAvailable] = useState(false);
-  const { login } = useAuth();
+  const { login, enterGuestMode } = useAuth();
   const { width } = useWindowDimensions();
 
   const isTablet = width >= 768;
@@ -82,11 +82,29 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
     } catch (error: any) {
       if (error.response) {
         const message = error.response.data?.message || 'Invalid credentials';
-        Toast.show({
-          type: 'error',
-          text1: 'Login Failed',
-          text2: message,
-        });
+        const status = error.response.status;
+
+        // Unverified email — resend OTP and redirect to verification
+        if (status === 403 && message.toLowerCase().includes('verify')) {
+          Toast.show({
+            type: 'info',
+            text1: 'Email Not Verified',
+            text2: 'Sending a new verification code...',
+          });
+          // Resend OTP silently then redirect
+          resendOTP(email.trim().toLowerCase()).catch(() => {});
+          setTimeout(() => {
+            navigation.navigate('OTPVerification', {
+              email: email.trim().toLowerCase(),
+            });
+          }, 1500);
+        } else {
+          Toast.show({
+            type: 'error',
+            text1: 'Login Failed',
+            text2: message,
+          });
+        }
       } else if (error.request) {
         Toast.show({
           type: 'error',
@@ -282,10 +300,20 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
               </TouchableOpacity>
             </View>
 
+            <TouchableOpacity
+              className="mb-6"
+              onPress={enterGuestMode}
+              disabled={isLoading}
+            >
+              <Text className="text-sm text-gray-400 text-center">
+                Guest Mode
+              </Text>
+            </TouchableOpacity>
+
             <Text className="text-xs text-gray-400 text-center leading-[18px] px-4 pb-6">
               By continuing, I agree to the{' '}
-              <Text className="text-pink-500">Vendorspot General Terms of Use</Text> &{' '}
-              <Text className="text-pink-500">General Privacy Policy</Text>.
+              <Text className="text-pink-500" onPress={() => navigation.navigate('Legal', { tab: 'terms' })}>Vendorspot General Terms of Use</Text> &{' '}
+              <Text className="text-pink-500" onPress={() => navigation.navigate('Legal', { tab: 'privacy' })}>General Privacy Policy</Text>.
             </Text>
           </View>
         </ScrollView>

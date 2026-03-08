@@ -315,7 +315,7 @@ const SavedAddressesScreen = ({ navigation }: SavedAddressesScreenProps) => {
   // ─── UI Helpers ──────────────────────────────────────────
   const getLabelIcon = (label: string) => {
     const l = label.toLowerCase();
-    if (l === 'home') return { icon: 'home', color: '#EC4899', bg: '#FED7E2' };
+    if (l === 'home') return { icon: 'home', color: '#CC3366', bg: '#FED7E2' };
     if (l === 'office' || l === 'work') return { icon: 'briefcase', color: '#3B82F6', bg: '#DBEAFE' };
     return { icon: 'location', color: '#10B981', bg: '#D1FAE5' };
   };
@@ -325,7 +325,7 @@ const SavedAddressesScreen = ({ navigation }: SavedAddressesScreenProps) => {
     return (
       <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#EC4899" />
+          <ActivityIndicator size="large" color="#CC3366" />
           <Text className="text-gray-500 mt-4">Loading addresses...</Text>
         </View>
       </SafeAreaView>
@@ -350,7 +350,7 @@ const SavedAddressesScreen = ({ navigation }: SavedAddressesScreenProps) => {
           className="w-10 h-10 items-center justify-center bg-pink-50 rounded-full"
           onPress={openAddModal}
         >
-          <Icon name="add" size={22} color="#EC4899" />
+          <Icon name="add" size={22} color="#CC3366" />
         </TouchableOpacity>
       </View>
 
@@ -358,7 +358,7 @@ const SavedAddressesScreen = ({ navigation }: SavedAddressesScreenProps) => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 30 }}
         refreshControl={
-          <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} colors={['#EC4899']} tintColor="#EC4899" />
+          <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} colors={['#CC3366']} tintColor="#CC3366" />
         }
       >
         {/* Count */}

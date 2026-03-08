@@ -20,7 +20,7 @@ type ViewMode = 'grid' | 'list';
 
 // Category color schemes based on category name
 const categoryColors: { [key: string]: { bg: string; iconBg: string } } = {
-  'electronics': { bg: '#FDE8EC', iconBg: '#EC4899' },
+  'electronics': { bg: '#FDE8EC', iconBg: '#CC3366' },
   'fashion': { bg: '#FEF9E7', iconBg: '#F59E0B' },
   'beauty': { bg: '#E8F5E9', iconBg: '#22C55E' },
   'home & living': { bg: '#E0F2F1', iconBg: '#14B8A6' },
@@ -186,17 +186,9 @@ const fetchCategories = async () => {
   };
 
   const handleCategoryPress = (category: Category) => {
-    console.log('Category pressed:', category.name, category._id);
-    // Navigate to category products screen
-    // navigation.navigate('CategoryProducts', { 
-    //   categoryId: category._id, 
-    //   categoryName: category.name,
-    //   categorySlug: category.slug 
-    // });
-    Toast.show({
-      type: 'info',
-      text1: category.name,
-      text2: `${category.productCount || 0} products available`,
+    navigation.navigate('CategoryProducts', {
+      categoryId: category._id,
+      categoryName: category.name,
     });
   };
 
@@ -329,8 +321,8 @@ const fetchCategories = async () => {
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={onRefresh}
-            colors={['#EC4899']}
-            tintColor="#EC4899"
+            colors={['#CC3366']}
+            tintColor="#CC3366"
           />
         }
         contentContainerStyle={{ padding: 16 }}
@@ -382,7 +374,7 @@ const fetchCategories = async () => {
         {/* Loading State */}
         {isLoading && (
           <View className="items-center justify-center py-20">
-            <ActivityIndicator size="large" color="#EC4899" />
+            <ActivityIndicator size="large" color="#CC3366" />
             <Text className="text-gray-500 mt-4">Loading categories...</Text>
           </View>
         )}

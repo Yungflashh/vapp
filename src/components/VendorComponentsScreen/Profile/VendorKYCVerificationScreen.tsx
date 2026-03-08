@@ -313,7 +313,7 @@ const VendorKYCVerificationScreen = () => {
       <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
         <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#EC4899" />
+          <ActivityIndicator size="large" color="#CC3366" />
         </View>
       </SafeAreaView>
     );
@@ -459,13 +459,13 @@ const VendorKYCVerificationScreen = () => {
                   }`}
                 >
                   {isUploading ? (
-                    <ActivityIndicator size="small" color="#EC4899" />
+                    <ActivityIndicator size="small" color="#CC3366" />
                   ) : (
                     <View className="flex-row items-center">
                       <Icon 
                         name={status ? 'refresh' : 'cloud-upload-outline'} 
                         size={18} 
-                        color={status?.status === 'verified' ? '#9CA3AF' : '#EC4899'}
+                        color={status?.status === 'verified' ? '#9CA3AF' : '#CC3366'}
                       />
                       <Text className={`font-semibold ml-2 ${
                         status?.status === 'verified' ? 'text-gray-400' : 'text-pink-500'
@@ -489,7 +489,7 @@ const VendorKYCVerificationScreen = () => {
             disabled={submitting}
             className="bg-pink-500 py-4 rounded-xl items-center"
             style={{
-              shadowColor: '#EC4899',
+              shadowColor: '#CC3366',
               shadowOffset: { width: 0, height: 4 },
               shadowOpacity: 0.3,
               shadowRadius: 8,

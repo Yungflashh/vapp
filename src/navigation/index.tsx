@@ -44,6 +44,9 @@ import DisputeDetailsScreen from '@/components/Dispute/DisputeDetailsScreen';
 import ChallengesScreen from '@/components/Challenges/ChallengesScreen';
 import NotificationsScreen from '@/screens/NotificationsScreen';
 import ChatScreen from '@/screens/ChatScreen';
+import CategoryProductsScreen from '@/screens/CategoryProductsScreen';
+import GuestBottomTabNavigator from './GuestBottomTabNavigator';
+import LegalScreen from '@/screens/LegalScreen';
 
 export type RootStackParamList = {
   Main: undefined;
@@ -104,7 +107,8 @@ export type RootStackParamList = {
     checkoutSnapshot: any;
   };
   Challenges: undefined;
-
+  CategoryProducts: { categoryId: string; categoryName: string };
+  Legal: { tab?: 'privacy' | 'terms' | 'returns' };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -177,7 +181,7 @@ function AppNavigator() {
   if (isChecking) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
-        <ActivityIndicator size="large" color="#EC4899" />
+        <ActivityIndicator size="large" color="#CC3366" />
       </View>
     );
   }
@@ -186,32 +190,37 @@ function AppNavigator() {
     <Stack.Navigator>
       {/* Conditional Main Screen */}
       {isVendor && !hasVendorProfile ? (
-        // Vendor without profile - send to setup
+        // Vendor without profile - show setup first, with VendorMain accessible
         <>
-          <Stack.Screen 
-            name="VendorSetup" 
+          <Stack.Screen
+            name="VendorSetup"
             component={VendorSetupScreen}
             options={{ headerShown: false }}
           />
-          <Stack.Screen 
-            name="PaymentSetup" 
+          <Stack.Screen
+            name="PaymentSetup"
             component={PaymentSetupScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="VendorMain"
+            component={VendorBottomTabNavigator}
             options={{ headerShown: false }}
           />
         </>
       ) : isVendor && hasVendorProfile ? (
         // Vendor with profile - show vendor tabs
-        <Stack.Screen 
-          name="VendorMain" 
-          component={VendorBottomTabNavigator} 
-          options={{ headerShown: false }} 
+        <Stack.Screen
+          name="VendorMain"
+          component={VendorBottomTabNavigator}
+          options={{ headerShown: false }}
         />
       ) : (
         // Regular customer - show customer tabs
-        <Stack.Screen 
-          name="Main" 
-          component={BottomTabNavigator} 
-          options={{ headerShown: false }} 
+        <Stack.Screen
+          name="Main"
+          component={BottomTabNavigator}
+          options={{ headerShown: false }}
         />
       )}
 
@@ -402,21 +411,69 @@ function AppNavigator() {
   component={DisputeDetailsScreen} 
   options={{ headerShown: false }} 
 />
-<Stack.Screen 
-  name="Challenges" 
-  component={ChallengesScreen} 
-  options={{ headerShown: false }} 
+<Stack.Screen
+  name="Challenges"
+  component={ChallengesScreen}
+  options={{ headerShown: false }}
 />
-
+<Stack.Screen
+  name="CategoryProducts"
+  component={CategoryProductsScreen}
+  options={{ headerShown: false }}
+/>
+<Stack.Screen
+  name="Legal"
+  component={LegalScreen}
+  options={{ headerShown: false }}
+/>
 
     </Stack.Navigator>
   );
 }
 
-function RootNavigator() {
-  const { isAuthenticated } = useAuth();
+function GuestAppNavigator() {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen
+        name="Main"
+        component={GuestBottomTabNavigator}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="ProductDetails"
+        component={ProductDetailsScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Categories"
+        component={CategoriesScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="VendorProfile"
+        component={VendorProfileScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="CategoryProducts"
+        component={CategoryProductsScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Legal"
+        component={LegalScreen}
+        options={{ headerShown: false }}
+      />
+    </Stack.Navigator>
+  );
+}
 
-  return isAuthenticated ? <AppNavigator /> : <AuthNavigator />;
+function RootNavigator() {
+  const { isAuthenticated, isGuest } = useAuth();
+
+  if (isAuthenticated) return <AppNavigator />;
+  if (isGuest) return <GuestAppNavigator />;
+  return <AuthNavigator />;
 }
 
 export default RootNavigator;

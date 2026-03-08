@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '@/navigation/AuthNavigator';
@@ -31,6 +31,8 @@ const VendorSetupScreen = ({ navigation }: VendorSetupScreenProps) => {
   const [loading, setLoading] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [formErrors, setFormErrors] = useState<FormErrors>({});
+  const [showStatePicker, setShowStatePicker] = useState(false);
+  const [showSkipModal, setShowSkipModal] = useState(false);
 
   // Nigerian states
   const nigerianStates = [
@@ -170,7 +172,7 @@ const VendorSetupScreen = ({ navigation }: VendorSetupScreenProps) => {
     }
 
     if (!businessDescription.trim() || businessDescription.trim().length < 20) {
-      Alert.alert('Validation Error', 'Business description must be at least 20 characters');
+      Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Business description must be at least 20 characters' });
       return;
     }
 
@@ -221,7 +223,7 @@ const VendorSetupScreen = ({ navigation }: VendorSetupScreenProps) => {
         errorMessage = error.message;
       }
 
-      Alert.alert('Setup Failed', errorMessage);
+      Toast.show({ type: 'error', text1: 'Setup Failed', text2: errorMessage });
     } finally {
       setLoading(false);
     }
@@ -461,23 +463,7 @@ const VendorSetupScreen = ({ navigation }: VendorSetupScreenProps) => {
                 }`}
                 onPress={() => {
                   if (loading) return;
-                  Alert.alert(
-                    'Select State',
-                    'Choose your state',
-                    [
-                      ...nigerianStates.map((stateName) => ({
-                        text: stateName,
-                        onPress: () => {
-                          setState(stateName);
-                          if (formErrors.state) {
-                            setFormErrors({ ...formErrors, state: undefined });
-                          }
-                        },
-                      })),
-                      { text: 'Cancel', style: 'cancel' },
-                    ],
-                    { cancelable: true }
-                  );
+                  setShowStatePicker(true);
                 }}
                 disabled={loading}
               >
@@ -526,26 +512,9 @@ const VendorSetupScreen = ({ navigation }: VendorSetupScreenProps) => {
           </TouchableOpacity>
 
           {/* Skip Button */}
-          <TouchableOpacity 
+          <TouchableOpacity
             className="mb-6"
-            onPress={() => {
-              Alert.alert(
-                'Skip Setup',
-                'You can complete your business profile later from your dashboard. Note: You won\'t be able to sell until this is completed.',
-                [
-                  {
-                    text: 'Cancel',
-                    style: 'cancel',
-                  },
-                  {
-                    text: 'Skip',
-                    onPress: () => {
-                      navigation.navigate('RegistrationSuccess');
-                    },
-                  },
-                ]
-              );
-            }}
+            onPress={() => setShowSkipModal(true)}
             disabled={loading}
           >
             <Text className="text-sm text-gray-500 text-center">
@@ -555,7 +524,71 @@ const VendorSetupScreen = ({ navigation }: VendorSetupScreenProps) => {
         </ScrollView>
       </KeyboardAvoidingView>
       
-      {/* Toast for better UX */}
+      {/* State Picker Modal */}
+      <Modal visible={showStatePicker} transparent animationType="slide" onRequestClose={() => setShowStatePicker(false)}>
+        <TouchableOpacity className="flex-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} activeOpacity={1} onPress={() => setShowStatePicker(false)}>
+          <View className="mt-auto bg-white rounded-t-2xl max-h-[70%]">
+            <View className="flex-row justify-between items-center px-6 py-4 border-b border-gray-100">
+              <Text className="text-lg font-bold text-gray-900">Select State</Text>
+              <TouchableOpacity onPress={() => setShowStatePicker(false)}>
+                <Icon name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView className="px-6 py-2">
+              {nigerianStates.map((stateName) => (
+                <TouchableOpacity
+                  key={stateName}
+                  className="py-3.5 border-b border-gray-50"
+                  onPress={() => {
+                    setState(stateName);
+                    if (formErrors.state) {
+                      setFormErrors({ ...formErrors, state: undefined });
+                    }
+                    setShowStatePicker(false);
+                  }}
+                >
+                  <Text className={`text-base ${state === stateName ? 'text-pink-500 font-semibold' : 'text-gray-700'}`}>
+                    {stateName}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Skip Setup Modal */}
+      <Modal visible={showSkipModal} transparent animationType="fade" onRequestClose={() => setShowSkipModal(false)}>
+        <View className="flex-1 justify-center items-center" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <View className="bg-white rounded-2xl mx-6 p-6 w-[85%] max-w-[340px]">
+            <View className="items-center mb-4">
+              <View className="w-14 h-14 rounded-full bg-yellow-50 justify-center items-center mb-3">
+                <Icon name="time-outline" size={28} color="#F59E0B" />
+              </View>
+              <Text className="text-lg font-bold text-gray-900 text-center mb-2">Skip Setup?</Text>
+              <Text className="text-sm text-gray-500 text-center leading-5">
+                You can complete your business profile later from your dashboard. You won't be able to sell until this is completed.
+              </Text>
+            </View>
+            <TouchableOpacity
+              className="bg-pink-500 py-3.5 rounded-xl mb-3"
+              onPress={() => {
+                setShowSkipModal(false);
+                (navigation as any).reset({
+                  index: 0,
+                  routes: [{ name: 'VendorMain' }],
+                });
+              }}
+            >
+              <Text className="text-white text-base font-semibold text-center">Skip for Now</Text>
+            </TouchableOpacity>
+            <TouchableOpacity className="py-3" onPress={() => setShowSkipModal(false)}>
+              <Text className="text-gray-400 text-sm font-medium text-center">Continue Setup</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <Toast />
     </SafeAreaView>
   );

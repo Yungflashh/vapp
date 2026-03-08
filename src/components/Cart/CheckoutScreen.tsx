@@ -739,7 +739,7 @@ const CheckoutScreen = () => {
                       <Icon
                         name={address.label === 'Home' ? 'home' : address.label === 'Office' ? 'business' : 'location'}
                         size={20}
-                        color="#EC4899"
+                        color="#CC3366"
                       />
                     </View>
                     <View className="flex-1">
@@ -803,7 +803,7 @@ const CheckoutScreen = () => {
               className="bg-white rounded-2xl p-4 mb-3 border-2 border-dashed border-pink-300 flex-row items-center justify-center"
             >
               <View className="w-10 h-10 rounded-full bg-pink-100 items-center justify-center mr-3">
-                <Icon name="add" size={24} color="#EC4899" />
+                <Icon name="add" size={24} color="#CC3366" />
               </View>
               <Text className="text-pink-500 font-bold text-base">Add New Address</Text>
             </TouchableOpacity>
@@ -831,7 +831,7 @@ const CheckoutScreen = () => {
       >
         {isLoadingRates ? (
           <View className="bg-white rounded-2xl p-8 items-center">
-            <ActivityIndicator size="large" color="#EC4899" />
+            <ActivityIndicator size="large" color="#CC3366" />
             <Text className="text-gray-500 mt-4">Finding best delivery options...</Text>
           </View>
         ) : (
@@ -1334,7 +1334,7 @@ const CheckoutScreen = () => {
     return (
       <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#EC4899" />
+          <ActivityIndicator size="large" color="#CC3366" />
           <Text className="text-gray-500 mt-4">Loading checkout...</Text>
         </View>
       </SafeAreaView>
