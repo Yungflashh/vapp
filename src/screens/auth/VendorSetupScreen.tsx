@@ -233,7 +233,7 @@ const VendorSetupScreen = ({ navigation }: VendorSetupScreenProps) => {
     <SafeAreaView className="flex-1 bg-white">
       <KeyboardAvoidingView 
         className="flex-1"
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView 
           className="flex-1"
@@ -241,15 +241,6 @@ const VendorSetupScreen = ({ navigation }: VendorSetupScreenProps) => {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Back Button */}
-          <TouchableOpacity 
-            className="w-10 h-10 justify-center mb-4"
-            onPress={() => navigation.goBack()}
-            disabled={loading}
-          >
-            <Icon name="arrow-back" size={24} color="#111827" />
-          </TouchableOpacity>
-
           {/* Title */}
           <Text className="text-xl font-bold text-gray-900 text-center mb-2">
             Vendor Setup

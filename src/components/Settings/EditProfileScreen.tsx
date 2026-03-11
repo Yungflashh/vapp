@@ -111,7 +111,9 @@ const handlePickImage = async () => {
         const uploadResult = await uploadAvatar(base64String);
 
         if (uploadResult.success) {
-          setAvatar(uploadResult.data.avatar);
+          // Update avatar with the URL from server, or keep local preview
+          const newAvatarUrl = uploadResult.data?.avatar || uploadResult.data?.url || asset.uri;
+          setAvatar(newAvatarUrl);
           Toast.show({
             type: 'success',
             text1: 'Avatar Updated',

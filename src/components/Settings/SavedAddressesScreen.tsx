@@ -477,7 +477,7 @@ const SavedAddressesScreen = ({ navigation }: SavedAddressesScreenProps) => {
       >
         <View className="flex-1 bg-black/50 justify-end">
           <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           >
             <View className="bg-white rounded-t-3xl" style={{ maxHeight: '92%' }}>
               {/* Modal Header */}

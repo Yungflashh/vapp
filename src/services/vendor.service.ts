@@ -345,28 +345,65 @@ export const updatePayoutDetails = async (data: PayoutDetailsRequest) => {
 /**
  * Get Nigerian bank codes (helper function)
  */
-export const getNigerianBanks = () => {
+/**
+ * Get Nigerian banks list from Paystack API
+ * Falls back to a comprehensive static list if API fails
+ */
+export const getNigerianBanks = async (): Promise<{ name: string; code: string }[]> => {
+  try {
+    const response = await api.get('/vendor/banks');
+    if (response.data?.success && response.data?.data?.banks) {
+      return response.data.data.banks;
+    }
+  } catch (error) {
+    console.log('Using static banks list (API unavailable)');
+  }
+
+  // Comprehensive fallback list from Paystack
+  return getStaticNigerianBanks();
+};
+
+/**
+ * Static Nigerian banks list (comprehensive Paystack-compatible list)
+ */
+export const getStaticNigerianBanks = () => {
   return [
     { name: 'Access Bank', code: '044' },
-    { name: 'Guaranty Trust Bank (GTBank)', code: '058' },
-    { name: 'United Bank for Africa (UBA)', code: '033' },
-    { name: 'Zenith Bank', code: '057' },
-    { name: 'First Bank of Nigeria', code: '011' },
+    { name: 'Access Bank (Diamond)', code: '063' },
+    { name: 'Carbon', code: '565' },
+    { name: 'Citibank Nigeria', code: '023' },
+    { name: 'Ecobank Nigeria', code: '050' },
     { name: 'Fidelity Bank', code: '070' },
-    { name: 'Union Bank', code: '032' },
-    { name: 'Stanbic IBTC Bank', code: '221' },
-    { name: 'Sterling Bank', code: '232' },
-    { name: 'Polaris Bank', code: '076' },
-    { name: 'Wema Bank', code: '035' },
-    { name: 'Keystone Bank', code: '082' },
-    { name: 'Ecobank', code: '050' },
-    { name: 'FCMB', code: '214' },
+    { name: 'First Bank of Nigeria', code: '011' },
+    { name: 'First City Monument Bank (FCMB)', code: '214' },
+    { name: 'Globus Bank', code: '00103' },
+    { name: 'Guaranty Trust Bank (GTBank)', code: '058' },
     { name: 'Heritage Bank', code: '030' },
-    { name: 'Providus Bank', code: '101' },
     { name: 'Jaiz Bank', code: '301' },
+    { name: 'Keystone Bank', code: '082' },
     { name: 'Kuda Bank', code: '090267' },
+    { name: 'Lotus Bank', code: '303' },
+    { name: 'Moniepoint MFB', code: '50515' },
     { name: 'Opay', code: '100004' },
+    { name: 'Paga', code: '100002' },
     { name: 'PalmPay', code: '100033' },
+    { name: 'Parallex Bank', code: '104' },
+    { name: 'Paycom (9PSB)', code: '120001' },
+    { name: 'Polaris Bank', code: '076' },
+    { name: 'Providus Bank', code: '101' },
+    { name: 'Rubies MFB', code: '125' },
+    { name: 'Stanbic IBTC Bank', code: '221' },
+    { name: 'Standard Chartered Bank', code: '068' },
+    { name: 'Sterling Bank', code: '232' },
+    { name: 'SunTrust Bank', code: '100' },
+    { name: 'TAJ Bank', code: '302' },
+    { name: 'Titan Trust Bank', code: '102' },
+    { name: 'Union Bank of Nigeria', code: '032' },
+    { name: 'United Bank for Africa (UBA)', code: '033' },
+    { name: 'Unity Bank', code: '215' },
+    { name: 'VFD Microfinance Bank', code: '566' },
+    { name: 'Wema Bank', code: '035' },
+    { name: 'Zenith Bank', code: '057' },
   ];
 };
 

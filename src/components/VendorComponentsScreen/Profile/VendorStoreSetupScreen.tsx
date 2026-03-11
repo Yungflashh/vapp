@@ -3,7 +3,7 @@
 // File: screens/vendor/VendorStoreSetupScreen.tsx
 // ============================================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getMyVendorProfile } from '@/services/vendor.service';
 import Toast from 'react-native-toast-message';
@@ -23,6 +23,13 @@ interface SetupStatus {
   storefront: boolean;
   verification: boolean;
   bankAccount: boolean;
+}
+
+interface VerificationDetail {
+  nin: boolean;
+  cac: boolean;
+  utilityBill: boolean;
+  socialMedia: boolean;
 }
 
 const VendorStoreSetupScreen = () => {
@@ -34,23 +41,63 @@ const VendorStoreSetupScreen = () => {
     verification: false,
     bankAccount: false,
   });
+  const [verificationStatus, setVerificationStatus] = useState<string>('pending');
+  const [verificationDetail, setVerificationDetail] = useState<VerificationDetail>({
+    nin: false, cac: false, utilityBill: false, socialMedia: false,
+  });
 
-  useEffect(() => {
-    fetchSetupStatus();
-  }, []);
+  // Refresh status every time screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchSetupStatus();
+    }, [])
+  );
 
   const fetchSetupStatus = async () => {
     try {
       const response = await getMyVendorProfile();
-      
+
       if (response.success) {
-        const profile = response.data.vendorProfile;
-        
+        const profile = response.data.vendorProfile || response.data;
+
+        // Check storefront: theme selected or banner uploaded or custom message set
+        const hasStorefront = !!(
+          profile.storefront?.theme ||
+          profile.storefront?.bannerImages?.length ||
+          profile.storefront?.customMessage ||
+          profile.businessBanner
+        );
+
+        // Check verification: any documents uploaded (pending/verified)
+        const kycDocs = profile.kycDocuments || [];
+        const hasNIN = kycDocs.some((d: any) => d.type === 'NIN');
+        const hasCAC = kycDocs.some((d: any) => d.type === 'CAC');
+        const hasUtilityBill = kycDocs.some((d: any) => d.type === 'UTILITY_BILL');
+        const sm = profile.socialMedia;
+        const hasSocialMedia = !!(sm?.facebook || sm?.instagram || sm?.twitter || sm?.tiktok);
+
+        setVerificationDetail({ nin: hasNIN, cac: hasCAC, utilityBill: hasUtilityBill, socialMedia: hasSocialMedia });
+
+        const hasVerification =
+          profile.verificationStatus === 'verified' ||
+          profile.verificationStatus === 'Processing' ||
+          profile.verificationStatus === 'Complete' ||
+          kycDocs.length > 0;
+
+        // Check bank account
+        const hasBankAccount = !!(
+          profile.payoutDetails?.accountNumber ||
+          profile.paymentInfo?.accountNumber
+        );
+
         setSetupStatus({
-          storefront: !!(profile.storefront?.theme || profile.storefront?.bannerImages?.length),
-          verification: profile.verificationStatus === 'verified',
-          bankAccount: !!profile.payoutDetails?.accountNumber,
+          storefront: hasStorefront,
+          verification: hasVerification,
+          bankAccount: hasBankAccount,
         });
+
+        // Store verification status for display
+        setVerificationStatus(profile.verificationStatus || 'pending');
       }
     } catch (error) {
       console.error('Error fetching setup status:', error);
@@ -156,9 +203,9 @@ const VendorStoreSetupScreen = () => {
 
             {/* Progress Bar */}
             <View className="h-3 bg-gray-100 rounded-full overflow-hidden">
-              <View 
-                className="h-full bg-gradient-to-r from-pink-500 to-purple-500 rounded-full"
-                style={{ width: `${progress}%` }}
+              <View
+                className="h-full rounded-full"
+                style={{ width: `${progress}%`, backgroundColor: '#CC3366' }}
               />
             </View>
           </View>
@@ -220,19 +267,45 @@ const VendorStoreSetupScreen = () => {
 
               {/* Status Badge */}
               <View className="mt-3">
-                {option.completed ? (
+                {option.id === 'verification' ? (
+                  // Verification: show granular progress
+                  (() => {
+                    let vProgress = 0;
+                    if (verificationDetail.nin) vProgress += 50;
+                    if (verificationDetail.cac) vProgress += 16.67;
+                    if (verificationDetail.utilityBill) vProgress += 16.67;
+                    if (verificationDetail.socialMedia) vProgress += 16.66;
+                    vProgress = Math.round(vProgress);
+
+                    const isApproved = verificationStatus === 'verified' || verificationStatus === 'Complete';
+
+                    return (
+                      <View>
+                        {/* Mini progress bar */}
+                        <View className="h-2 bg-gray-100 rounded-full overflow-hidden mb-2">
+                          <View
+                            className="h-full rounded-full"
+                            style={{ width: `${vProgress}%`, backgroundColor: isApproved ? '#22C55E' : vProgress === 100 ? '#3B82F6' : '#CC3366' }}
+                          />
+                        </View>
+                        <View className="flex-row items-center">
+                          <View className={`w-2 h-2 rounded-full mr-2 ${isApproved ? 'bg-green-500' : vProgress === 100 ? 'bg-blue-500' : 'bg-orange-500'}`} />
+                          <Text className={`text-xs font-semibold ${isApproved ? 'text-green-600' : vProgress === 100 ? 'text-blue-600' : 'text-orange-600'}`}>
+                            {isApproved ? 'Approved' : vProgress === 100 ? 'Under Review' : `${vProgress}% Complete`}
+                          </Text>
+                        </View>
+                      </View>
+                    );
+                  })()
+                ) : option.completed ? (
                   <View className="flex-row items-center">
                     <View className="w-2 h-2 rounded-full bg-green-500 mr-2" />
-                    <Text className="text-xs font-semibold text-green-600">
-                      Completed
-                    </Text>
+                    <Text className="text-xs font-semibold text-green-600">Completed</Text>
                   </View>
                 ) : (
                   <View className="flex-row items-center">
                     <View className="w-2 h-2 rounded-full bg-orange-500 mr-2" />
-                    <Text className="text-xs font-semibold text-orange-600">
-                      Action Required
-                    </Text>
+                    <Text className="text-xs font-semibold text-orange-600">Action Required</Text>
                   </View>
                 )}
               </View>

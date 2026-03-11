@@ -519,15 +519,26 @@ const CartScreen = () => {
               </View>
             </View>
 
-            {/* ✅ Shipping Note */}
-            <View className="mt-4 bg-blue-50 rounded-xl p-3">
-              <View className="flex-row items-center">
-                <Icon name="information-circle" size={20} color="#3B82F6" />
-                <Text className="text-blue-700 text-sm ml-2 flex-1">
-                  Shipping fees will be calculated at checkout based on your delivery address
-                </Text>
+            {/* ✅ Shipping Note - Different for digital vs physical */}
+            {cart.items.every((item: CartItem) => (item.product as any).productType === 'digital') ? (
+              <View className="mt-4 bg-purple-50 rounded-xl p-3">
+                <View className="flex-row items-center">
+                  <Icon name="cloud-download" size={20} color="#8B5CF6" />
+                  <Text className="text-purple-700 text-sm ml-2 flex-1">
+                    Your digital products will be available for download immediately after payment
+                  </Text>
+                </View>
               </View>
-            </View>
+            ) : (
+              <View className="mt-4 bg-blue-50 rounded-xl p-3">
+                <View className="flex-row items-center">
+                  <Icon name="information-circle" size={20} color="#3B82F6" />
+                  <Text className="text-blue-700 text-sm ml-2 flex-1">
+                    Shipping fees will be calculated at checkout based on your delivery address
+                  </Text>
+                </View>
+              </View>
+            )}
           </View>
         </ScrollView>
       )}
@@ -546,9 +557,15 @@ const CartScreen = () => {
                   You save ₦{cart.discount.toLocaleString()}
                 </Text>
               )}
-              <Text className="text-gray-500 text-xs mt-1">
-                + Shipping (calculated at checkout)
-              </Text>
+              {cart.items.every((item: CartItem) => (item.product as any).productType === 'digital') ? (
+                <Text className="text-purple-500 text-xs mt-1">
+                  Digital download - No shipping needed
+                </Text>
+              ) : (
+                <Text className="text-gray-500 text-xs mt-1">
+                  + Shipping (calculated at checkout)
+                </Text>
+              )}
             </View>
           </View>
 

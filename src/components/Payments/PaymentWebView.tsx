@@ -18,6 +18,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import Toast from 'react-native-toast-message';
 import { RootStackParamList } from '@/navigation';
 import { confirmPayment } from '@/services/order.service';
+import { clearCart } from '@/services/cart.service';
 
 // Add this to your RootStackParamList:
 // PaymentWebView: {
@@ -107,6 +108,14 @@ const PaymentWebViewScreen = () => {
 
       if (response.success) {
         const orderNumber = response.data?.order?.orderNumber || reference;
+
+        // Clear cart on frontend after successful payment
+        try {
+          await clearCart();
+          console.log('✅ Cart cleared after payment');
+        } catch (cartErr) {
+          console.log('⚠️ Cart clear failed (backend may have already cleared it):', cartErr);
+        }
 
         Toast.show({
           type: 'success',

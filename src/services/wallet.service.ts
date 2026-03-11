@@ -6,6 +6,7 @@ import api, { handleApiError } from './api.config';
 
 export interface Wallet {
     balance: number;
+    vCredits: number;
 }
 
 export interface WalletResponse {

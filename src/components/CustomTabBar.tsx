@@ -14,7 +14,7 @@ const CustomTabBar = ({ state, descriptors, navigation, isVendor = false }: Cust
 
   const getTabIcon = (routeName: string, isFocused: boolean) => {
     const color = isFocused ? '#CC3366' : '#9CA3AF';
-    const size = 24;
+    const size = 26;
 
     // Vendor-specific icons
     if (isVendor) {
@@ -92,61 +92,65 @@ const CustomTabBar = ({ state, descriptors, navigation, isVendor = false }: Cust
   };
 
   return (
-    <View className="flex-row bg-white border-t border-gray-200 px-2 py-2">
-      {state.routes.map((route, index) => {
-        const { options } = descriptors[route.key];
-        const isFocused = state.index === index;
+    <View className="bg-white border-t border-gray-200">
+      <View className="flex-row px-2 pt-3 pb-2">
+        {state.routes.map((route, index) => {
+          const { options } = descriptors[route.key];
+          const isFocused = state.index === index;
 
-        const onPress = () => {
-          const event = navigation.emit({
-            type: 'tabPress',
-            target: route.key,
-            canPreventDefault: true,
-          });
+          const onPress = () => {
+            const event = navigation.emit({
+              type: 'tabPress',
+              target: route.key,
+              canPreventDefault: true,
+            });
 
-          if (!isFocused && !event.defaultPrevented) {
-            navigation.navigate(route.name);
-          }
-        };
+            if (!isFocused && !event.defaultPrevented) {
+              navigation.navigate(route.name);
+            }
+          };
 
-        const onLongPress = () => {
-          navigation.emit({
-            type: 'tabLongPress',
-            target: route.key,
-          });
-        };
+          const onLongPress = () => {
+            navigation.emit({
+              type: 'tabLongPress',
+              target: route.key,
+            });
+          };
 
-        return (
-          <TouchableOpacity
-            key={route.key}
-            accessibilityRole="button"
-            accessibilityState={isFocused ? { selected: true } : {}}
-            accessibilityLabel={options.tabBarAccessibilityLabel}
-            testID={options.tabBarTestID}
-            onPress={onPress}
-            onLongPress={onLongPress}
-            className="flex-1 items-center justify-center py-2"
-          >
-            <View className="relative">
-              {getTabIcon(route.name, isFocused)}
-              {route.name === 'Messages' && unreadMessageCount > 0 && (
-                <View className="absolute -top-1 -right-2 bg-pink-500 rounded-full min-w-[16px] h-4 items-center justify-center px-1">
-                  <Text className="text-[10px] text-white font-bold">
-                    {unreadMessageCount > 9 ? '9+' : unreadMessageCount}
-                  </Text>
-                </View>
-              )}
-            </View>
-            <Text
-              className={`text-xs mt-1 ${
-                isFocused ? 'text-pink-500 font-semibold' : 'text-gray-500'
-              }`}
+          return (
+            <TouchableOpacity
+              key={route.key}
+              accessibilityRole="button"
+              accessibilityState={isFocused ? { selected: true } : {}}
+              accessibilityLabel={options.tabBarAccessibilityLabel}
+              testID={options.tabBarTestID}
+              onPress={onPress}
+              onLongPress={onLongPress}
+              className="flex-1 items-center justify-center py-2"
             >
-              {getTabLabel(route.name)}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
+              <View className="relative">
+                {getTabIcon(route.name, isFocused)}
+                {route.name === 'Messages' && unreadMessageCount > 0 && (
+                  <View className="absolute -top-1 -right-2 bg-pink-500 rounded-full min-w-[16px] h-4 items-center justify-center px-1">
+                    <Text className="text-[10px] text-white font-bold">
+                      {unreadMessageCount > 9 ? '9+' : unreadMessageCount}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <Text
+                className={`text-xs mt-1 ${
+                  isFocused ? 'text-pink-500 font-semibold' : 'text-gray-500'
+                }`}
+              >
+                {getTabLabel(route.name)}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      {/* Spacer to cover Android nav buttons area */}
+      <View className="h-10 bg-white" />
     </View>
   );
 };

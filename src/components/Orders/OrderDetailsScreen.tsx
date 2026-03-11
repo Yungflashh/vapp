@@ -306,32 +306,47 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
         {/* Order Items */}
         <View className="bg-white px-4 py-4 mt-3">
           <Text className="text-base font-bold text-gray-900 mb-3">Order Items</Text>
-          {order.items.map((item, index) => (
-            <View key={index} className="flex-row items-center mb-4">
-              <View className="w-16 h-16 bg-pink-50 rounded-xl overflow-hidden mr-3">
-                {item.productImage ? (
-                  <Image
-                    source={{ uri: item.productImage }}
-                    className="w-full h-full"
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <View className="w-full h-full items-center justify-center">
-                    <Icon name="image-outline" size={24} color="#CC3366" />
-                  </View>
-                )}
-              </View>
-              <View className="flex-1">
-                <Text className="text-sm font-bold text-gray-900" numberOfLines={1}>
-                  {item.productName}
-                </Text>
-                <Text className="text-xs text-gray-500 mt-1">Qty: {item.quantity}</Text>
-              </View>
-              <Text className="text-sm font-bold text-gray-900">
-                ₦{(item.price * item.quantity).toLocaleString()}
-              </Text>
-            </View>
-          ))}
+          {order.items.map((item, index) => {
+            const productId = typeof item.product === 'object' ? (item.product as any)?._id : item.product;
+            return (
+              <TouchableOpacity
+                key={index}
+                className="flex-row items-center mb-4"
+                onPress={() => {
+                  if (productId) {
+                    navigation.navigate('ProductDetails', { productId });
+                  }
+                }}
+                activeOpacity={0.7}
+              >
+                <View className="w-16 h-16 bg-pink-50 rounded-xl overflow-hidden mr-3">
+                  {item.productImage ? (
+                    <Image
+                      source={{ uri: item.productImage }}
+                      className="w-full h-full"
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View className="w-full h-full items-center justify-center">
+                      <Icon name="image-outline" size={24} color="#CC3366" />
+                    </View>
+                  )}
+                </View>
+                <View className="flex-1">
+                  <Text className="text-sm font-bold text-gray-900" numberOfLines={1}>
+                    {item.productName}
+                  </Text>
+                  <Text className="text-xs text-gray-500 mt-1">Qty: {item.quantity}</Text>
+                </View>
+                <View className="flex-row items-center">
+                  <Text className="text-sm font-bold text-gray-900 mr-2">
+                    ₦{(item.price * item.quantity).toLocaleString()}
+                  </Text>
+                  <Icon name="chevron-forward" size={16} color="#9CA3AF" />
+                </View>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {/* Delivery Address */}

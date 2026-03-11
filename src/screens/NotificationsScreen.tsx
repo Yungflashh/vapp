@@ -229,14 +229,6 @@ const NotificationsScreen = ({ navigation }: NotificationsScreenProps) => {
         {!item.read && (
           <View className="w-2 h-2 bg-pink-500 rounded-full ml-2 mt-2" />
         )}
-
-        <TouchableOpacity
-          className="ml-2 mt-1 p-1"
-          onPress={() => handleDelete(item._id)}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Icon name="close" size={16} color="#9CA3AF" />
-        </TouchableOpacity>
       </TouchableOpacity>
     );
   };

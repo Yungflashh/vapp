@@ -131,6 +131,39 @@ export const registerFcmToken = async (token: string, platform: string = 'androi
 };
 
 /**
+ * Get notification preferences from backend
+ */
+export const getNotificationPreferences = async () => {
+  try {
+    const response = await api.get('/notifications/preferences');
+    return response.data;
+  } catch (error) {
+    console.error('Get notification preferences error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};
+
+/**
+ * Update notification preferences on backend
+ */
+export const updateNotificationPreferences = async (preferences: {
+  pushEnabled: boolean;
+  order: { id: string; enabled: boolean }[];
+  promo: { id: string; enabled: boolean }[];
+  social: { id: string; enabled: boolean }[];
+}) => {
+  try {
+    const response = await api.put('/notifications/preferences', preferences);
+    return response.data;
+  } catch (error) {
+    console.error('Update notification preferences error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};
+
+/**
  * Unregister FCM/Expo push token
  */
 export const unregisterFcmToken = async (token: string) => {

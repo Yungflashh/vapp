@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -17,9 +17,16 @@ const PaymentSetupScreen = ({ navigation }: PaymentSetupScreenProps) => {
   const [loading, setLoading] = useState(false);
   const [showBankPicker, setShowBankPicker] = useState(false);
   const [showSkipModal, setShowSkipModal] = useState(false);
+  const [banks, setBanks] = useState<{ name: string; code: string }[]>([]);
 
-  // Get Nigerian banks with codes
-  const banks = getNigerianBanks();
+  // Load Nigerian banks (async from Paystack or fallback)
+  useEffect(() => {
+    const loadBanks = async () => {
+      const banksList = await getNigerianBanks();
+      setBanks(banksList);
+    };
+    loadBanks();
+  }, []);
 
   const validateForm = (): boolean => {
     if (!accountName.trim()) {
@@ -129,7 +136,7 @@ const PaymentSetupScreen = ({ navigation }: PaymentSetupScreenProps) => {
     <SafeAreaView className="flex-1 bg-white">
       <KeyboardAvoidingView 
         className="flex-1"
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView 
           className="flex-1"
@@ -137,15 +144,6 @@ const PaymentSetupScreen = ({ navigation }: PaymentSetupScreenProps) => {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Back Button */}
-          <TouchableOpacity 
-            className="w-10 h-10 justify-center mb-4"
-            onPress={() => navigation.goBack()}
-            disabled={loading}
-          >
-            <Icon name="arrow-back" size={24} color="#111827" />
-          </TouchableOpacity>
-
           {/* Title */}
           <Text className="text-xl font-bold text-gray-900 text-center mb-2">
             Payment Setup

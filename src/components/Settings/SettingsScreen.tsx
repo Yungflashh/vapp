@@ -1,14 +1,38 @@
 // screens/SettingsScreen.tsx
-import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 import { RootStackParamList } from '@/navigation';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { getMyDisputes } from '@/services/dispute.service';
 
 type SettingsScreenProps = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 
 const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
+  const [openDisputeCount, setOpenDisputeCount] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      const fetchDisputeCount = async () => {
+        try {
+          const response = await getMyDisputes({ limit: 50 });
+          if (response.success) {
+            const disputes = response.data?.disputes || [];
+            const openCount = disputes.filter((d: any) =>
+              ['open', 'vendor_responded', 'under_review'].includes(d.status)
+            ).length;
+            setOpenDisputeCount(openCount);
+          }
+        } catch (err) {
+          console.log('⚠️ Dispute count fetch error:', err);
+        }
+      };
+      fetchDisputeCount();
+    }, [])
+  );
+
   const accountSettings = [
     {
       icon: 'person',
@@ -32,7 +56,7 @@ const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
       iconColor: '#EF4444',
       title: 'Dispute Center',
       description: 'Resolve order issues',
-      badge: 2,
+      badge: openDisputeCount > 0 ? openDisputeCount : undefined,
       onPress: () => navigation.navigate('DisputeCenter'),
     },
     {
@@ -49,7 +73,7 @@ const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
       iconColor: '#6B7280',
       title: 'App Settings',
       description: 'Language, privacy & more',
-      onPress: () => console.log('App Settings'),
+      onPress: () => Alert.alert('Coming Soon', 'Language, privacy and other app settings will be available in the next update.'),
     },
   ];
 

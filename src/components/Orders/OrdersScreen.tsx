@@ -16,20 +16,23 @@ import { RootStackParamList } from '@/navigation';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Toast from 'react-native-toast-message';
 import { getOrders, Order } from '@/services/order.service';
+import { getCart } from '@/services/cart.service';
 import { useFocusEffect } from '@react-navigation/native';
+import { useNotifications } from '@/context/NotificationContext';
 
 type OrdersScreenProps = NativeStackScreenProps<RootStackParamList, 'Orders'>;
 
 type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'completed' | 'cancelled';
 
 const OrdersScreen = ({ navigation }: OrdersScreenProps) => {
+  const { unreadCount: notificationCount } = useNotifications();
   const [orders, setOrders] = useState<Order[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [cartItemCount, setCartItemCount] = useState(2);
+  const [cartItemCount, setCartItemCount] = useState(0);
 
   const statusTabs: { label: string; value: OrderStatus | 'all' }[] = [
     { label: 'All', value: 'all' },
@@ -42,8 +45,22 @@ const OrdersScreen = ({ navigation }: OrdersScreenProps) => {
   useFocusEffect(
     useCallback(() => {
       fetchOrders();
+      fetchCartCount();
     }, [selectedStatus, searchQuery])
   );
+
+  const fetchCartCount = async () => {
+    try {
+      const response = await getCart();
+      if (response.success && response.data?.cart) {
+        setCartItemCount(response.data.cart.items?.length || 0);
+      } else {
+        setCartItemCount(0);
+      }
+    } catch (err) {
+      setCartItemCount(0);
+    }
+  };
 
   const fetchOrders = async () => {
     try {
@@ -226,7 +243,7 @@ const OrdersScreen = ({ navigation }: OrdersScreenProps) => {
         {/* Quantity and Price Row */}
         <View className="flex-row items-center justify-between mt-3 pt-3 border-t border-gray-100">
           <Text className="text-sm text-gray-700">
-            Qty: {order.items.reduce((sum, item) => sum + item.quantity, 0)}
+            {order.items.length} {order.items.length === 1 ? 'Product' : 'Products'} · Qty: {order.items.reduce((sum, item) => sum + item.quantity, 0)}
           </Text>
           <View className="flex-row items-center">
             <Text className="text-base font-bold text-gray-900 mr-3">
@@ -272,8 +289,13 @@ const OrdersScreen = ({ navigation }: OrdersScreenProps) => {
         </View>
 
         <View className="flex-row items-center gap-3">
-          <TouchableOpacity className="w-10 h-10 items-center justify-center" onPress={() => navigation.navigate('Notifications' as any)}>
+          <TouchableOpacity className="w-10 h-10 items-center justify-center relative" onPress={() => navigation.navigate('Notifications' as any)}>
             <Icon name="notifications-outline" size={24} color="#111827" />
+            {notificationCount > 0 && (
+              <View className="absolute top-1 right-1 w-4 h-4 bg-pink-500 rounded-full items-center justify-center">
+                <Text className="text-[10px] text-white font-bold">{notificationCount > 9 ? '9+' : notificationCount}</Text>
+              </View>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -288,7 +310,7 @@ const OrdersScreen = ({ navigation }: OrdersScreenProps) => {
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity className="w-10 h-10 items-center justify-center">
+          <TouchableOpacity className="w-10 h-10 items-center justify-center" onPress={() => navigation.navigate('Settings' as any)}>
             <Icon name="settings-outline" size={24} color="#111827" />
           </TouchableOpacity>
         </View>

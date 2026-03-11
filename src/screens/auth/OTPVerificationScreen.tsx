@@ -103,7 +103,10 @@ const OTPVerificationScreen = ({ navigation, route }: OTPVerificationScreenProps
 
       setTimeout(() => {
         if (isVendor) {
-          navigation.navigate('VendorSetup');
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'VendorSetup' }],
+          });
         } else {
           navigation.reset({
             index: 0,
@@ -250,16 +253,12 @@ const OTPVerificationScreen = ({ navigation, route }: OTPVerificationScreenProps
             )}
           </TouchableOpacity>
 
-          {/* Back to Register */}
-          <TouchableOpacity 
-            className="mt-6"
-            onPress={() => navigation.goBack()}
-            disabled={loading}
-          >
-            <Text className="text-sm text-gray-500 text-center">
-              Wrong email? <Text className="text-pink-500 font-medium">Go back</Text>
+          {/* Info Text */}
+          <View className="mt-6">
+            <Text className="text-sm text-gray-400 text-center">
+              Please check your email for the verification code
             </Text>
-          </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
       <Toast />

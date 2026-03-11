@@ -960,7 +960,7 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
       <View className="bg-white px-4 py-4 mb-2">
         <View className="flex-row justify-between items-center mb-4">
           <Text className="text-xl font-bold text-gray-900">Trending Now</Text>
-          <TouchableOpacity onPress={() => { clearSearch(); setActiveTab('product'); }}>
+          <TouchableOpacity onPress={() => { clearSearch(); setActiveCategory('all'); setActiveTab('product'); }}>
             <Text className="text-pink-500 font-medium">View All</Text>
           </TouchableOpacity>
         </View>
@@ -1019,10 +1019,11 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
     <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
       {/* Header */}
       <View className="bg-white px-4 py-3 flex-row items-center justify-between">
-        <Text className="text-xl font-bold">
-          <Text className="text-pink-500">V</Text>
-          <Text className="text-yellow-400">endorspot</Text>
-        </Text>
+        <View className="flex-row items-center">
+          <Icon name="location" size={20} color="#CC3366" />
+          <Text className="text-sm font-semibold text-gray-900 ml-1.5">Lagos, Nigeria</Text>
+          <Icon name="chevron-down" size={16} color="#6B7280" />
+        </View>
         <View className="flex-row items-center gap-4">
           <TouchableOpacity onPress={() => navigation.navigate('Categories')}>
             <Icon name="grid-outline" size={24} color="#111827" />

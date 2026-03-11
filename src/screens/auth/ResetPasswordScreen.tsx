@@ -155,7 +155,7 @@ const ResetPasswordScreen = ({ navigation, route }: ResetPasswordScreenProps) =>
     <SafeAreaView className="flex-1 bg-white">
       <KeyboardAvoidingView 
         className="flex-1"
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView 
           className="flex-1"

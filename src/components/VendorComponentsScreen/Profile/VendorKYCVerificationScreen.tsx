@@ -31,20 +31,23 @@ interface KYCDocument {
   rejectionReason?: string;
 }
 
+// Verification weight: NIN = 50%, CAC + Utility Bill + Social Media = 50% (16.67% each)
 const DOCUMENT_TYPES = [
+  {
+    id: 'NIN',
+    name: 'NIN (National Identification)',
+    description: 'National Identification Number slip or card',
+    icon: 'finger-print-outline',
+    required: true,
+    weight: 50,
+  },
   {
     id: 'CAC',
     name: 'CAC Certificate',
     description: 'Business registration certificate',
     icon: 'document-text-outline',
     required: true,
-  },
-  {
-    id: 'ID_CARD',
-    name: 'ID Card',
-    description: 'National ID or Voter\'s card',
-    icon: 'card-outline',
-    required: true,
+    weight: 16.67,
   },
   {
     id: 'UTILITY_BILL',
@@ -52,6 +55,7 @@ const DOCUMENT_TYPES = [
     description: 'Proof of address (PHCN, Water bill)',
     icon: 'receipt-outline',
     required: false,
+    weight: 16.67,
   },
   {
     id: 'PASSPORT',
@@ -59,6 +63,7 @@ const DOCUMENT_TYPES = [
     description: 'Clear passport photograph',
     icon: 'person-outline',
     required: false,
+    weight: 0,
   },
 ];
 
@@ -72,6 +77,7 @@ const VendorKYCVerificationScreen = () => {
   const [verificationStatus, setVerificationStatus] = useState<'pending' | 'verified' | 'rejected'>('pending');
   const [uploadedDocuments, setUploadedDocuments] = useState<KYCDocument[]>([]);
   const [newDocuments, setNewDocuments] = useState<{ type: string; uri: string; name: string }[]>([]);
+  const [hasSocialMedia, setHasSocialMedia] = useState(false);
 
   useEffect(() => {
     fetchKYCStatus();
@@ -80,12 +86,20 @@ const VendorKYCVerificationScreen = () => {
   const fetchKYCStatus = async () => {
     try {
       const response = await getMyVendorProfile();
-      
+      console.log('📋 KYC fetch response:', JSON.stringify(response?.data || response, null, 2));
+
       if (response.success) {
-        const profile = response.data.vendorProfile;
-        
-        setVerificationStatus(profile.verificationStatus);
-        setUploadedDocuments(profile.kycDocuments || []);
+        const profile = response.data?.vendorProfile || response.data;
+
+        console.log('📋 Verification status:', profile?.verificationStatus);
+        console.log('📋 KYC documents:', JSON.stringify(profile?.kycDocuments));
+
+        setVerificationStatus(profile?.verificationStatus || 'pending');
+        setUploadedDocuments(profile?.kycDocuments || []);
+
+        // Check if social media is filled
+        const sm = profile?.socialMedia;
+        setHasSocialMedia(!!(sm?.facebook || sm?.instagram || sm?.twitter || sm?.tiktok));
       }
     } catch (error) {
       console.error('Error fetching KYC status:', error);
@@ -201,40 +215,35 @@ const VendorKYCVerificationScreen = () => {
   const uploadDocument = async (documentType: string, uri: string, fileName: string) => {
     try {
       setUploading(documentType);
-      
-      const formData = new FormData();
-      
-      formData.append('document', {
-        uri,
-        name: fileName,
-        type: 'image/jpeg',
-      } as any);
-      
-      formData.append('type', documentType);
-      
+
+      console.log(`📤 Uploading ${documentType}...`);
       const response = await uploadKYCDocument(uri, documentType);
-      
-      if (response.data.success) {
-        setNewDocuments([
-          ...newDocuments.filter(doc => doc.type !== documentType),
-          {
-            type: documentType,
-            uri: response.data.data.url,
-            name: fileName,
-          },
-        ]);
-        
-        Toast.show({
-          type: 'success',
-          text1: 'Success',
-          text2: 'Document uploaded successfully',
-        });
-      }
+      console.log(`📤 Upload response:`, JSON.stringify(response));
+
+      // If uploadKYCDocument didn't throw, the upload succeeded
+      // Extract URL from whatever response shape we get
+      const uploadedUrl = response?.data?.url || response?.url || uri;
+
+      setNewDocuments(prev => [
+        ...prev.filter(doc => doc.type !== documentType),
+        {
+          type: documentType,
+          uri: uploadedUrl,
+          name: fileName,
+        },
+      ]);
+
+      Toast.show({
+        type: 'success',
+        text1: 'Uploaded',
+        text2: `${DOCUMENT_TYPES.find(d => d.id === documentType)?.name || documentType} uploaded successfully`,
+      });
     } catch (error: any) {
+      console.error(`❌ Upload ${documentType} failed:`, error?.response?.data || error.message);
       Toast.show({
         type: 'error',
         text1: 'Upload Failed',
-        text2: error.response?.data?.message || 'Failed to upload document',
+        text2: error.response?.data?.message || error.message || 'Failed to upload document',
       });
     } finally {
       setUploading(null);
@@ -253,14 +262,14 @@ const VendorKYCVerificationScreen = () => {
       }
 
       // Check if required documents are uploaded
+      const hasNIN = newDocuments.some(doc => doc.type === 'NIN') || uploadedDocuments.some(doc => doc.type === 'NIN');
       const hasCAC = newDocuments.some(doc => doc.type === 'CAC') || uploadedDocuments.some(doc => doc.type === 'CAC');
-      const hasID = newDocuments.some(doc => doc.type === 'ID_CARD') || uploadedDocuments.some(doc => doc.type === 'ID_CARD');
 
-      if (!hasCAC || !hasID) {
+      if (!hasNIN || !hasCAC) {
         Toast.show({
           type: 'error',
           text1: 'Missing Required Documents',
-          text2: 'Please upload CAC Certificate and ID Card',
+          text2: 'Please upload NIN and CAC Certificate',
         });
         return;
       }
@@ -273,8 +282,8 @@ const VendorKYCVerificationScreen = () => {
       }));
       
       const response = await submitKYCDocuments(documents);
-      
-      if (response.data.success) {
+
+      if (response.success) {
         Toast.show({
           type: 'success',
           text1: 'Success',
@@ -378,6 +387,62 @@ const VendorKYCVerificationScreen = () => {
           </View>
         )}
 
+        {/* Verification Progress */}
+        <View className="mx-6 mt-6 bg-white rounded-2xl p-4" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}>
+          <Text className="text-base font-bold text-gray-900 mb-3">Verification Progress</Text>
+
+          {/* Progress Bar */}
+          {(() => {
+            const isDocDone = (docId: string) =>
+              uploadedDocuments.some(d => d.type === docId) ||
+              newDocuments.some(d => d.type === docId);
+
+            let progress = 0;
+            if (isDocDone('NIN')) progress += 50;
+            if (isDocDone('CAC')) progress += 16.67;
+            if (isDocDone('UTILITY_BILL')) progress += 16.67;
+            if (hasSocialMedia) progress += 16.66;
+            progress = Math.round(progress);
+
+            return (
+              <>
+                <View className="flex-row items-center justify-between mb-2">
+                  <Text className="text-sm text-gray-500">Account Verification</Text>
+                  <Text className="text-sm font-bold text-pink-500">{progress}%</Text>
+                </View>
+                <View className="h-3 bg-gray-100 rounded-full overflow-hidden mb-4">
+                  <View
+                    className="h-full rounded-full"
+                    style={{ width: `${progress}%`, backgroundColor: progress === 100 ? '#22C55E' : '#CC3366' }}
+                  />
+                </View>
+
+                {/* Individual items */}
+                {[
+                  { label: 'NIN Verification', done: isDocDone('NIN'), weight: '50%' },
+                  { label: 'CAC Certificate', done: isDocDone('CAC'), weight: '16.67%' },
+                  { label: 'Utility Bill', done: isDocDone('UTILITY_BILL'), weight: '16.67%' },
+                  { label: 'Social Media Links', done: hasSocialMedia, weight: '16.66%' },
+                ].map((item, idx) => (
+                  <View key={idx} className="flex-row items-center mb-2">
+                    <View className={`w-6 h-6 rounded-full items-center justify-center mr-3 ${item.done ? 'bg-green-500' : 'bg-gray-200'}`}>
+                      {item.done ? (
+                        <Icon name="checkmark" size={14} color="#FFFFFF" />
+                      ) : (
+                        <Icon name="ellipse-outline" size={14} color="#9CA3AF" />
+                      )}
+                    </View>
+                    <Text className={`flex-1 text-sm ${item.done ? 'text-green-700 font-semibold' : 'text-gray-600'}`}>
+                      {item.label}
+                    </Text>
+                    <Text className="text-xs text-gray-400">{item.weight}</Text>
+                  </View>
+                ))}
+              </>
+            );
+          })()}
+        </View>
+
         {/* Instructions */}
         <View className="mx-6 mt-6 bg-blue-50 rounded-2xl p-4">
           <View className="flex-row items-start">
@@ -401,14 +466,19 @@ const VendorKYCVerificationScreen = () => {
           <Text className="text-base font-bold text-gray-900 mb-4">Upload Documents</Text>
 
           {DOCUMENT_TYPES.map((docType) => {
-            const status = getDocumentStatus(docType.id);
+            const serverDoc = getDocumentStatus(docType.id);
+            const newDoc = newDocuments.find(doc => doc.type === docType.id);
             const isUploading = uploading === docType.id;
+            const isUploaded = !!serverDoc || !!newDoc;
+            const isVerified = serverDoc?.status === 'verified';
+            const isRejected = serverDoc?.status === 'rejected';
 
             return (
               <View
                 key={docType.id}
-                className="bg-white rounded-2xl p-4 mb-3"
+                className={`rounded-2xl p-4 mb-3 ${isUploaded ? 'bg-white border-2' : 'bg-white'}`}
                 style={{
+                  borderColor: isVerified ? '#22C55E' : isUploaded ? '#10B981' : 'transparent',
                   shadowColor: '#000',
                   shadowOffset: { width: 0, height: 1 },
                   shadowOpacity: 0.05,
@@ -417,8 +487,8 @@ const VendorKYCVerificationScreen = () => {
                 }}
               >
                 <View className="flex-row items-start mb-3">
-                  <View className="w-12 h-12 rounded-xl bg-gray-100 items-center justify-center">
-                    <Icon name={docType.icon} size={20} color="#6B7280" />
+                  <View className={`w-12 h-12 rounded-xl items-center justify-center ${isUploaded ? 'bg-green-100' : 'bg-gray-100'}`}>
+                    <Icon name={isUploaded ? 'checkmark-circle' : docType.icon} size={20} color={isUploaded ? '#10B981' : '#6B7280'} />
                   </View>
 
                   <View className="flex-1 ml-3">
@@ -426,51 +496,81 @@ const VendorKYCVerificationScreen = () => {
                       <Text className="text-base font-bold text-gray-900 flex-1">
                         {docType.name}
                       </Text>
-                      
-                      {docType.required && (
+
+                      {isVerified ? (
+                        <View className="bg-green-100 px-2 py-1 rounded">
+                          <Text className="text-xs font-semibold text-green-600">Verified</Text>
+                        </View>
+                      ) : isUploaded ? (
+                        <View className="bg-green-100 px-2 py-1 rounded">
+                          <Text className="text-xs font-semibold text-green-600">Uploaded</Text>
+                        </View>
+                      ) : isRejected ? (
+                        <View className="bg-red-100 px-2 py-1 rounded">
+                          <Text className="text-xs font-semibold text-red-600">Rejected</Text>
+                        </View>
+                      ) : docType.required ? (
                         <View className="bg-red-100 px-2 py-1 rounded">
                           <Text className="text-xs font-semibold text-red-600">Required</Text>
                         </View>
+                      ) : (
+                        <View className="bg-gray-100 px-2 py-1 rounded">
+                          <Text className="text-xs font-semibold text-gray-500">Optional</Text>
+                        </View>
                       )}
                     </View>
-                    
+
                     <Text className="text-sm text-gray-500 mt-1">
                       {docType.description}
                     </Text>
                   </View>
                 </View>
 
-                {status && (
+                {/* Server status (pending review / rejected) */}
+                {serverDoc && !isVerified && (
                   <View className="flex-row items-center mb-3">
-                    <Icon name={status.icon} size={16} color={status.color} />
-                    <Text className="text-sm font-semibold ml-2" style={{ color: status.color }}>
-                      {status.status === 'verified' ? 'Verified' : 
-                       status.status === 'rejected' ? 'Rejected - Reupload' : 
-                       'Pending Review'}
+                    <Icon name={serverDoc.icon} size={16} color={serverDoc.color} />
+                    <Text className="text-sm font-semibold ml-2" style={{ color: serverDoc.color }}>
+                      {serverDoc.status === 'rejected' ? 'Rejected - Please reupload' : 'Pending Review'}
                     </Text>
+                  </View>
+                )}
+
+                {/* Show green preview if document was just uploaded this session */}
+                {newDoc && (
+                  <View className="mb-3 bg-green-50 rounded-xl p-3 flex-row items-center">
+                    <View className="w-10 h-10 rounded-lg bg-green-100 items-center justify-center mr-3">
+                      <Icon name="checkmark-circle" size={20} color="#10B981" />
+                    </View>
+                    <View className="flex-1">
+                      <Text className="text-sm font-semibold text-green-800">Successfully Uploaded</Text>
+                      <Text className="text-xs text-green-600 mt-0.5" numberOfLines={1}>
+                        {newDoc.name}
+                      </Text>
+                    </View>
                   </View>
                 )}
 
                 <TouchableOpacity
                   onPress={() => handlePickDocument(docType.id)}
-                  disabled={isUploading || (status?.status === 'verified')}
+                  disabled={isUploading || isVerified}
                   className={`py-3 rounded-xl items-center ${
-                    status?.status === 'verified' ? 'bg-gray-100' : 'bg-pink-50'
+                    isVerified ? 'bg-gray-100' : isUploaded ? 'bg-green-50' : 'bg-pink-50'
                   }`}
                 >
                   {isUploading ? (
                     <ActivityIndicator size="small" color="#CC3366" />
                   ) : (
                     <View className="flex-row items-center">
-                      <Icon 
-                        name={status ? 'refresh' : 'cloud-upload-outline'} 
-                        size={18} 
-                        color={status?.status === 'verified' ? '#9CA3AF' : '#CC3366'}
+                      <Icon
+                        name={isVerified ? 'checkmark-circle' : isUploaded ? 'refresh' : 'cloud-upload-outline'}
+                        size={18}
+                        color={isVerified ? '#9CA3AF' : isUploaded ? '#10B981' : '#CC3366'}
                       />
                       <Text className={`font-semibold ml-2 ${
-                        status?.status === 'verified' ? 'text-gray-400' : 'text-pink-500'
+                        isVerified ? 'text-gray-400' : isUploaded ? 'text-green-600' : 'text-pink-500'
                       }`}>
-                        {status ? (status.status === 'verified' ? 'Verified' : 'Reupload') : 'Upload Document'}
+                        {isVerified ? 'Verified' : isUploaded ? 'Replace Document' : 'Upload Document'}
                       </Text>
                     </View>
                   )}
@@ -478,6 +578,52 @@ const VendorKYCVerificationScreen = () => {
               </View>
             );
           })}
+
+          {/* Social Media Note */}
+          <View className={`rounded-2xl p-4 mb-3 ${hasSocialMedia ? 'bg-white border-2' : 'bg-white'}`}
+            style={{
+              borderColor: hasSocialMedia ? '#10B981' : 'transparent',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.05,
+              shadowRadius: 4,
+              elevation: 2,
+            }}
+          >
+            <View className="flex-row items-start">
+              <View className={`w-12 h-12 rounded-xl items-center justify-center ${hasSocialMedia ? 'bg-green-100' : 'bg-gray-100'}`}>
+                <Icon name={hasSocialMedia ? 'checkmark-circle' : 'logo-instagram'} size={20} color={hasSocialMedia ? '#10B981' : '#6B7280'} />
+              </View>
+              <View className="flex-1 ml-3">
+                <View className="flex-row items-center">
+                  <Text className="text-base font-bold text-gray-900 flex-1">Social Media Links</Text>
+                  {hasSocialMedia ? (
+                    <View className="bg-green-100 px-2 py-1 rounded">
+                      <Text className="text-xs font-semibold text-green-600">Added</Text>
+                    </View>
+                  ) : (
+                    <View className="bg-orange-100 px-2 py-1 rounded">
+                      <Text className="text-xs font-semibold text-orange-600">16.66%</Text>
+                    </View>
+                  )}
+                </View>
+                <Text className="text-sm text-gray-500 mt-1">
+                  {hasSocialMedia ? 'Social media links are configured' : 'Add your social media links in Storefront Setup'}
+                </Text>
+              </View>
+            </View>
+            {!hasSocialMedia && (
+              <TouchableOpacity
+                onPress={() => navigation.navigate('VendorStorefrontSetup' as never)}
+                className="mt-3 py-3 rounded-xl items-center bg-pink-50"
+              >
+                <View className="flex-row items-center">
+                  <Icon name="arrow-forward" size={18} color="#CC3366" />
+                  <Text className="font-semibold ml-2 text-pink-500">Go to Storefront Setup</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </ScrollView>
 

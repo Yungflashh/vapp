@@ -818,7 +818,7 @@ const VendorProductDetailScreen = () => {
       {/* ANSWER QUESTION MODAL */}
       {/* ============================================================ */}
       <Modal animationType="slide" transparent visible={showAnswerModal} onRequestClose={() => setShowAnswerModal(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1">
           <TouchableOpacity activeOpacity={1} onPress={() => setShowAnswerModal(false)} className="flex-1 bg-black/50 justify-end">
             <TouchableOpacity activeOpacity={1} onPress={() => {}} className="bg-white rounded-t-3xl">
               {/* Handle */}

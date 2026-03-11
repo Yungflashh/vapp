@@ -306,7 +306,10 @@ const fetchCategories = async () => {
 
         {/* Right Icons */}
         <View className="flex-row items-center gap-2">
-          <TouchableOpacity className="w-10 h-10 items-center justify-center">
+          <TouchableOpacity
+            className="w-10 h-10 items-center justify-center"
+            onPress={() => navigation.navigate('Home' as never)}
+          >
             <Icon name="search-outline" size={22} color="#111827" />
           </TouchableOpacity>
           <TouchableOpacity className="w-10 h-10 items-center justify-center">

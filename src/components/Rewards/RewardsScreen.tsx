@@ -145,7 +145,7 @@ const RewardsScreen = ({ navigation }: RewardsScreenProps) => {
   };
 
   const getTierIcon = (tier: string) => {
-    return 'trophy';
+    return 'star';
   };
 
   const getTierPoints = (tier: string) => {
@@ -265,7 +265,7 @@ const RewardsScreen = ({ navigation }: RewardsScreenProps) => {
               </View>
 
               <View className="w-16 h-16 bg-white/20 rounded-2xl items-center justify-center">
-                <Icon name="trophy" size={32} color="#FFFFFF" />
+                <Icon name="star" size={32} color="#FFFFFF" />
               </View>
             </View>
           </View>
@@ -438,24 +438,23 @@ const RewardsScreen = ({ navigation }: RewardsScreenProps) => {
             </View>
 
             <Text className="text-xl font-bold text-gray-900 text-center mb-2">
-              Redeem Points
+              Convert to VCredits
             </Text>
             <Text className="text-sm text-gray-500 text-center mb-6">
-              Are you sure you want to redeem {selectedReward?.pointsCost} points for{' '}
-              {selectedReward?.name}?
+              Convert {selectedReward?.pointsCost} points to VCredits? You can use VCredits to pay for orders at checkout.
             </Text>
 
-            <View className="bg-pink-50 rounded-xl p-4 mb-6">
+            <View className="bg-purple-50 rounded-xl p-4 mb-6">
               <View className="flex-row justify-between mb-2">
-                <Text className="text-sm text-gray-600">Points to redeem:</Text>
+                <Text className="text-sm text-gray-600">Points to convert:</Text>
                 <Text className="text-sm font-bold text-gray-900">
                   {selectedReward?.pointsCost}
                 </Text>
               </View>
               <View className="flex-row justify-between mb-2">
-                <Text className="text-sm text-gray-600">Cash value:</Text>
-                <Text className="text-sm font-bold text-pink-600">
-                  {selectedReward?.name}
+                <Text className="text-sm text-gray-600">VCredits you'll get:</Text>
+                <Text className="text-sm font-bold" style={{ color: '#7C3AED' }}>
+                  {selectedReward?.pointsCost} VCredits
                 </Text>
               </View>
               <View className="flex-row justify-between">

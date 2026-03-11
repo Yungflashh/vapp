@@ -62,6 +62,7 @@ interface RecentOrder {
 const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [walletBalance, setWalletBalance] = useState(0);
+  const [vCreditsBalance, setVCreditsBalance] = useState(0);
   const [orderStats, setOrderStats] = useState<OrderStats>({ activeOrders: 0, vouchers: 3 });
   const [userPoints, setUserPoints] = useState(0);
   const [userTier, setUserTier] = useState('BRONZE');
@@ -85,11 +86,12 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
         setUser(profileResponse.data.user);
       }
 
-      // Fetch wallet balance
+      // Fetch wallet balance & VCredits
       try {
         const walletResponse = await getWallet();
         if (walletResponse.success) {
           setWalletBalance(walletResponse.data.wallet.balance || 0);
+          setVCreditsBalance(walletResponse.data.wallet.vCredits || 0);
         }
       } catch (err) {
         console.log('⚠️ Wallet fetch error:', err);
@@ -163,15 +165,22 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
         text1: 'Logged Out',
         text2: 'You have been logged out successfully',
       });
-      navigation.navigate({
+      // Use reset to clear the navigation stack and go to Login
+      navigation.reset({
         index: 0,
-        routes: [{ name: 'Login' }],
+        routes: [{ name: 'Login' as any }],
       });
     } catch (error) {
+      console.error('Logout error:', error);
+      // Even if the API call fails, still navigate to login since local storage is cleared
       Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: 'Failed to logout',
+        type: 'info',
+        text1: 'Logged Out',
+        text2: 'You have been logged out',
+      });
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Login' as any }],
       });
     }
   };
@@ -180,7 +189,7 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
 
 const quickActions = [
   { id: 'orders', icon: 'receipt', label: 'Orders', color: '#CC3366', screen: 'Orders' },
-  { id: 'rewards', icon: 'trophy', label: 'Rewards', color: '#F59E0B', screen: 'Rewards' },
+  { id: 'rewards', icon: 'star', label: 'Rewards', color: '#F59E0B', screen: 'Rewards' },
   { id: 'addresses', icon: 'location', label: 'Addresses', color: '#10B981', screen: 'SavedAddresses' },
   // { id: 'reviews', icon: 'star', label: 'Reviews', color: '#3B82F6', screen: null },
   { id: 'wishlist', icon: 'heart', label: 'Wishlist', color: '#EF4444', screen: 'Wishlist' },
@@ -323,26 +332,48 @@ const quickActions = [
           </View>
         </View>
 
-        {/* Points Card */}
+        {/* Points & VCredits Cards */}
         <View className="px-4 pb-3">
-          <View className="bg-white rounded-2xl p-4 shadow-sm">
+          {/* Points / Tier Card */}
+          <View className="bg-white rounded-2xl p-4 shadow-sm mb-3">
             <View className="flex-row items-center justify-between">
               <View className="flex-row items-center flex-1">
-                <View 
+                <View
                   className="w-12 h-12 rounded-xl items-center justify-center mr-3"
                   style={{ backgroundColor: getTierColor() }}
                 >
-                  <Icon name="trophy" size={24} color="#FFFFFF" />
+                  <Icon name="star" size={24} color="#FFFFFF" />
                 </View>
                 <View className="flex-1">
                   <Text className="text-sm font-bold text-gray-900">{userTier}</Text>
                   <Text className="text-xs text-gray-500">
-                    Earn {pointsToNextTier} points more to reach next tier
+                    {pointsToNextTier > 0
+                      ? `Earn ${pointsToNextTier} more to reach next tier`
+                      : 'Max tier reached!'
+                    }
                   </Text>
                 </View>
               </View>
               <Text className="text-base font-bold" style={{ color: getTierColor() }}>
-                {userPoints} points
+                {userPoints} pts
+              </Text>
+            </View>
+          </View>
+
+          {/* VCredits Card */}
+          <View className="bg-white rounded-2xl p-4 shadow-sm">
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center flex-1">
+                <View className="w-12 h-12 rounded-xl items-center justify-center mr-3" style={{ backgroundColor: '#EDE9FE' }}>
+                  <Icon name="flash" size={24} color="#7C3AED" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-sm font-bold text-gray-900">VCredits</Text>
+                  <Text className="text-xs text-gray-500">Use at checkout to pay for orders</Text>
+                </View>
+              </View>
+              <Text className="text-base font-bold" style={{ color: '#7C3AED' }}>
+                {vCreditsBalance.toLocaleString()}
               </Text>
             </View>
           </View>

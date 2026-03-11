@@ -142,7 +142,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             </View>
             {showWishlist && (
               <TouchableOpacity 
-                className="w-8 h-8 bg-pink-100 rounded-full items-center justify-center"
+                className="w-8 h-8 bg-white rounded-full items-center justify-center"
                 onPress={(e) => {
                   e.stopPropagation();
                   handleToggleWishlist();
@@ -212,7 +212,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           
           {showWishlist && (
             <TouchableOpacity 
-              className="absolute top-3 right-3 w-9 h-9 bg-pink-100 rounded-full items-center justify-center"
+              className="absolute top-3 right-3 w-9 h-9 bg-white rounded-full items-center justify-center"
               onPress={(e) => {
                 e.stopPropagation();
                 handleToggleWishlist();

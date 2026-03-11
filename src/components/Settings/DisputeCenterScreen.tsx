@@ -8,6 +8,7 @@ import {
   Image,
   RefreshControl,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -181,7 +182,21 @@ const DisputeCenterScreen = ({ navigation: screenNavigation }: DisputeCenterScre
           </TouchableOpacity>
           <Text className="text-lg font-bold text-gray-900">Dispute Center</Text>
         </View>
-        <TouchableOpacity className="w-10 h-10 items-center justify-center">
+        <TouchableOpacity
+          className="w-10 h-10 items-center justify-center"
+          onPress={() => {
+            Alert.alert(
+              'About Disputes',
+              'Disputes allow you to resolve issues with your orders.\n\n' +
+              '• Open a dispute within 7 days of delivery\n' +
+              '• Provide evidence (photos, messages) to support your case\n' +
+              '• Our team reviews and resolves disputes within 48 hours\n' +
+              '• Eligible cases receive full or partial refunds\n\n' +
+              'For urgent issues, contact support@vendorspotng.com',
+              [{ text: 'Got it', style: 'default' }]
+            );
+          }}
+        >
           <Icon name="help-circle-outline" size={24} color="#6B7280" />
         </TouchableOpacity>
       </View>

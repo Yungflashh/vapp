@@ -41,6 +41,12 @@ const VendorStorefrontSetupScreen = () => {
   const [customMessage, setCustomMessage] = useState('');
   const [bannerImages, setBannerImages] = useState<string[]>([]);
   const [businessBanner, setBusinessBanner] = useState('');
+  const [socialMedia, setSocialMedia] = useState({
+    facebook: '',
+    instagram: '',
+    twitter: '',
+    tiktok: '',
+  });
 
   useEffect(() => {
     fetchStorefrontData();
@@ -57,6 +63,14 @@ const VendorStorefrontSetupScreen = () => {
         setCustomMessage(profile.storefront?.customMessage || '');
         setBannerImages(profile.storefront?.bannerImages || []);
         setBusinessBanner(profile.businessBanner || '');
+        if (profile.socialMedia) {
+          setSocialMedia({
+            facebook: profile.socialMedia.facebook || '',
+            instagram: profile.socialMedia.instagram || '',
+            twitter: profile.socialMedia.twitter || '',
+            tiktok: profile.socialMedia.tiktok || '',
+          });
+        }
       }
     } catch (error) {
       console.error('Error fetching storefront:', error);
@@ -131,7 +145,13 @@ const VendorStorefrontSetupScreen = () => {
           bannerImages: bannerImages,
         },
         businessBanner: businessBanner,
-      });
+        socialMedia: {
+          facebook: socialMedia.facebook.trim() || undefined,
+          instagram: socialMedia.instagram.trim() || undefined,
+          twitter: socialMedia.twitter.trim() || undefined,
+          tiktok: socialMedia.tiktok.trim() || undefined,
+        },
+      } as any);
       
       Toast.show({
         type: 'success',
@@ -292,9 +312,9 @@ const VendorStorefrontSetupScreen = () => {
         </View>
 
         {/* Custom Message */}
-        <View className="px-6 mt-6 pb-24">
+        <View className="px-6 mt-6">
           <Text className="text-base font-bold text-gray-900 mb-3">Welcome Message</Text>
-          
+
           <View
             className="bg-white rounded-2xl p-4"
             style={{
@@ -315,11 +335,49 @@ const VendorStorefrontSetupScreen = () => {
               textAlignVertical="top"
               className="text-base text-gray-900 min-h-[100px]"
             />
-            
+
             <Text className="text-xs text-gray-400 mt-2">
               {customMessage.length}/200 characters
             </Text>
           </View>
+        </View>
+
+        {/* Social Media Links */}
+        <View className="px-6 mt-6 pb-24">
+          <Text className="text-base font-bold text-gray-900 mb-3">Social Media Links</Text>
+          <Text className="text-sm text-gray-500 mb-4">Connect your social media accounts</Text>
+
+          {[
+            { key: 'instagram', label: 'Instagram', icon: 'logo-instagram', placeholder: '@yourbusiness' },
+            { key: 'facebook', label: 'Facebook', icon: 'logo-facebook', placeholder: 'facebook.com/yourbusiness' },
+            { key: 'twitter', label: 'X (Twitter)', icon: 'logo-twitter', placeholder: '@yourbusiness' },
+            { key: 'tiktok', label: 'TikTok', icon: 'musical-notes-outline', placeholder: '@yourbusiness' },
+          ].map((social) => (
+            <View
+              key={social.key}
+              className="bg-white rounded-2xl p-4 mb-3"
+              style={{
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.05,
+                shadowRadius: 4,
+                elevation: 2,
+              }}
+            >
+              <View className="flex-row items-center">
+                <Icon name={social.icon as any} size={20} color="#6B7280" />
+                <Text className="text-sm font-semibold text-gray-700 ml-2">{social.label}</Text>
+              </View>
+              <TextInput
+                value={socialMedia[social.key as keyof typeof socialMedia]}
+                onChangeText={(text) => setSocialMedia({ ...socialMedia, [social.key]: text })}
+                placeholder={social.placeholder}
+                placeholderTextColor="#9CA3AF"
+                className="text-base text-gray-900 mt-2"
+                autoCapitalize="none"
+              />
+            </View>
+          ))}
         </View>
       </ScrollView>
 

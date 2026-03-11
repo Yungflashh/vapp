@@ -13,6 +13,8 @@ import {
   Alert,
   Modal,
   Image,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -31,6 +33,7 @@ import {
 } from '@/services/address.service';
 import { getDeliveryRates, createOrder, initializePayment } from '@/services/order.service';
 import { Cart } from '@/services/cart.service';
+import { getWallet } from '@/services/wallet.service';
 
 interface DeliveryOption {
   id: string;
@@ -52,7 +55,7 @@ interface DeliveryOption {
 }
 
 interface PaymentMethod {
-  id: 'paystack' | 'wallet' | 'cash_on_delivery';
+  id: 'paystack' | 'flutterwave' | 'wallet';
   name: string;
   icon: string;
   color: string;
@@ -83,9 +86,12 @@ const CheckoutScreen = () => {
   const [deliveryOptions, setDeliveryOptions] = useState<DeliveryOption[]>([]);
   const [selectedDeliveryOption, setSelectedDeliveryOption] = useState<string>('');
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'paystack' | 'flutterwave' | 'wallet'>('paystack');
+  // Note: 'wallet' is used internally when VCredits cover full amount
   const [showAddAddressModal, setShowAddAddressModal] = useState(false);
   const [orderNotes, setOrderNotes] = useState('');
   const [formErrors, setFormErrors] = useState<FormErrors>({});
+  const [vCreditsBalance, setVCreditsBalance] = useState(0);
+  const [vCreditsInput, setVCreditsInput] = useState('');
 
   // Address form states
   const [addressForm, setAddressForm] = useState<CreateAddressRequest>({
@@ -131,9 +137,13 @@ const CheckoutScreen = () => {
   const selectedDelivery = deliveryOptions.find(opt => opt.id === selectedDeliveryOption);
   const deliveryFee = selectedDelivery?.price || 0;
   const totalAmount = subtotal - discount + deliveryFee;
+  const vCreditsRequested = parseInt(vCreditsInput) || 0;
+  const vCreditsToApply = Math.min(vCreditsRequested, vCreditsBalance, totalAmount);
+  const amountAfterVCredits = totalAmount - vCreditsToApply;
 
   useEffect(() => {
     fetchAddresses();
+    fetchVCreditsBalance();
   }, []);
 
   useEffect(() => {
@@ -166,6 +176,18 @@ const CheckoutScreen = () => {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchVCreditsBalance = async () => {
+    try {
+      const response = await getWallet();
+      if (response.success && response.data?.wallet) {
+        setVCreditsBalance(response.data.wallet.vCredits || 0);
+      }
+    } catch (error) {
+      console.log('⚠️ Could not fetch VCredits balance:', error);
+      setVCreditsBalance(0);
     }
   };
 
@@ -221,11 +243,14 @@ const CheckoutScreen = () => {
           };
         });
         
-        console.log('✅ Formatted delivery options:', formattedRates.length);
-        setDeliveryOptions(formattedRates);
-        
-        // ✅ FIX: Auto-select cheapest non-pickup option, or pickup if only option
-        const nonPickupOptions = formattedRates.filter((r: DeliveryOption) => r.type !== 'pickup');
+        // Filter out pickup/store pickup options entirely
+        const filteredRates = formattedRates.filter((r: DeliveryOption) => r.type !== 'pickup');
+
+        console.log('✅ Formatted delivery options:', filteredRates.length);
+        setDeliveryOptions(filteredRates);
+
+        // ✅ FIX: Auto-select cheapest option
+        const nonPickupOptions = filteredRates;
         if (nonPickupOptions.length > 0) {
           // Select the cheapest courier option
           const cheapest = nonPickupOptions.reduce((min: DeliveryOption, curr: DeliveryOption) => 
@@ -233,15 +258,15 @@ const CheckoutScreen = () => {
           );
           setSelectedDeliveryOption(cheapest.id);
           console.log('✅ Auto-selected cheapest option:', cheapest.name, '₦' + cheapest.price);
-        } else if (formattedRates.length > 0) {
-          setSelectedDeliveryOption(formattedRates[0].id);
-          console.log('✅ Auto-selected first option:', formattedRates[0].name);
+        } else if (filteredRates.length > 0) {
+          setSelectedDeliveryOption(filteredRates[0].id);
+          console.log('✅ Auto-selected first option:', filteredRates[0].name);
         }
 
         Toast.show({
           type: 'success',
           text1: 'Delivery Options Loaded',
-          text2: `Found ${formattedRates.length} delivery option${formattedRates.length !== 1 ? 's' : ''}`,
+          text2: `Found ${filteredRates.length} delivery option${filteredRates.length !== 1 ? 's' : ''}`,
         });
       }
     } catch (error: any) {
@@ -259,15 +284,6 @@ const CheckoutScreen = () => {
 
   const useFallbackRates = () => {
     const fallbackRates: DeliveryOption[] = [
-      {
-        id: 'pickup-Self Pickup-0',
-        type: 'pickup',
-        name: 'Store Pickup',
-        description: 'Pickup from vendor location',
-        price: 0,
-        estimatedDays: 'Available immediately',
-        courier: 'Self Pickup',
-      },
       {
         id: 'standard-Standard Courier-1',
         type: 'standard',
@@ -287,7 +303,7 @@ const CheckoutScreen = () => {
         courier: 'Express Courier',
       },
     ];
-    
+
     setDeliveryOptions(fallbackRates);
     setSelectedDeliveryOption('standard-Standard Courier-1');
   };
@@ -536,6 +552,9 @@ const CheckoutScreen = () => {
     }
   };
 
+  // Check if all cart items are digital products
+  const isAllDigital = cartData?.items?.every((item: any) => item.product?.productType === 'digital') || false;
+
   const handleContinue = () => {
     if (currentStep === 1) {
       if (!selectedAddress) {
@@ -546,7 +565,22 @@ const CheckoutScreen = () => {
         });
         return;
       }
-      setCurrentStep(2);
+      // Skip delivery step for digital-only orders
+      if (isAllDigital) {
+        // Auto-set a digital delivery option
+        setDeliveryOptions([{
+          id: 'digital-instant-0',
+          type: 'digital',
+          name: 'Digital Delivery',
+          description: 'Instant download after payment',
+          price: 0,
+          estimatedDays: 'Instant',
+        }]);
+        setSelectedDeliveryOption('digital-instant-0');
+        setCurrentStep(3);
+      } else {
+        setCurrentStep(2);
+      }
     } else if (currentStep === 2) {
       if (!selectedDeliveryOption) {
         Toast.show({
@@ -563,7 +597,8 @@ const CheckoutScreen = () => {
   };
 
   const handlePlaceOrder = async () => {
-    if (!selectedPaymentMethod) {
+    // If VCredits cover full amount, no payment method selection needed
+    if (!selectedPaymentMethod && vCreditsToApply < totalAmount) {
       Toast.show({
         type: 'warning',
         text1: 'Select Payment',
@@ -619,15 +654,18 @@ const CheckoutScreen = () => {
         selectedDeliveryPrice: selectedRate.price,
         selectedCourier: selectedRate.courier,
         vendorBreakdown: selectedRate.vendorBreakdown,
+        vCreditsAmount: vCreditsToApply,
       };
 
-      // ✅ NEW FLOW: Payment method determines the path
-      if (selectedPaymentMethod === 'wallet') {
+      // ✅ FLOW: Wallet or VCredits cover full amount → wallet path, otherwise card + VCredits
+      if (selectedPaymentMethod === 'wallet' || vCreditsToApply >= totalAmount) {
         // ───────────────────────────────────────────────
-        // WALLET: Create order directly (instant payment)
+        // WALLET / Full VCredits: Create order directly
         // ───────────────────────────────────────────────
-        console.log('💰 Wallet payment — creating order directly');
-        
+        console.log('💰 Wallet/VCredits payment — creating order directly');
+
+        // Force wallet payment method when VCredits cover full amount
+        if (vCreditsToApply >= totalAmount) checkoutData.paymentMethod = 'wallet';
         const response = await createOrder(checkoutData);
         
         if (response.success && response.data.order) {
@@ -649,9 +687,9 @@ const CheckoutScreen = () => {
       } else {
         // ───────────────────────────────────────────────
         // PAYSTACK / FLUTTERWAVE: Initialize payment first
-        // Order is ONLY created after payment is verified
+        // VCredits deducted on backend, card charged for remaining
         // ───────────────────────────────────────────────
-        console.log('💳 Card payment — initializing payment (no order yet)');
+        console.log(`💳 Card payment — initializing (VCredits: ₦${vCreditsToApply}, Card: ₦${amountAfterVCredits})`);
         
         const response = await initializePayment(checkoutData);
         
@@ -957,6 +995,69 @@ const CheckoutScreen = () => {
       >
         <Text className="text-lg font-bold text-gray-900 py-4">Payment Method</Text>
 
+        {/* VCredits Section — always visible if user has VCredits */}
+        {vCreditsBalance > 0 && (
+          <View className="bg-white rounded-2xl p-4 mb-3 border-2" style={{ borderColor: vCreditsToApply > 0 ? '#7C3AED' : '#F3F4F6' }}>
+            <View className="flex-row items-center mb-3">
+              <View className="w-12 h-12 rounded-xl items-center justify-center mr-3" style={{ backgroundColor: '#EDE9FE' }}>
+                <Icon name="flash" size={24} color="#7C3AED" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-base font-semibold text-gray-900">VCredits</Text>
+                <Text className="text-xs text-gray-500">
+                  Available: {vCreditsBalance.toLocaleString()} VCredits
+                </Text>
+              </View>
+            </View>
+
+            <Text className="text-sm text-gray-600 mb-2">Enter amount to deduct from VCredits</Text>
+            <View className="flex-row items-center gap-2">
+              <View className="flex-1 flex-row items-center bg-gray-50 rounded-xl px-4 py-3 border border-gray-200">
+                <Icon name="flash-outline" size={18} color="#7C3AED" />
+                <TextInput
+                  className="flex-1 ml-2 text-base text-gray-900"
+                  placeholder="0"
+                  placeholderTextColor="#9CA3AF"
+                  keyboardType="numeric"
+                  value={vCreditsInput}
+                  onChangeText={(text) => {
+                    const num = text.replace(/[^0-9]/g, '');
+                    setVCreditsInput(num);
+                  }}
+                />
+              </View>
+              <TouchableOpacity
+                onPress={() => setVCreditsInput(Math.min(vCreditsBalance, totalAmount).toString())}
+                className="px-4 py-3 rounded-xl"
+                style={{ backgroundColor: '#EDE9FE' }}
+              >
+                <Text className="text-sm font-bold" style={{ color: '#7C3AED' }}>Use All</Text>
+              </TouchableOpacity>
+            </View>
+
+            {vCreditsToApply > 0 && (
+              <View className="rounded-xl p-3 mt-3" style={{ backgroundColor: '#F5F3FF' }}>
+                <Text className="text-sm font-medium" style={{ color: '#5B21B6' }}>
+                  {vCreditsToApply >= totalAmount
+                    ? `${vCreditsToApply.toLocaleString()} VCredits covers this order fully!`
+                    : `${vCreditsToApply.toLocaleString()} VCredits applied — pay remaining ₦${amountAfterVCredits.toLocaleString()} below.`
+                  }
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Payment methods — always visible */}
+        <Text className="text-sm font-semibold text-gray-500 mb-2 mt-1">
+          {vCreditsToApply > 0 && amountAfterVCredits > 0
+            ? `Pay remaining ₦${amountAfterVCredits.toLocaleString()} with`
+            : vCreditsToApply >= totalAmount
+            ? 'Or choose a different payment method'
+            : 'Choose payment method'
+          }
+        </Text>
+
         {paymentMethods.map((method) => (
           <TouchableOpacity
             key={method.id}
@@ -1056,11 +1157,22 @@ const CheckoutScreen = () => {
               </View>
             )}
 
+            {vCreditsToApply > 0 && (
+              <View className="flex-row justify-between items-center mb-3">
+                <Text className="text-purple-600 font-medium">VCredits Applied</Text>
+                <Text className="text-purple-600 font-medium">
+                  -₦{vCreditsToApply.toLocaleString()}
+                </Text>
+              </View>
+            )}
+
             <View className="border-t border-gray-200 pt-3">
               <View className="flex-row justify-between items-center">
-                <Text className="text-base font-bold text-gray-900">Total</Text>
+                <Text className="text-base font-bold text-gray-900">
+                  {vCreditsToApply > 0 ? 'Amount to Pay' : 'Total'}
+                </Text>
                 <Text className="text-xl font-bold text-gray-900">
-                  ₦{totalAmount.toLocaleString()}
+                  {amountAfterVCredits === 0 ? 'Covered by VCredits' : `₦${amountAfterVCredits.toLocaleString()}`}
                 </Text>
               </View>
             </View>
@@ -1070,36 +1182,63 @@ const CheckoutScreen = () => {
     </View>
   );
 
-  const renderStepIndicator = () => (
-    <View className="flex-row items-center justify-between px-6 py-4 bg-white">
-      <View className="flex-row items-center flex-1">
-        <View className={`w-8 h-8 rounded-full items-center justify-center ${currentStep >= 1 ? 'bg-pink-500' : 'bg-gray-200'}`}>
-          <Text className={`font-bold ${currentStep >= 1 ? 'text-white' : 'text-gray-400'}`}>1</Text>
+  const renderStepIndicator = () => {
+    if (isAllDigital) {
+      // 2-step flow for digital products: Address → Payment
+      return (
+        <View className="flex-row items-center justify-between px-6 py-4 bg-white">
+          <View className="flex-row items-center flex-1">
+            <View className={`w-8 h-8 rounded-full items-center justify-center ${currentStep >= 1 ? 'bg-pink-500' : 'bg-gray-200'}`}>
+              <Text className={`font-bold ${currentStep >= 1 ? 'text-white' : 'text-gray-400'}`}>1</Text>
+            </View>
+            <Text className={`ml-2 font-semibold text-sm ${currentStep === 1 ? 'text-gray-900' : 'text-gray-400'}`}>
+              Info
+            </Text>
+          </View>
+          <View className="h-0.5 flex-1 bg-gray-200 mx-2" />
+          <View className="flex-row items-center flex-1">
+            <View className={`w-8 h-8 rounded-full items-center justify-center ${currentStep >= 3 ? 'bg-pink-500' : 'bg-gray-200'}`}>
+              <Text className={`font-bold ${currentStep >= 3 ? 'text-white' : 'text-gray-400'}`}>2</Text>
+            </View>
+            <Text className={`ml-2 font-semibold text-sm ${currentStep === 3 ? 'text-gray-900' : 'text-gray-400'}`}>
+              Payment
+            </Text>
+          </View>
         </View>
-        <Text className={`ml-2 font-semibold text-sm ${currentStep === 1 ? 'text-gray-900' : 'text-gray-400'}`}>
-          Address
-        </Text>
-      </View>
-      <View className="h-0.5 flex-1 bg-gray-200 mx-2" />
-      <View className="flex-row items-center flex-1">
-        <View className={`w-8 h-8 rounded-full items-center justify-center ${currentStep >= 2 ? 'bg-pink-500' : 'bg-gray-200'}`}>
-          <Text className={`font-bold ${currentStep >= 2 ? 'text-white' : 'text-gray-400'}`}>2</Text>
+      );
+    }
+
+    return (
+      <View className="flex-row items-center justify-between px-6 py-4 bg-white">
+        <View className="flex-row items-center flex-1">
+          <View className={`w-8 h-8 rounded-full items-center justify-center ${currentStep >= 1 ? 'bg-pink-500' : 'bg-gray-200'}`}>
+            <Text className={`font-bold ${currentStep >= 1 ? 'text-white' : 'text-gray-400'}`}>1</Text>
+          </View>
+          <Text className={`ml-2 font-semibold text-sm ${currentStep === 1 ? 'text-gray-900' : 'text-gray-400'}`}>
+            Address
+          </Text>
         </View>
-        <Text className={`ml-2 font-semibold text-sm ${currentStep === 2 ? 'text-gray-900' : 'text-gray-400'}`}>
-          Delivery
-        </Text>
-      </View>
-      <View className="h-0.5 flex-1 bg-gray-200 mx-2" />
-      <View className="flex-row items-center flex-1">
-        <View className={`w-8 h-8 rounded-full items-center justify-center ${currentStep >= 3 ? 'bg-pink-500' : 'bg-gray-200'}`}>
-          <Text className={`font-bold ${currentStep >= 3 ? 'text-white' : 'text-gray-400'}`}>3</Text>
+        <View className="h-0.5 flex-1 bg-gray-200 mx-2" />
+        <View className="flex-row items-center flex-1">
+          <View className={`w-8 h-8 rounded-full items-center justify-center ${currentStep >= 2 ? 'bg-pink-500' : 'bg-gray-200'}`}>
+            <Text className={`font-bold ${currentStep >= 2 ? 'text-white' : 'text-gray-400'}`}>2</Text>
+          </View>
+          <Text className={`ml-2 font-semibold text-sm ${currentStep === 2 ? 'text-gray-900' : 'text-gray-400'}`}>
+            Delivery
+          </Text>
         </View>
-        <Text className={`ml-2 font-semibold text-sm ${currentStep === 3 ? 'text-gray-900' : 'text-gray-400'}`}>
-          Payment
-        </Text>
+        <View className="h-0.5 flex-1 bg-gray-200 mx-2" />
+        <View className="flex-row items-center flex-1">
+          <View className={`w-8 h-8 rounded-full items-center justify-center ${currentStep >= 3 ? 'bg-pink-500' : 'bg-gray-200'}`}>
+            <Text className={`font-bold ${currentStep >= 3 ? 'text-white' : 'text-gray-400'}`}>3</Text>
+          </View>
+          <Text className={`ml-2 font-semibold text-sm ${currentStep === 3 ? 'text-gray-900' : 'text-gray-400'}`}>
+            Payment
+          </Text>
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   const renderAddAddressModal = () => (
     <Modal
@@ -1108,6 +1247,7 @@ const CheckoutScreen = () => {
       transparent={true}
       onRequestClose={() => setShowAddAddressModal(false)}
     >
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
       <View className="flex-1 bg-black/50 justify-end">
         <View className="bg-white rounded-t-3xl" style={{ maxHeight: '90%' }}>
           <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-100">
@@ -1327,6 +1467,7 @@ const CheckoutScreen = () => {
           </ScrollView>
         </View>
       </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 
@@ -1347,7 +1488,10 @@ const CheckoutScreen = () => {
         <TouchableOpacity
           className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center"
           onPress={() => {
-            if (currentStep > 1) {
+            if (currentStep === 3 && isAllDigital) {
+              // Skip back to step 1 for digital-only orders (step 2 is skipped)
+              setCurrentStep(1);
+            } else if (currentStep > 1) {
               setCurrentStep(currentStep - 1);
             } else {
               navigation.goBack();
@@ -1369,9 +1513,14 @@ const CheckoutScreen = () => {
       <View className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-6 py-4 shadow-lg">
         <View className="flex-row items-center justify-between mb-3">
           <View>
-            <Text className="text-gray-600 text-sm">Total Amount</Text>
+            <Text className="text-gray-600 text-sm">
+              {currentStep === 3 && vCreditsToApply > 0 ? 'You Pay' : 'Total Amount'}
+            </Text>
             <Text className="text-2xl font-bold text-gray-900">
-              ₦{totalAmount.toLocaleString()}
+              {currentStep === 3 && amountAfterVCredits === 0
+                ? 'Free (VCredits)'
+                : `₦${(currentStep === 3 ? amountAfterVCredits : totalAmount).toLocaleString()}`
+              }
             </Text>
           </View>
         </View>

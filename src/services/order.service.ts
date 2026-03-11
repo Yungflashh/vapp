@@ -42,7 +42,7 @@ export interface Order {
   total: number;
   status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'in_transit' | 'delivered' | 'cancelled' | 'failed';
   paymentStatus: 'pending' | 'completed' | 'failed' | 'refunded';
-  paymentMethod: 'paystack' | 'wallet' | 'cash_on_delivery';
+  paymentMethod: 'paystack' | 'flutterwave' | 'wallet' | 'cash_on_delivery';
   paymentReference?: string;
   shippingAddress: ShippingAddress;
   couponCode?: string;
@@ -74,9 +74,11 @@ export interface Order {
 
 export interface CreateOrderRequest {
   shippingAddress: ShippingAddress;
-  paymentMethod: 'paystack' | 'wallet' | 'cash_on_delivery';
-  deliveryType?: 'standard' | 'express' | 'same_day' | 'pickup'; // Added 'pickup'
+  paymentMethod: 'paystack' | 'flutterwave' | 'wallet' | 'cash_on_delivery';
+  deliveryType?: 'standard' | 'express' | 'same_day' | 'pickup';
   notes?: string;
+  vCreditsAmount?: number;
+  [key: string]: any;
 }
 
 
@@ -256,6 +258,7 @@ export const initializePayment = async (data: {
   selectedDeliveryPrice?: number;
   selectedCourier?: string;
   vendorBreakdown?: any[];
+  vCreditsAmount?: number;
 }) => {
   const response = await api.post('/orders/initialize-payment', data);
   return response.data;

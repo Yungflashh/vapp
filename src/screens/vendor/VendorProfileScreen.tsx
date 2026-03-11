@@ -182,13 +182,7 @@ const VendorProfileScreen = () => {
       iconColor: '#10B981',
       title: 'Pick up Addresses',
       subtitle: 'Manage pick up locations',
-      onPress: () => {
-        Toast.show({
-          type: 'info',
-          text1: 'Coming Soon',
-          text2: 'Pickup addresses management',
-        });
-      },
+      onPress: () => navigation.navigate('SavedAddresses' as never),
     },
     {
       id: 'notifications',
@@ -197,13 +191,7 @@ const VendorProfileScreen = () => {
       iconColor: '#3B82F6',
       title: 'Notifications',
       subtitle: 'Manage alerts & preferences',
-      onPress: () => {
-        Toast.show({
-          type: 'info',
-          text1: 'Coming Soon',
-          text2: 'Notification settings',
-        });
-      },
+      onPress: () => navigation.navigate('NotificationSettings' as never),
     },
     {
       id: 'app-settings',

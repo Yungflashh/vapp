@@ -481,9 +481,8 @@ const ProductDetailsScreen = ({ route, navigation }: Props) => {
 
   const handleViewStore = () => {
     if (!product?.vendor) return;
-    navigation.navigate('VendorStore' as any, {
+    navigation.navigate('VendorProfile' as any, {
       vendorId: product.vendor.id || (product.vendor as any)._id,
-      vendorName: product.vendor.name,
     });
   };
 
@@ -611,10 +610,10 @@ const ProductDetailsScreen = ({ route, navigation }: Props) => {
               setActiveTab('qa');
               setShowAskModal(true);
             }}
-            className="flex-1 bg-white border-2 border-pink-500 py-3.5 rounded-xl flex-row items-center justify-center"
+            className="flex-1 bg-white border-2 border-gray-300 py-3.5 rounded-xl flex-row items-center justify-center"
           >
-            <Icon name="chatbubble-outline" size={20} color="#CC3366" />
-            <Text className="text-pink-500 font-semibold ml-2">Ask a Question</Text>
+            <Icon name="chatbubble-outline" size={20} color="#6B7280" />
+            <Text className="text-gray-600 font-semibold ml-2">Ask a Question</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={handleViewStore} className="flex-1 bg-white border-2 border-gray-900 py-3.5 rounded-xl flex-row items-center justify-center">
             <MaterialIcon name="store" size={20} color="#111827" />
@@ -625,11 +624,11 @@ const ProductDetailsScreen = ({ route, navigation }: Props) => {
         {/* Referral Link */}
         <View className="px-4 mb-4">
           {!affiliateLink ? (
-            <TouchableOpacity onPress={handleGenerateAffiliateLink} disabled={isGeneratingLink} className="bg-white border-2 border-pink-500 py-3.5 rounded-xl flex-row items-center justify-center" style={{ opacity: isGeneratingLink ? 0.6 : 1 }}>
+            <TouchableOpacity onPress={handleGenerateAffiliateLink} disabled={isGeneratingLink} className="bg-white border-2 border-gray-300 py-3.5 rounded-xl flex-row items-center justify-center" style={{ opacity: isGeneratingLink ? 0.6 : 1 }}>
               {isGeneratingLink ? (
-                <><ActivityIndicator size="small" color="#CC3366" /><Text className="text-pink-500 font-semibold ml-2">Generating...</Text></>
+                <><ActivityIndicator size="small" color="#6B7280" /><Text className="text-gray-600 font-semibold ml-2">Generating...</Text></>
               ) : (
-                <><MaterialIcon name="link-variant" size={20} color="#CC3366" /><Text className="text-pink-500 font-semibold ml-2">Generate Referral Link</Text></>
+                <><MaterialIcon name="link-variant" size={20} color="#6B7280" /><Text className="text-gray-600 font-semibold ml-2">Generate Referral Link</Text></>
               )}
             </TouchableOpacity>
           ) : (
@@ -749,31 +748,7 @@ const ProductDetailsScreen = ({ route, navigation }: Props) => {
           {/* ======== DESCRIPTION ======== */}
           {activeTab === 'description' && (
             <View>
-              <Text className="text-gray-700 leading-6 mb-6">{product.description}</Text>
-              {product.keyFeatures && product.keyFeatures.length > 0 && (
-                <>
-                  <Text className="text-gray-900 font-bold text-lg mb-3">Key Features</Text>
-                  <View className="mb-6">
-                    {product.keyFeatures.map((feature, index) => (
-                      <View key={index} className="flex-row items-start mb-2">
-                        <Icon name="checkmark-circle" size={20} color="#10B981" />
-                        <Text className="text-gray-700 ml-2 flex-1">{feature}</Text>
-                      </View>
-                    ))}
-                  </View>
-                </>
-              )}
-              {product.specifications && Object.keys(product.specifications).length > 0 && (
-                <View className="bg-gray-50 rounded-xl p-4">
-                  <Text className="text-gray-900 font-bold text-lg mb-3">Product Specifications</Text>
-                  {Object.entries(product.specifications).map(([label, value], index) => (
-                    <View key={index} className="flex-row justify-between py-3 border-b border-gray-200">
-                      <Text className="text-gray-500">{label}</Text>
-                      <Text className="text-gray-900 font-semibold flex-1 text-right ml-4">{value}</Text>
-                    </View>
-                  ))}
-                </View>
-              )}
+              <Text className="text-gray-700 leading-6">{product.description}</Text>
             </View>
           )}
 
@@ -958,7 +933,7 @@ const ProductDetailsScreen = ({ route, navigation }: Props) => {
       {/* ASK QUESTION MODAL */}
       {/* ============================================================ */}
       <Modal animationType="slide" transparent visible={showAskModal} onRequestClose={() => setShowAskModal(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1">
           <TouchableOpacity activeOpacity={1} onPress={() => setShowAskModal(false)} className="flex-1 bg-black/50 justify-end">
             <TouchableOpacity activeOpacity={1} onPress={() => {}} className="bg-white rounded-t-3xl">
               {/* Handle bar */}

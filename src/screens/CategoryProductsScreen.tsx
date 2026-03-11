@@ -23,8 +23,8 @@ type CategoryProductsRouteProp = RouteProp<RootStackParamList, 'CategoryProducts
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const HORIZONTAL_PADDING = 16;
-// FIX: Full-width single column — card spans entire screen minus side padding
-const CARD_WIDTH = SCREEN_WIDTH - HORIZONTAL_PADDING * 2;
+const GAP = 12;
+const CARD_WIDTH = (SCREEN_WIDTH - HORIZONTAL_PADDING * 2 - GAP) / 2;
 
 const CategoryProductsScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -92,9 +92,8 @@ const CategoryProductsScreen = () => {
     navigation.navigate('ProductDetails', { productId: product.id });
   }, [navigation]);
 
-  // FIX: Full-width card — explicit pixel width guarantees no clipping
   const renderProduct = useCallback(({ item }: { item: Product }) => (
-    <View style={{ width: CARD_WIDTH, marginBottom: 12, alignSelf: 'center' }}>
+    <View style={{ width: CARD_WIDTH, marginBottom: 12 }}>
       <ProductCard
         product={item}
         onPress={handleProductPress}
@@ -230,7 +229,8 @@ const CategoryProductsScreen = () => {
           data={products}
           renderItem={renderProduct}
           keyExtractor={keyExtractor}
-          // FIX: Single column — no numColumns, no columnWrapperStyle needed
+          numColumns={2}
+          columnWrapperStyle={{ justifyContent: 'space-between' }}
           contentContainerStyle={{
             paddingTop: 16,
             paddingHorizontal: HORIZONTAL_PADDING,

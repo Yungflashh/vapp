@@ -24,6 +24,7 @@ import { BarChart, LineChart } from 'react-native-chart-kit';
 import { getVendorDashboard } from '@/services/vendor.service';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNotifications } from '@/context/NotificationContext';
+import { useAuth } from '@/context/AuthContext';
 
 const { width } = Dimensions.get('window');
 const CHART_WIDTH = width - 92;
@@ -537,6 +538,7 @@ const ErrorState: React.FC<ErrorStateProps> = ({ onRetry }) => (
 const VendorDashboardScreen: React.FC = () => {
   const navigation = useNavigation();
   const { unreadCount: notificationCount } = useNotifications();
+  const { user } = useAuth();
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -569,7 +571,7 @@ const VendorDashboardScreen: React.FC = () => {
   }, []);
 
   const handleSettingsPress = () => {
-    navigation.navigate('VendorSettings' as never);
+    navigation.navigate('VendorStoreSetup' as never);
   };
 
   const handleNotificationsPress = () => {
@@ -577,7 +579,7 @@ const VendorDashboardScreen: React.FC = () => {
   };
 
   const handleVerificationPress = () => {
-    navigation.navigate('VendorVerification' as never);
+    navigation.navigate('VendorStoreSetup' as never);
   };
 
   if (loading) {
@@ -648,7 +650,7 @@ const VendorDashboardScreen: React.FC = () => {
       >
         <DashboardHeader
           businessName={dashboard.profile.businessName}
-          businessLogo={dashboard.profile.businessLogo}
+          businessLogo={dashboard.profile.businessLogo || (user as any)?.avatar}
           onSettingsPress={handleSettingsPress}
           onNotificationsPress={handleNotificationsPress}
           notificationCount={notificationCount}

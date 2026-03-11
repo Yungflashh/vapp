@@ -1,5 +1,5 @@
 // screens/NotificationSettingsScreen.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import { RootStackParamList } from '@/navigation';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getNotificationPreferences, updateNotificationPreferences } from '@/services/notification.service';
 
 type NotificationSettingsScreenProps = NativeStackScreenProps<
   RootStackParamList,
@@ -125,6 +126,97 @@ const NotificationSettingsScreen = ({ navigation }: NotificationSettingsScreenPr
     },
   ]);
 
+  // Load saved preferences on mount (backend first, fallback to AsyncStorage)
+  useEffect(() => {
+    const loadPreferences = async () => {
+      try {
+        setIsLoading(true);
+        let prefs: any = null;
+
+        // Try backend first
+        try {
+          const response = await getNotificationPreferences();
+          if (response?.data && (response.data.order?.length > 0 || response.data.promo?.length > 0)) {
+            prefs = response.data;
+          }
+        } catch (err) {
+          console.log('Backend preferences not available, using local');
+        }
+
+        // Fallback to AsyncStorage
+        if (!prefs) {
+          const saved = await AsyncStorage.getItem('notificationPreferences');
+          if (saved) {
+            prefs = JSON.parse(saved);
+          }
+        }
+
+        if (prefs) {
+          setPushEnabled(prefs.pushEnabled ?? true);
+          if (prefs.order) {
+            setOrderNotifications(prev =>
+              prev.map(n => {
+                const savedPref = prefs.order.find((p: any) => p.id === n.id);
+                return savedPref ? { ...n, enabled: savedPref.enabled } : n;
+              })
+            );
+          }
+          if (prefs.promo) {
+            setPromoNotifications(prev =>
+              prev.map(n => {
+                const savedPref = prefs.promo.find((p: any) => p.id === n.id);
+                return savedPref ? { ...n, enabled: savedPref.enabled } : n;
+              })
+            );
+          }
+          if (prefs.social) {
+            setSocialNotifications(prev =>
+              prev.map(n => {
+                const savedPref = prefs.social.find((p: any) => p.id === n.id);
+                return savedPref ? { ...n, enabled: savedPref.enabled } : n;
+              })
+            );
+          }
+        }
+      } catch (error) {
+        console.error('Error loading notification preferences:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadPreferences();
+  }, []);
+
+  // Auto-save whenever any preference changes (local + backend)
+  const savePreferences = async (
+    push: boolean,
+    order: NotificationPreference[],
+    promo: NotificationPreference[],
+    social: NotificationPreference[],
+  ) => {
+    try {
+      const preferences = {
+        pushEnabled: push,
+        order: order.map(n => ({ id: n.id, enabled: n.enabled })),
+        promo: promo.map(n => ({ id: n.id, enabled: n.enabled })),
+        social: social.map(n => ({ id: n.id, enabled: n.enabled })),
+      };
+      // Save locally
+      await AsyncStorage.setItem('notificationPreferences', JSON.stringify(preferences));
+      // Sync to backend (fire-and-forget)
+      updateNotificationPreferences(preferences).catch(err =>
+        console.log('Backend sync failed, saved locally:', err.message)
+      );
+    } catch (error) {
+      console.error('Error saving notification preferences:', error);
+    }
+  };
+
+  const togglePush = (value: boolean) => {
+    setPushEnabled(value);
+    savePreferences(value, orderNotifications, promoNotifications, socialNotifications);
+  };
+
   const togglePreference = (
     section: 'order' | 'promo' | 'social',
     id: string,
@@ -133,30 +225,31 @@ const NotificationSettingsScreen = ({ navigation }: NotificationSettingsScreenPr
       prefs.map((p) => (p.id === id ? { ...p, enabled: !p.enabled } : p));
 
     switch (section) {
-      case 'order':
-        setOrderNotifications(updateFn);
+      case 'order': {
+        const updated = updateFn(orderNotifications);
+        setOrderNotifications(updated);
+        savePreferences(pushEnabled, updated, promoNotifications, socialNotifications);
         break;
-      case 'promo':
-        setPromoNotifications(updateFn);
+      }
+      case 'promo': {
+        const updated = updateFn(promoNotifications);
+        setPromoNotifications(updated);
+        savePreferences(pushEnabled, orderNotifications, updated, socialNotifications);
         break;
-      case 'social':
-        setSocialNotifications(updateFn);
+      }
+      case 'social': {
+        const updated = updateFn(socialNotifications);
+        setSocialNotifications(updated);
+        savePreferences(pushEnabled, orderNotifications, promoNotifications, updated);
         break;
+      }
     }
   };
 
   const handleSave = async () => {
     try {
       setIsSaving(true);
-      // Save preferences locally
-      const preferences = {
-        pushEnabled,
-        order: orderNotifications.map(n => ({ id: n.id, enabled: n.enabled })),
-        promo: promoNotifications.map(n => ({ id: n.id, enabled: n.enabled })),
-        social: socialNotifications.map(n => ({ id: n.id, enabled: n.enabled })),
-      };
-      await AsyncStorage.setItem('notificationPreferences', JSON.stringify(preferences));
-
+      await savePreferences(pushEnabled, orderNotifications, promoNotifications, socialNotifications);
       Toast.show({
         type: 'success',
         text1: 'Settings Saved',
@@ -241,7 +334,7 @@ const NotificationSettingsScreen = ({ navigation }: NotificationSettingsScreenPr
             </View>
             <Switch
               value={pushEnabled}
-              onValueChange={setPushEnabled}
+              onValueChange={togglePush}
               trackColor={{ false: '#E5E7EB', true: '#F9A8D4' }}
               thumbColor={pushEnabled ? '#CC3366' : '#D1D5DB'}
             />

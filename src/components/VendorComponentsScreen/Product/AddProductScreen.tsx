@@ -23,6 +23,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy'; // ✅ Use legacy API
 import api from '../../../services/api.config';
+import { Address, getAddresses } from '@/services/address.service';
 
 interface Category {
   _id: string;
@@ -45,7 +46,6 @@ const AddProductScreen = () => {
   // Form state
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [shortDescription, setShortDescription] = useState('');
   const [price, setPrice] = useState('');
   const [compareAtPrice, setCompareAtPrice] = useState('');
   const [quantity, setQuantity] = useState('');
@@ -70,6 +70,11 @@ const AddProductScreen = () => {
     base64?: string;
   } | null>(null);
 
+  // Pickup address state
+  const [pickupAddress, setPickupAddress] = useState<Address | null>(null);
+  const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
+  const [showAddressPicker, setShowAddressPicker] = useState(false);
+
   // UI state
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -87,7 +92,21 @@ const AddProductScreen = () => {
   useEffect(() => {
     fetchCategories();
     requestPermissions();
+    fetchAddresses();
   }, []);
+
+  const fetchAddresses = async () => {
+    try {
+      const response = await getAddresses();
+      if (response.success && response.data.addresses) {
+        setSavedAddresses(response.data.addresses);
+        const defaultAddr = response.data.addresses.find((a: Address) => a.isDefault);
+        if (defaultAddr) setPickupAddress(defaultAddr);
+      }
+    } catch (error) {
+      console.log('Could not load addresses:', error);
+    }
+  };
 
   const requestPermissions = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -318,47 +337,53 @@ const AddProductScreen = () => {
     );
   };
 
-  const createProduct = async () => {
+  const buildProductData = (status: 'active' | 'draft' = 'active') => {
+    const productData: any = {
+      name: name.trim(),
+      description: description.trim(),
+      price: Number(price),
+      compareAtPrice: compareAtPrice ? Number(compareAtPrice) : undefined,
+      quantity: productType === 'physical' ? Number(quantity) : 999999,
+      weight: weight ? Number(weight) : undefined,
+      sku: sku.trim() || undefined,
+      category,
+      productType,
+      isFeatured,
+      isAffiliate,
+      affiliateCommission: isAffiliate ? Number(affiliateCommission) : undefined,
+      pickupAddress: pickupAddress?._id || undefined,
+      images,
+      tags: tags.length > 0 ? tags : undefined,
+      status,
+    };
+
+    if (productType === 'digital' && digitalFile?.base64) {
+      productData.digitalFileBase64 = digitalFile.base64;
+      productData.digitalFileName = digitalFile.name;
+      productData.digitalFileVersion = '1.0';
+    }
+
+    return productData;
+  };
+
+  const createProduct = async (status: 'active' | 'draft' = 'active') => {
     try {
       setLoading(true);
 
-      const productData: any = {
-        name: name.trim(),
-        description: description.trim(),
-        shortDescription: shortDescription.trim() || undefined,
-        price: Number(price),
-        compareAtPrice: compareAtPrice ? Number(compareAtPrice) : undefined,
-        quantity: productType === 'physical' ? Number(quantity) : 999999, // Unlimited for digital
-        weight: weight ? Number(weight) : undefined,
-        sku: sku.trim() || undefined,
-        category,
-        productType,
-        isFeatured,
-        isAffiliate,
-        affiliateCommission: isAffiliate ? Number(affiliateCommission) : undefined,
-        images, // Base64 images for Cloudinary
-        tags: tags.length > 0 ? tags : undefined,
-      };
-
-      // Add digital file data if it's a digital product
-      if (productType === 'digital' && digitalFile?.base64) {
-        productData.digitalFileBase64 = digitalFile.base64;
-        productData.digitalFileName = digitalFile.name;
-        productData.digitalFileVersion = '1.0';
-      }
+      const productData = buildProductData(status);
 
       console.log('📦 Creating product...');
       console.log('   - Type:', productType);
+      console.log('   - Status:', status);
       console.log('   - Images:', images.length);
-      console.log('   - Digital file:', digitalFile ? 'Yes' : 'No');
 
       const response = await api.post('/products', productData);
 
       if (response.data.success) {
         Toast.show({
           type: 'success',
-          text1: 'Success',
-          text2: 'Product created successfully!',
+          text1: status === 'draft' ? 'Draft Saved' : 'Success',
+          text2: status === 'draft' ? 'Product saved as draft' : 'Product created successfully!',
           visibilityTime: 3000,
         });
 
@@ -369,7 +394,7 @@ const AddProductScreen = () => {
     } catch (error: any) {
       console.error('❌ Error creating product:', error);
       console.error('❌ Response:', error.response?.data);
-      
+
       Toast.show({
         type: 'error',
         text1: 'Error',
@@ -392,7 +417,7 @@ const AddProductScreen = () => {
     <SafeAreaView className="flex-1 bg-gray-50">
       <KeyboardAvoidingView
         className="flex-1"
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         {/* Header */}
         <View className="bg-white px-6 py-4 flex-row items-center justify-between border-b border-gray-200">
@@ -414,7 +439,7 @@ const AddProductScreen = () => {
             {loading ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
-              <Text className="text-white font-semibold">Create</Text>
+              <Text className="text-white font-semibold">Publish</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -422,6 +447,7 @@ const AddProductScreen = () => {
         <ScrollView
           className="flex-1"
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ padding: 24 }}
         >
           {/* Product Images */}
@@ -433,13 +459,14 @@ const AddProductScreen = () => {
               Add up to 5 images (first image will be the main image)
             </Text>
 
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View className="flex-row flex-wrap">
               {images.map((image, index) => (
-                <View key={index} className="mr-3 relative">
+                <View key={index} className="mr-3 mb-3 relative">
                   <Image source={{ uri: image }} className="w-24 h-24 rounded-xl" />
                   <TouchableOpacity
                     onPress={() => removeImage(index)}
                     className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 items-center justify-center"
+                    style={{ zIndex: 10 }}
                   >
                     <Icon name="close" size={14} color="#FFFFFF" />
                   </TouchableOpacity>
@@ -454,13 +481,13 @@ const AddProductScreen = () => {
               {images.length < 5 && (
                 <TouchableOpacity
                   onPress={pickImage}
-                  className="w-24 h-24 rounded-xl border-2 border-dashed border-gray-300 items-center justify-center bg-gray-50"
+                  className="w-24 h-24 rounded-xl border-2 border-dashed border-gray-300 items-center justify-center bg-gray-50 mr-3 mb-3"
                 >
-                  <Icon name="camera" size={24} color="#9CA3AF" />
-                  <Text className="text-xs text-gray-500 mt-1">Add Image</Text>
+                  <Icon name="add-circle-outline" size={24} color="#CC3366" />
+                  <Text className="text-xs text-pink-500 mt-1 font-medium">Add More</Text>
                 </TouchableOpacity>
               )}
-            </ScrollView>
+            </View>
             {formErrors.images && (
               <Text className="text-red-500 text-xs mt-2">{formErrors.images}</Text>
             )}
@@ -487,7 +514,13 @@ const AddProductScreen = () => {
                   if (formErrors.name) {
                     setFormErrors({ ...formErrors, name: undefined });
                   }
+                  // Auto-generate SKU from product name
+                  if (!sku || sku.startsWith('SKU-')) {
+                    const autoSku = 'SKU-' + text.trim().toUpperCase().replace(/\s+/g, '-').substring(0, 10) + '-' + Math.floor(Math.random() * 10000);
+                    setSku(autoSku);
+                  }
                 }}
+                autoCapitalize="words"
               />
               {formErrors.name && (
                 <Text className="text-red-500 text-xs mt-1">{formErrors.name}</Text>
@@ -587,73 +620,62 @@ const AddProductScreen = () => {
               )}
             </View>
 
-            {/* Short Description */}
-            <View className="mb-4">
-              <Text className="text-sm font-semibold text-gray-700 mb-2">
-                Short Description <Text className="text-gray-400">(Optional)</Text>
-              </Text>
-              <TextInput
-                className="bg-gray-50 px-4 py-3 rounded-lg text-base text-gray-900"
-                placeholder="Brief one-line description"
-                placeholderTextColor="#9CA3AF"
-                value={shortDescription}
-                onChangeText={setShortDescription}
-                maxLength={100}
-              />
-              <Text className="text-xs text-gray-400 mt-1">{shortDescription.length}/100 characters</Text>
-            </View>
           </View>
 
           {/* Pricing */}
           <View className="bg-white rounded-2xl p-4 mb-4">
-            <Text className="text-base font-bold text-gray-900 mb-4">Pricing</Text>
+            <Text className="text-base font-bold text-gray-900 mb-2">Pricing</Text>
+            <Text className="text-xs text-gray-500 mb-4">
+              VendorSpot charges a small commission on each sale. Set your prices accordingly.
+            </Text>
 
-            <View className="flex-row mb-4">
-              {/* Price */}
-              <View className="flex-1 mr-2">
-                <Text className="text-sm font-semibold text-gray-700 mb-2">
-                  Price (₦) <Text className="text-red-500">*</Text>
-                </Text>
-                <TextInput
-                  className={`bg-gray-50 px-4 py-3 rounded-lg text-base text-gray-900 ${
-                    formErrors.price ? 'border-2 border-red-500' : ''
-                  }`}
-                  placeholder="0"
-                  placeholderTextColor="#9CA3AF"
-                  value={price}
-                  onChangeText={(text) => {
-                    setPrice(text);
-                    if (formErrors.price) {
-                      setFormErrors({ ...formErrors, price: undefined });
-                    }
-                  }}
-                  keyboardType="numeric"
-                />
-                {formErrors.price && (
-                  <Text className="text-red-500 text-xs mt-1">{formErrors.price}</Text>
-                )}
-              </View>
+            {/* Price */}
+            <View className="mb-4">
+              <Text className="text-sm font-semibold text-gray-700 mb-2">
+                Price (₦) <Text className="text-red-500">*</Text>
+              </Text>
+              <TextInput
+                className={`bg-gray-50 px-4 py-3 rounded-lg text-base text-gray-900 ${
+                  formErrors.price ? 'border-2 border-red-500' : ''
+                }`}
+                placeholder="0"
+                placeholderTextColor="#9CA3AF"
+                value={price}
+                onChangeText={(text) => {
+                  setPrice(text);
+                  if (formErrors.price) {
+                    setFormErrors({ ...formErrors, price: undefined });
+                  }
+                }}
+                keyboardType="numeric"
+              />
+              {formErrors.price && (
+                <Text className="text-red-500 text-xs mt-1">{formErrors.price}</Text>
+              )}
+            </View>
 
-              {/* Compare At Price */}
-              <View className="flex-1 ml-2">
-                <Text className="text-sm font-semibold text-gray-700 mb-2">
-                  Compare At (₦) <Text className="text-gray-400">(Optional)</Text>
-                </Text>
-                <TextInput
-                  className="bg-gray-50 px-4 py-3 rounded-lg text-base text-gray-900"
-                  placeholder="0"
-                  placeholderTextColor="#9CA3AF"
-                  value={compareAtPrice}
-                  onChangeText={setCompareAtPrice}
-                  keyboardType="numeric"
-                />
-              </View>
+            {/* Selling Price (Optional) */}
+            <View className="mb-4">
+              <Text className="text-sm font-semibold text-gray-700 mb-2">
+                Selling Price (₦) <Text className="text-gray-400">(Optional)</Text>
+              </Text>
+              <Text className="text-xs text-gray-500 mb-2">
+                If set higher than price, the discount will be shown to customers
+              </Text>
+              <TextInput
+                className="bg-gray-50 px-4 py-3 rounded-lg text-base text-gray-900"
+                placeholder="0"
+                placeholderTextColor="#9CA3AF"
+                value={compareAtPrice}
+                onChangeText={setCompareAtPrice}
+                keyboardType="numeric"
+              />
             </View>
 
             {calculateDiscount() && (
-              <View className="bg-green-50 px-3 py-2 rounded-lg mb-4">
+              <View className="bg-green-50 px-3 py-2 rounded-lg">
                 <Text className="text-green-700 font-semibold text-sm">
-                  💰 Discount: {calculateDiscount()}
+                  Discount: {calculateDiscount()}
                 </Text>
               </View>
             )}
@@ -903,20 +925,73 @@ const AddProductScreen = () => {
             )}
           </View>
 
-          {/* Submit Button */}
-          <TouchableOpacity
-            onPress={handleSubmit}
-            disabled={loading}
-            className={`py-4 rounded-lg mb-6 ${loading ? 'bg-pink-300' : 'bg-pink-500'}`}
-          >
-            {loading ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <Text className="text-white text-base font-bold text-center">
-                Create Product
+          {/* Pickup / Shipping Address */}
+          {productType === 'physical' && (
+            <View className="bg-white rounded-2xl p-4 mb-4">
+              <Text className="text-base font-bold text-gray-900 mb-2">Pickup Address</Text>
+              <Text className="text-sm text-gray-500 mb-3">
+                Where buyers or couriers can pick up this product
               </Text>
-            )}
-          </TouchableOpacity>
+
+              {pickupAddress ? (
+                <View className="bg-green-50 border border-green-200 rounded-xl p-3 mb-3">
+                  <View className="flex-row items-center mb-1">
+                    <Icon name="checkmark-circle" size={18} color="#22C55E" />
+                    <Text className="text-sm font-semibold text-green-700 ml-2 capitalize">
+                      {pickupAddress.label}
+                    </Text>
+                  </View>
+                  <Text className="text-sm text-gray-700">
+                    {pickupAddress.street}, {pickupAddress.city}, {pickupAddress.state}
+                  </Text>
+                  <Text className="text-xs text-gray-500 mt-1">{pickupAddress.phone}</Text>
+                </View>
+              ) : (
+                <View className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-3">
+                  <View className="flex-row items-center">
+                    <Icon name="warning-outline" size={18} color="#F59E0B" />
+                    <Text className="text-sm text-yellow-700 ml-2">No pickup address selected</Text>
+                  </View>
+                </View>
+              )}
+
+              <TouchableOpacity
+                onPress={() => setShowAddressPicker(true)}
+                className="border border-gray-200 rounded-xl py-3 items-center"
+              >
+                <Text className="text-sm font-semibold text-pink-500">
+                  {pickupAddress ? 'Change Address' : 'Select Address'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Submit Buttons */}
+          <View className="flex-row gap-3 mb-6">
+            <TouchableOpacity
+              onPress={() => createProduct('draft')}
+              disabled={loading}
+              className="flex-1 py-4 rounded-lg border-2 border-gray-300 bg-white"
+            >
+              <Text className="text-gray-700 text-base font-bold text-center">
+                Save as Draft
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleSubmit}
+              disabled={loading}
+              className={`flex-1 py-4 rounded-lg ${loading ? 'bg-pink-300' : 'bg-pink-500'}`}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text className="text-white text-base font-bold text-center">
+                  Publish Product
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -1037,6 +1112,75 @@ const AddProductScreen = () => {
                 </Text>
               </TouchableOpacity>
             </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Address Picker Modal */}
+      <Modal
+        visible={showAddressPicker}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowAddressPicker(false)}
+      >
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => setShowAddressPicker(false)}
+          className="flex-1 justify-end"
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+            style={{ maxHeight: '60%' }}
+            className="bg-white rounded-t-3xl"
+          >
+            <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-200">
+              <Text className="text-lg font-bold text-gray-900">Select Pickup Address</Text>
+              <TouchableOpacity
+                onPress={() => setShowAddressPicker(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 items-center justify-center"
+              >
+                <Icon name="close" size={20} color="#111827" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView contentContainerStyle={{ padding: 16 }}>
+              {savedAddresses.length > 0 ? (
+                savedAddresses.map((addr) => (
+                  <TouchableOpacity
+                    key={addr._id}
+                    onPress={() => {
+                      setPickupAddress(addr);
+                      setShowAddressPicker(false);
+                    }}
+                    className={`p-4 rounded-xl mb-3 border ${
+                      pickupAddress?._id === addr._id
+                        ? 'border-pink-400 bg-pink-50'
+                        : 'border-gray-200 bg-white'
+                    }`}
+                  >
+                    <View className="flex-row items-center justify-between mb-1">
+                      <Text className="text-sm font-bold text-gray-900 capitalize">{addr.label}</Text>
+                      {pickupAddress?._id === addr._id && (
+                        <Icon name="checkmark-circle" size={20} color="#CC3366" />
+                      )}
+                    </View>
+                    <Text className="text-sm text-gray-600">
+                      {addr.street}, {addr.city}, {addr.state}
+                    </Text>
+                    <Text className="text-xs text-gray-400 mt-1">{addr.phone}</Text>
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <View className="items-center py-8">
+                  <Icon name="location-outline" size={40} color="#D1D5DB" />
+                  <Text className="text-gray-500 mt-3 text-center">
+                    No saved addresses. Add one from your profile settings.
+                  </Text>
+                </View>
+              )}
+            </ScrollView>
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>

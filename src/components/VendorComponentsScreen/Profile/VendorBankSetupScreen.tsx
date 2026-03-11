@@ -28,20 +28,28 @@ interface Bank {
 
 const VendorBankSetupScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
-  
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showBankPicker, setShowBankPicker] = useState(false);
-  
+
   const [accountName, setAccountName] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
   const [selectedBank, setSelectedBank] = useState<Bank | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  
-  const banks = getNigerianBanks();
+  const [banks, setBanks] = useState<Bank[]>([]);
+
   const filteredBanks = banks.filter(bank =>
     bank.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  useEffect(() => {
+    const loadBanks = async () => {
+      const banksList = await getNigerianBanks();
+      setBanks(banksList);
+    };
+    loadBanks();
+  }, []);
 
   useEffect(() => {
     fetchBankDetails();

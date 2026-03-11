@@ -9,7 +9,18 @@
       "Bash(npx expo:*)",
       "Bash(npm install:*)",
       "Bash(npx tsc:*)",
-      "Bash(xargs sed:*)"
+      "Bash(xargs sed:*)",
+      "Bash(find /c/Users/YungFlash/Desktop/vspotApp/vspotApp/src -type f \\\\\\( -name \"*.tsx\" -o -name \"*.ts\" -o -name \"*.jsx\" -o -name \"*.js\" \\\\\\) 2>/dev/null | sort)",
+      "Bash(find /c/Users/YungFlash/Desktop/vspotApp/vspotApp/src/services -type f -name \"*.ts\" 2>/dev/null | head -20)",
+      "Bash(find \"C:\\\\Users\\\\YungFlash\\\\Desktop\\\\VENDORSPOT\\\\VendorSpot-Backend\" -type f -name \"*router*\" -o -name \"*route*\" 2>/dev/null | head -20)",
+      "Bash(cd \"C:\\\\Users\\\\YungFlash\\\\Desktop\\\\vspotApp\\\\vspotApp\" && for file in \\\\\n  \"src/components/Products/ProductDetailsScreen.tsx\" \\\\\n  \"src/components/Settings/SavedAddressesScreen.tsx\" \\\\\n  \"src/components/VendorComponentsScreen/Product/VendorProductDetailScreen.tsx\" \\\\\n  \"src/screens/auth/LoginScreen.tsx\" \\\\\n  \"src/screens/auth/PaymentSetupScreen.tsx\" \\\\\n  \"src/screens/auth/ResetPasswordScreen.tsx\" \\\\\n  \"src/screens/auth/VendorSetupScreen.tsx\"; do\n  sed -i \"s/behavior={Platform.OS === 'ios' ? 'padding' : 'height'}/behavior={Platform.OS === 'ios' ? 'padding' : undefined}/g\" \"$file\"\n  echo \"Fixed: $file\"\ndone)",
+      "Bash(find /c/Users/YungFlash/Desktop/vspotApp/vspotApp/src -type f \\\\\\( -name \"*cart*\" -o -name \"*order*\" -o -name \"*payment*\" -o -name \"*checkout*\" -o -name \"*shipping*\" -o -name \"*delivery*\" \\\\\\) 2>/dev/null | head -50)",
+      "Bash(pushd \"C:/Users/YungFlash/Downloads/vendorspot-backend\" && npx tsc --noEmit --skipLibCheck 2>&1 && popd)",
+      "Bash(pushd \"C:/Users/YungFlash/Desktop/vspotApp/vspotApp\" && npx tsc --noEmit --skipLibCheck 2>&1 | grep -i \"CheckoutScreen\\\\|order.service\" && popd)",
+      "Bash(pushd \"C:/Users/YungFlash/Desktop/vspotApp/vspotApp\" && npx tsc --noEmit --skipLibCheck 2>&1 | grep -i \"CheckoutScreen\" && popd)",
+      "Bash(pushd \"C:/Users/YungFlash/Desktop/vspotApp/vspotApp\" && npx tsc --noEmit --skipLibCheck 2>&1 | grep -i \"CheckoutScreen\\\\|wallet.service\\\\|order.service\" && popd)",
+      "Bash(pushd \"C:/Users/YungFlash/Desktop/vspotApp/vspotApp\" && npx tsc --noEmit --skipLibCheck 2>&1 | grep -i \"ProfileScreen\\\\|RewardsScreen\\\\|CheckoutScreen\\\\|reward.controller\" && popd)",
+      "Bash(pushd \"C:/Users/YungFlash/Desktop/vspotApp/vspotApp\" && npx tsc --noEmit --skipLibCheck 2>&1 | grep -i \"OrdersScreen\" && popd)"
     ]
   }
 }

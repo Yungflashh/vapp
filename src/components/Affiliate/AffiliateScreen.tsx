@@ -265,7 +265,7 @@ const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
           </View>
         </View>
 
-        <ScrollView contentContainerClassName="flex-1 justify-center px-6">
+        <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24 }}>
           <View className="items-center">
             <View className="w-24 h-24 bg-pink-100 rounded-full items-center justify-center mb-6">
               <MaterialCommunityIcons name="diamond-outline" size={48} color="#CC3366" />

@@ -9,6 +9,8 @@ import {
   Image,
   ActivityIndicator,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -187,7 +189,11 @@ const FileDisputeScreen = ({ route, navigation }: FileDisputeScreenProps) => {
         <Text className="text-lg font-bold text-gray-900 ml-2">File a Dispute</Text>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
+      >
+      <ScrollView showsVerticalScrollIndicator={false} className="flex-1" keyboardShouldPersistTaps="handled">
         {/* Order Info Banner */}
         <View className="bg-white px-4 py-4 mt-2">
           <View className="bg-red-50 rounded-xl p-4">
@@ -376,6 +382,7 @@ const FileDisputeScreen = ({ route, navigation }: FileDisputeScreenProps) => {
           </Text>
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Reason Picker Modal */}
       <Modal
@@ -451,7 +458,9 @@ const FileDisputeScreen = ({ route, navigation }: FileDisputeScreenProps) => {
             <TouchableOpacity
               onPress={() => {
                 setShowSuccess(false);
-                navigation.navigate('DisputeCenter' as any);
+                // Replace the current screen (FileDispute) with DisputeCenter
+                // so pressing back from DisputeCenter goes to OrderDetails, not back here
+                navigation.replace('DisputeCenter' as any);
               }}
               className="bg-green-500 w-full py-4 rounded-xl mb-3"
             >
@@ -461,6 +470,7 @@ const FileDisputeScreen = ({ route, navigation }: FileDisputeScreenProps) => {
             <TouchableOpacity
               onPress={() => {
                 setShowSuccess(false);
+                // Go back to OrderDetails (the screen before FileDispute)
                 navigation.goBack();
               }}
               className="bg-gray-100 w-full py-4 rounded-xl"
