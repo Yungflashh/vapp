@@ -43,6 +43,7 @@ export interface Vendor {
   totalSales?: number;
   productCount?: number;
   verified: boolean;
+  isPremium?: boolean;
   followers?: number;
   isFollowing?: boolean;
   phone?: string;
@@ -77,23 +78,32 @@ export const uploadKYCDocument = async (
     // Create FormData
     const formData = new FormData();
     
-    // Get file extension from URI
-    const uriParts = documentUri.split('.');
-    const fileType = uriParts[uriParts.length - 1];
-    
+    // Get file extension from URI - handle URIs with no extension or query params
+    const cleanUri = documentUri.split('?')[0];
+    const uriParts = cleanUri.split('.');
+    let fileType = uriParts.length > 1 ? uriParts[uriParts.length - 1].toLowerCase() : 'jpg';
+
+    // Normalize common extensions
+    if (!['jpg', 'jpeg', 'png', 'pdf'].includes(fileType)) {
+      fileType = 'jpg'; // Default to jpg for camera/gallery images
+    }
+
+    const mimeType = fileType === 'pdf' ? 'application/pdf' : `image/${fileType === 'jpg' ? 'jpeg' : fileType}`;
+
     formData.append('document', {
       uri: documentUri,
-      name: `kyc-${documentType}-${Date.now()}.${fileType}`,
-      type: fileType === 'pdf' ? 'application/pdf' : `image/${fileType}`,
+      name: `document-${Date.now()}.${fileType}`,
+      type: mimeType,
     } as any);
     
     formData.append('type', documentType);
     
-    // Upload document
+    // Upload document - must delete Content-Type so axios auto-sets boundary
     const response = await api.post('/upload/kyc-document', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+      transformRequest: (data) => data,
     });
     
     console.log('✅ KYC document uploaded:', response.data.data.url);

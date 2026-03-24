@@ -16,7 +16,8 @@ import { RootStackParamList } from '@/navigation';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Toast from 'react-native-toast-message';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { getMyDisputes, Dispute } from '@/services/dispute.service';
+import { getMyDisputes, getVendorDisputes, Dispute } from '@/services/dispute.service';
+import { useAuth } from '@/context/AuthContext';
 
 type DisputeCenterScreenProps = NativeStackScreenProps<RootStackParamList, 'DisputeCenter'>;
 
@@ -42,6 +43,8 @@ const DisputeCenterScreen = ({ navigation: screenNavigation }: DisputeCenterScre
   // not rendered inside a tab navigator
   const rootNavigation = useNavigation<any>();
   const navigation = rootNavigation.getParent() || rootNavigation;
+  const { user } = useAuth();
+  const isVendor = (user as any)?.role === 'vendor';
   const [disputes, setDisputes] = useState<Dispute[]>([]);
   const [stats, setStats] = useState<DisputeStats>({
     total: 0,
@@ -65,9 +68,28 @@ const DisputeCenterScreen = ({ navigation: screenNavigation }: DisputeCenterScre
       if (!isRefreshing) setIsLoading(true);
 
       const response = await getMyDisputes({ limit: 50 });
+      let allDisputes: Dispute[] = response.success ? (response.data?.disputes || []) : [];
 
-      if (response.success) {
-        const allDisputes: Dispute[] = response.data?.disputes || [];
+      // If user is a vendor, also fetch disputes filed against them
+      if (isVendor) {
+        try {
+          const vendorResponse = await getVendorDisputes({ limit: 50 });
+          if (vendorResponse.success) {
+            const vendorDisputes: Dispute[] = vendorResponse.data?.disputes || [];
+            // Merge and deduplicate by _id
+            const existingIds = new Set(allDisputes.map((d: Dispute) => d._id));
+            for (const d of vendorDisputes) {
+              if (!existingIds.has(d._id)) {
+                allDisputes.push(d);
+              }
+            }
+          }
+        } catch (vendorError) {
+          console.error('Error fetching vendor disputes:', vendorError);
+        }
+      }
+
+      if (response.success || allDisputes.length > 0) {
         setDisputes(allDisputes);
 
         // Calculate stats
@@ -160,7 +182,7 @@ const DisputeCenterScreen = ({ navigation: screenNavigation }: DisputeCenterScre
 
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-gray-50" edges={['top', 'bottom']}>
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#CC3366" />
           <Text className="text-gray-500 mt-4">Loading disputes...</Text>
@@ -170,7 +192,7 @@ const DisputeCenterScreen = ({ navigation: screenNavigation }: DisputeCenterScre
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-gray-50" edges={['top', 'bottom']}>
       {/* Header */}
       <View className="bg-white px-4 py-3 flex-row items-center justify-between border-b border-gray-100">
         <View className="flex-row items-center">
@@ -203,6 +225,7 @@ const DisputeCenterScreen = ({ navigation: screenNavigation }: DisputeCenterScre
 
       <ScrollView
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 40 }}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}

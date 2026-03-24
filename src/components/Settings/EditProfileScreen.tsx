@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
-} from 'react-native';
+  KeyboardAvoidingView} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/navigation';
@@ -180,17 +180,21 @@ const handlePickImage = async () => {
 
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-gray-50" edges={['top', 'bottom']}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#CC3366" />
           <Text className="text-gray-500 mt-4">Loading profile...</Text>
         </View>
-      </SafeAreaView>
+      
+      </KeyboardAvoidingView>
+    </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-gray-50" edges={['top', 'bottom']}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {/* Header */}
       <View className="bg-white px-4 py-3 flex-row items-center border-b border-gray-100">
         <TouchableOpacity
@@ -338,6 +342,8 @@ const handlePickImage = async () => {
           )}
         </TouchableOpacity>
       </View>
+    
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Platform, ActivityIndicator, useWindowDimensions, Keyboard } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Platform, ActivityIndicator, useWindowDimensions, Keyboard,
+  KeyboardAvoidingView} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '@/navigation/AuthNavigator';
@@ -112,6 +113,7 @@ const ForgotPasswordScreen = ({ navigation }: ForgotPasswordScreenProps) => {
 
   return (
     <SafeAreaView className="flex-1 bg-white">
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView 
         className="flex-1"
         contentContainerStyle={{
@@ -202,6 +204,8 @@ const ForgotPasswordScreen = ({ navigation }: ForgotPasswordScreenProps) => {
       </ScrollView>
       
       <Toast />
+    
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };

@@ -21,6 +21,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getVendorOrderById, updateVendorOrderStatus, simulateWebhook } from '@/services/order.service';
 import { RootStackParamList } from '@/navigation/index';
 
@@ -183,7 +184,6 @@ const STATUS_FLOW: Record<string, string> = {
   confirmed: 'processing',
   processing: 'shipped',
   shipped: 'in_transit',
-  in_transit: 'delivered',
 };
 
 const TIMELINE_STEPS = [
@@ -324,7 +324,8 @@ const InfoRow: React.FC<InfoRowProps> = ({ label, value, mono = false }) => (
 const VendorOrderDetailScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<ScreenRoute>();
-  
+  const insets = useSafeAreaInsets();
+
   const orderId = route.params?.orderId;
 
   const [order, setOrder] = useState<OrderDetail | null>(null);
@@ -433,14 +434,6 @@ const VendorOrderDetailScreen: React.FC = () => {
     }
   };
 
-  const callCustomer = () => {
-    const phone = order?.user?.phone || order?.shippingAddress?.phone;
-    if (phone) Linking.openURL(`tel:${phone}`);
-  };
-
-  const emailCustomer = () => {
-    if (order?.user?.email) Linking.openURL(`mailto:${order.user.email}`);
-  };
 
   // ── Loading State ──
   if (loading) {
@@ -636,6 +629,7 @@ const VendorOrderDetailScreen: React.FC = () => {
       <ScrollView
         className="flex-1"
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 30 }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -644,7 +638,6 @@ const VendorOrderDetailScreen: React.FC = () => {
             tintColor="#CC3366"
           />
         }
-        contentContainerStyle={{ paddingBottom: 140 }}
       >
         {/* ── Order Timeline ── */}
         {!isCancelled && (
@@ -667,7 +660,7 @@ const VendorOrderDetailScreen: React.FC = () => {
               </Text>
             </View>
 
-            <View className="flex-row items-center justify-between">
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 8 }}>
               {TIMELINE_STEPS.map((step, idx) => {
                 const done = idx <= currentIdx;
                 const current = idx === currentIdx;
@@ -676,7 +669,7 @@ const VendorOrderDetailScreen: React.FC = () => {
 
                 return (
                   <React.Fragment key={step.key}>
-                    <View className="items-center" style={{ width: 48 }}>
+                    <View className="items-center" style={{ width: 56 }}>
                       <View
                         className={`w-10 h-10 rounded-full items-center justify-center ${
                           current
@@ -722,15 +715,16 @@ const VendorOrderDetailScreen: React.FC = () => {
                     </View>
                     {!isLast && (
                       <View
-                        className={`flex-1 h-1 rounded-full mx-1 ${
+                        className={`h-1 rounded-full my-auto ${
                           idx < currentIdx ? 'bg-emerald-400' : 'bg-gray-200'
                         }`}
+                        style={{ width: 20, marginTop: 20 }}
                       />
                     )}
                   </React.Fragment>
                 );
               })}
-            </View>
+            </ScrollView>
           </View>
         )}
 
@@ -782,47 +776,30 @@ const VendorOrderDetailScreen: React.FC = () => {
               </Text>
               {order.user?.email && (
                 <Text className="text-sm text-gray-500 mt-1" numberOfLines={1}>
-                  {order.user.email}
+                  {order.user.email.replace(/(.{2})(.*)(@.*)/, '$1***$3')}
                 </Text>
               )}
             </View>
           </View>
 
-          {(order.user?.phone || order.shippingAddress?.phone) && (
-            <View className="flex-row items-center bg-gray-50 px-4 py-3 rounded-xl mb-3">
-              <Ionicons name="call-outline" size={18} color="#6B7280" />
-              <Text className="text-sm text-gray-700 ml-3 flex-1">
-                {order.user?.phone || order.shippingAddress?.phone}
-              </Text>
+          <TouchableOpacity
+            onPress={() => {
+              const customerId = typeof order.user === 'object' ? (order.user as any)?._id : order.user;
+              const customerName = `${order.user?.firstName || ''} ${order.user?.lastName || ''}`.trim();
+              const orderDetails = `Hi, I'm reaching out regarding Order #${order.orderNumber}.\n\nItems: ${order.items.map(i => getName(i)).join(', ')}\nTotal: ${fmtPrice(order.total)}\nStatus: ${fmt(order.status)}`;
+              navigation.navigate('Chat', {
+                receiverId: customerId,
+                receiverName: customerName || 'Customer',
+                initialMessage: orderDetails,
+              });
+            }}
+            activeOpacity={0.8}
+          >
+            <View className="flex-row items-center justify-center bg-pink-50 py-3 rounded-xl">
+              <Ionicons name="chatbubble-ellipses" size={18} color="#CC3366" />
+              <Text className="text-sm font-bold text-pink-600 ml-2">Chat with Customer</Text>
             </View>
-          )}
-
-          <View className="flex-row gap-3">
-            {(order.user?.phone || order.shippingAddress?.phone) && (
-              <TouchableOpacity
-                onPress={callCustomer}
-                className="flex-1"
-                activeOpacity={0.8}
-              >
-                <View className="flex-row items-center justify-center bg-emerald-50 py-3 rounded-xl">
-                  <Ionicons name="call" size={18} color="#10B981" />
-                  <Text className="text-sm font-bold text-emerald-600 ml-2">Call</Text>
-                </View>
-              </TouchableOpacity>
-            )}
-            {order.user?.email && (
-              <TouchableOpacity
-                onPress={emailCustomer}
-                className="flex-1"
-                activeOpacity={0.8}
-              >
-                <View className="flex-row items-center justify-center bg-blue-50 py-3 rounded-xl">
-                  <Ionicons name="mail" size={18} color="#2563EB" />
-                  <Text className="text-sm font-bold text-blue-600 ml-2">Email</Text>
-                </View>
-              </TouchableOpacity>
-            )}
-          </View>
+          </TouchableOpacity>
         </Section>
 
         {/* ── Order Items ── */}
@@ -904,24 +881,14 @@ const VendorOrderDetailScreen: React.FC = () => {
             <View className="bg-gray-50 px-4 py-4 rounded-xl">
               <Text className="text-sm text-gray-700 leading-6">
                 {[
-                  order.shippingAddress.street,
                   order.shippingAddress.city,
                   order.shippingAddress.state,
-                  order.shippingAddress.country,
                 ]
                   .filter(Boolean)
                   .join(', ')}
               </Text>
             </View>
 
-            {order.shippingAddress.phone && (
-              <View className="flex-row items-center mt-3">
-                <Ionicons name="call-outline" size={16} color="#6B7280" />
-                <Text className="text-sm text-gray-600 ml-2">
-                  {order.shippingAddress.phone}
-                </Text>
-              </View>
-            )}
           </Section>
         )}
 
@@ -1088,7 +1055,7 @@ const VendorOrderDetailScreen: React.FC = () => {
                   color={paymentConfig.text.replace('text-', '#')}
                 />
                 <Text className={`text-xs font-bold ${paymentConfig.text} ml-1`}>
-                  {fmt(order.paymentStatus || '')}
+                  {order.paymentStatus === 'completed' ? 'Paid' : fmt(order.paymentStatus || '')}
                 </Text>
               </View>
             </View>
@@ -1162,68 +1129,69 @@ const VendorOrderDetailScreen: React.FC = () => {
             <InfoRow label="Last Updated" value={fmtDateTime(order.updatedAt)} />
           </View>
         </Section>
+
       </ScrollView>
 
-      {/* ── Bottom Action Bar ── */}
-      {!isCancelled && !isDelivered && (
+      {/* ── Action Buttons (sticky at bottom) ── */}
+      {!isCancelled && !isDelivered && nextStatus && (
         <View
-          className="absolute bottom-0 left-0 right-0 bg-white px-5 pt-4 pb-8"
+          className="bg-white px-5 pt-4 border-t border-gray-100"
           style={{
+            paddingBottom: Math.max(insets.bottom + 8, 24),
             shadowColor: '#000',
-            shadowOffset: { width: 0, height: -4 },
-            shadowOpacity: 0.08,
-            shadowRadius: 12,
+            shadowOffset: { width: 0, height: -3 },
+            shadowOpacity: 0.06,
+            shadowRadius: 8,
             elevation: 8,
           }}
         >
           <View className="flex-row gap-3">
-            {nextStatus && (
-              <TouchableOpacity
-                onPress={() => confirmUpdate(nextStatus)}
-                disabled={updating}
-                activeOpacity={0.8}
-                className="flex-1"
+            <TouchableOpacity
+              onPress={() => confirmUpdate(nextStatus)}
+              disabled={updating}
+              activeOpacity={0.8}
+              className="flex-1"
+              style={{
+                shadowColor: '#CC3366',
+                shadowOffset: { width: 0, height: 3 },
+                shadowOpacity: 0.3,
+                shadowRadius: 6,
+                elevation: 4,
+              }}
+            >
+              <LinearGradient
+                colors={['#CC3366', '#DB2777']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
                 style={{
-                  shadowColor: '#CC3366',
-                  shadowOffset: { width: 0, height: 3 },
-                  shadowOpacity: 0.3,
-                  shadowRadius: 6,
-                  elevation: 4,
+                  paddingVertical: 16,
+                  paddingHorizontal: 20,
+                  borderRadius: 16,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
               >
-                <LinearGradient
-                  colors={['#CC3366', '#DB2777']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={{
-                    paddingVertical: 16,
-                    paddingHorizontal: 20,
-                    borderRadius: 16,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  {updating ? (
-                    <ActivityIndicator size={18} color="#fff" />
-                  ) : (
-                    <>
-                      <Ionicons name="checkmark-circle" size={20} color="#fff" />
-                      <Text className="text-white text-base font-bold ml-2">
-                        Mark {fmt(nextStatus)}
-                      </Text>
-                    </>
-                  )}
-                </LinearGradient>
-              </TouchableOpacity>
-            )}
+                {updating ? (
+                  <ActivityIndicator size={18} color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="checkmark-circle" size={20} color="#fff" />
+                    <Text className="text-white text-base font-bold ml-2">
+                      Mark {fmt(nextStatus)}
+                    </Text>
+                  </>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
 
             {(order.status === 'pending' || order.status === 'confirmed') && (
               <TouchableOpacity
                 onPress={() => confirmUpdate('cancelled')}
                 disabled={updating}
                 activeOpacity={0.8}
-                className="flex-row items-center justify-center border-2 border-rose-500 px-6 py-4 rounded-16"
+                className="flex-row items-center justify-center border-2 border-rose-500 px-6 py-4"
+                style={{ borderRadius: 16 }}
               >
                 <Ionicons name="close-circle-outline" size={20} color="#EF4444" />
                 <Text className="text-rose-500 text-base font-bold ml-2">Cancel</Text>

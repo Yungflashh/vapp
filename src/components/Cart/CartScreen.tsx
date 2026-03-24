@@ -9,6 +9,8 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -26,78 +28,77 @@ import {
   CartItem,
   Cart,
 } from '@/services/cart.service';
+import { useAuth } from '@/context/AuthContext';
+import GuestEmailModal from '@/components/GuestEmailModal';
+import {
+  getGuestCart,
+  updateGuestCartItem,
+  removeFromGuestCart,
+  clearGuestCart,
+  getGuestCartTotal,
+  GuestCartItem,
+} from '@/services/guest-storage.service';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const CartScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  
+  const { isGuest, exitGuestMode } = useAuth();
+
   const [cart, setCart] = useState<Cart | null>(null);
+  const [guestCartItems, setGuestCartItems] = useState<GuestCartItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [promoCode, setPromoCode] = useState('');
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
+  const [showGuestEmailModal, setShowGuestEmailModal] = useState(false);
 
-  // Fetch cart when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
       fetchCart();
-    }, [])
+    }, [isGuest])
   );
 
   const fetchCart = async () => {
     try {
       setIsLoading(true);
-      const response = await getCart();
-      
-      if (response.success && response.data.cart) {
-        setCart(response.data.cart);
-        console.log('✅ Cart loaded:', response.data.cart.items.length, 'items');
+      if (isGuest) {
+        const items = await getGuestCart();
+        setGuestCartItems(items);
+      } else {
+        const response = await getCart();
+        if (response.success && response.data.cart) {
+          setCart(response.data.cart);
+        }
       }
     } catch (error: any) {
-      console.error('Error fetching cart:', error);
-      // Don't show error toast if cart is just empty
       if (error.response?.status !== 404) {
-        Toast.show({
-          type: 'error',
-          text1: 'Error',
-          text2: 'Failed to load cart',
-        });
+        Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to load cart' });
       }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const updateQuantity = async (itemId: string, newQuantity: number) => {
-    if (!cart) return;
-
+  const updateQuantity = async (itemId: string, newQuantity: number, variant?: string) => {
     try {
       setIsUpdating(true);
-      
-      const response = await updateCartItem(itemId, newQuantity);
-      
-      if (response.success && response.data.cart) {
-        setCart(response.data.cart);
-        Toast.show({
-          type: 'success',
-          text1: 'Cart Updated',
-          text2: 'Quantity has been updated',
-        });
+      if (isGuest) {
+        const updated = await updateGuestCartItem(itemId, newQuantity, variant);
+        setGuestCartItems(updated);
+      } else {
+        if (!cart) return;
+        const response = await updateCartItem(itemId, newQuantity);
+        if (response.success && response.data.cart) setCart(response.data.cart);
       }
+      Toast.show({ type: 'success', text1: 'Cart Updated' });
     } catch (error: any) {
-      console.error('Error updating quantity:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: error.response?.data?.message || 'Failed to update quantity',
-      });
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to update quantity' });
     } finally {
       setIsUpdating(false);
     }
   };
 
-  const removeItem = async (itemId: string) => {
-    if (!cart) return;
-
+  const removeItem = async (itemId: string, variant?: string) => {
     Alert.alert(
       'Remove Item',
       'Are you sure you want to remove this item from your cart?',
@@ -109,24 +110,16 @@ const CartScreen = () => {
           onPress: async () => {
             try {
               setIsUpdating(true);
-              
-              const response = await removeFromCart(itemId);
-              
-              if (response.success) {
-                await fetchCart(); // Refresh cart
-                Toast.show({
-                  type: 'success',
-                  text1: 'Item Removed',
-                  text2: 'Item has been removed from cart',
-                });
+              if (isGuest) {
+                const updated = await removeFromGuestCart(itemId, variant);
+                setGuestCartItems(updated);
+              } else {
+                await removeFromCart(itemId);
+                await fetchCart();
               }
+              Toast.show({ type: 'success', text1: 'Item Removed' });
             } catch (error: any) {
-              console.error('Error removing item:', error);
-              Toast.show({
-                type: 'error',
-                text1: 'Error',
-                text2: error.response?.data?.message || 'Failed to remove item',
-              });
+              Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to remove item' });
             } finally {
               setIsUpdating(false);
             }
@@ -137,7 +130,8 @@ const CartScreen = () => {
   };
 
   const clearCartHandler = async () => {
-    if (!cart || cart.items.length === 0) return;
+    const hasItems = isGuest ? guestCartItems.length > 0 : (cart && cart.items.length > 0);
+    if (!hasItems) return;
 
     Alert.alert(
       'Clear Cart',
@@ -151,23 +145,16 @@ const CartScreen = () => {
             try {
               setIsUpdating(true);
               
-              const response = await clearCart();
-              
-              if (response.success) {
-                await fetchCart(); // Refresh cart
-                Toast.show({
-                  type: 'success',
-                  text1: 'Cart Cleared',
-                  text2: 'All items have been removed',
-                });
+              if (isGuest) {
+                await clearGuestCart();
+                setGuestCartItems([]);
+              } else {
+                const response = await clearCart();
+                if (response.success) await fetchCart();
               }
+              Toast.show({ type: 'success', text1: 'Cart Cleared' });
             } catch (error: any) {
-              console.error('Error clearing cart:', error);
-              Toast.show({
-                type: 'error',
-                text1: 'Error',
-                text2: error.response?.data?.message || 'Failed to clear cart',
-              });
+              Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to clear cart' });
             } finally {
               setIsUpdating(false);
             }
@@ -180,7 +167,7 @@ const CartScreen = () => {
   const handleApplyCoupon = async () => {
     if (!promoCode.trim()) {
       Toast.show({
-        type: 'warning',
+        type: 'info',
         text1: 'Enter Promo Code',
         text2: 'Please enter a promo code',
       });
@@ -241,18 +228,21 @@ const CartScreen = () => {
     }
   };
 
-  const proceedToCheckout = () => {
-    if (!cart || cart.items.length === 0) {
-      Toast.show({
-        type: 'warning',
-        text1: 'Cart Empty',
-        text2: 'Please add items to your cart',
-      });
+  const proceedToCheckout = async () => {
+    if (isGuest) {
+      if (guestCartItems.length === 0) {
+        Toast.show({ type: 'info', text1: 'Cart Empty', text2: 'Please add items to your cart' });
+        return;
+      }
+      // Set flag so after guest registers and app navigates to Main, it redirects to Cart
+      await AsyncStorage.setItem('pendingCheckout', 'true');
+      setShowGuestEmailModal(true);
       return;
     }
-
-    // Navigate to checkout screen with cart data
-    // Shipping will be calculated in checkout based on delivery address
+    if (!cart || cart.items.length === 0) {
+      Toast.show({ type: 'info', text1: 'Cart Empty', text2: 'Please add items to your cart' });
+      return;
+    }
     navigation.navigate('Checkout', { cart } as any);
   };
 
@@ -373,7 +363,7 @@ const CartScreen = () => {
 
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-gray-50" edges={['top', 'bottom']}>
         <View className="bg-white px-4 py-3 flex-row items-center justify-between border-b border-gray-100">
           <TouchableOpacity
             className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center"
@@ -393,10 +383,13 @@ const CartScreen = () => {
   }
 
   // ✅ Cart total = subtotal - discount (NO SHIPPING)
-  const cartTotal = cart ? cart.subtotal - cart.discount : 0;
+  const guestTotal = getGuestCartTotal(guestCartItems);
+  const cartTotal = isGuest ? guestTotal : (cart ? cart.subtotal - cart.discount : 0);
+  const itemCount = isGuest ? guestCartItems.length : (cart?.items?.length || 0);
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-gray-50" edges={['top', 'bottom']}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {/* Header */}
       <View className="bg-white px-4 py-3 flex-row items-center justify-between border-b border-gray-100">
         <TouchableOpacity
@@ -408,15 +401,86 @@ const CartScreen = () => {
         <Text className="text-lg font-bold text-gray-900">Shopping Cart</Text>
         <TouchableOpacity
           onPress={clearCartHandler}
-          disabled={!cart || cart.items.length === 0}
+          disabled={itemCount === 0}
         >
-          <Icon name="trash-outline" size={22} color={cart && cart.items.length > 0 ? '#EF4444' : '#D1D5DB'} />
+          <Icon name="trash-outline" size={22} color={itemCount > 0 ? '#EF4444' : '#D1D5DB'} />
         </TouchableOpacity>
       </View>
 
-      {!cart || cart.items.length === 0 ? (
-        renderEmptyCart()
-      ) : (
+      {/* Guest cart view */}
+      {isGuest && guestCartItems.length > 0 && (
+        <>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, paddingBottom: 180 }}>
+            <View className="flex-row justify-between items-center mb-4">
+              <Text className="text-base font-semibold text-gray-900">{guestCartItems.length} Item{guestCartItems.length !== 1 ? 's' : ''} in Cart</Text>
+              <TouchableOpacity onPress={clearCartHandler}><Text className="text-pink-500 font-semibold">Clear All</Text></TouchableOpacity>
+            </View>
+            {guestCartItems.map((item) => (
+              <View key={item.productId + (item.variant || '')} className="bg-white rounded-2xl p-4 mb-3 flex-row">
+                <View className="w-20 h-20 rounded-xl bg-gray-100 overflow-hidden mr-3">
+                  {item.product.images?.[0] ? (
+                    <Image source={{ uri: item.product.images[0] }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                  ) : (
+                    <View className="flex-1 items-center justify-center"><Icon name="image-outline" size={32} color="#9CA3AF" /></View>
+                  )}
+                </View>
+                <View className="flex-1">
+                  <Text className="text-sm font-semibold text-gray-900 mb-1" numberOfLines={2}>{item.product.name}</Text>
+                  {item.variant && <Text className="text-xs text-gray-500 mb-1">{item.variant}</Text>}
+                  <Text className="text-base font-bold text-gray-900">₦{item.product.price.toLocaleString()}</Text>
+                  <View className="flex-row items-center mt-2">
+                    <TouchableOpacity className="w-8 h-8 bg-gray-100 rounded-lg items-center justify-center" onPress={() => item.quantity > 1 && updateQuantity(item.productId, item.quantity - 1, item.variant)}>
+                      <Icon name="remove" size={16} color="#111827" />
+                    </TouchableOpacity>
+                    <Text className="mx-4 text-base font-semibold text-gray-900">{item.quantity}</Text>
+                    <TouchableOpacity className="w-8 h-8 bg-gray-100 rounded-lg items-center justify-center" onPress={() => updateQuantity(item.productId, item.quantity + 1, item.variant)}>
+                      <Icon name="add" size={16} color="#111827" />
+                    </TouchableOpacity>
+                    <View className="flex-1" />
+                    <TouchableOpacity onPress={() => removeItem(item.productId, item.variant)}>
+                      <Icon name="trash-outline" size={18} color="#EF4444" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            ))}
+            <View className="bg-white rounded-2xl p-4">
+              <Text className="text-base font-semibold text-gray-900 mb-4">Cart Summary</Text>
+              <View className="flex-row justify-between items-center mb-3">
+                <Text className="text-gray-600">Subtotal ({guestCartItems.reduce((s, i) => s + i.quantity, 0)} items)</Text>
+                <Text className="text-gray-900 font-medium">₦{guestTotal.toLocaleString()}</Text>
+              </View>
+              <View className="border-t border-gray-200 pt-3">
+                <View className="flex-row justify-between items-center">
+                  <Text className="text-lg font-bold text-gray-900">Cart Total</Text>
+                  <Text className="text-2xl font-bold text-gray-900">₦{guestTotal.toLocaleString()}</Text>
+                </View>
+              </View>
+              <View className="mt-4 bg-blue-50 rounded-xl p-3 flex-row items-center">
+                <Icon name="information-circle" size={20} color="#3B82F6" />
+                <Text className="text-blue-700 text-sm ml-2 flex-1">Shipping fees will be calculated at checkout</Text>
+              </View>
+            </View>
+          </ScrollView>
+          <View className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-4 shadow-lg">
+            <View className="mb-3">
+              <Text className="text-gray-600 text-sm">Cart Total</Text>
+              <Text className="text-2xl font-bold text-gray-900">₦{guestTotal.toLocaleString()}</Text>
+              <Text className="text-gray-500 text-xs mt-1">+ Shipping (calculated at checkout)</Text>
+            </View>
+            <TouchableOpacity className="bg-pink-500 py-4 rounded-xl flex-row items-center justify-center" onPress={proceedToCheckout} activeOpacity={0.8}>
+              <Text className="text-white font-bold text-base">Proceed to Checkout</Text>
+              <Icon name="arrow-forward" size={20} color="#FFFFFF" style={{ marginLeft: 8 }} />
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
+
+      {isGuest && guestCartItems.length === 0 && !isLoading && renderEmptyCart()}
+
+      {!isGuest && (!cart || cart.items.length === 0) && !isLoading && renderEmptyCart()}
+
+      {!isGuest && cart && cart.items.length > 0 && (
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ padding: 16, paddingBottom: 180 }}
@@ -579,6 +643,14 @@ const CartScreen = () => {
           </TouchableOpacity>
         </View>
       )}
+
+      <GuestEmailModal
+        visible={showGuestEmailModal}
+        onClose={() => { setShowGuestEmailModal(false); AsyncStorage.removeItem('pendingCheckout'); }}
+        onSuccess={() => setShowGuestEmailModal(false)}
+        onGoToSignIn={() => { setShowGuestEmailModal(false); AsyncStorage.removeItem('pendingCheckout'); exitGuestMode(); }}
+      />
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };

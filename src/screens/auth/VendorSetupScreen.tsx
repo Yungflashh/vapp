@@ -7,6 +7,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import * as Location from 'expo-location';
 import Toast from 'react-native-toast-message';
 import { createVendorProfile } from '@/services/vendor.service';
+import { useAuth } from '@/context/AuthContext';
 
 type VendorSetupScreenProps = NativeStackScreenProps<AuthStackParamList, 'VendorSetup'>;
 
@@ -20,6 +21,7 @@ interface FormErrors {
 }
 
 const VendorSetupScreen = ({ navigation }: VendorSetupScreenProps) => {
+  const { login } = useAuth();
   const [businessName, setBusinessName] = useState('');
   const [businessDescription, setBusinessDescription] = useState('');
   const [businessEmail, setBusinessEmail] = useState('');
@@ -210,8 +212,11 @@ const VendorSetupScreen = ({ navigation }: VendorSetupScreenProps) => {
         text2: 'Your business profile has been created successfully!',
       });
 
-      // Navigate to payment setup
-      navigation.navigate('PaymentSetup');
+      // Navigate to payment setup (replace so back button won't return here)
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'PaymentSetup' as any }],
+      });
     } catch (error: any) {
       console.error('❌ Vendor profile creation error:', error);
 
@@ -565,10 +570,7 @@ const VendorSetupScreen = ({ navigation }: VendorSetupScreenProps) => {
               className="bg-pink-500 py-3.5 rounded-xl mb-3"
               onPress={() => {
                 setShowSkipModal(false);
-                (navigation as any).reset({
-                  index: 0,
-                  routes: [{ name: 'VendorMain' }],
-                });
+                login();
               }}
             >
               <Text className="text-white text-base font-semibold text-center">Skip for Now</Text>

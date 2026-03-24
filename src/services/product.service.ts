@@ -23,6 +23,8 @@ export interface Product {
     id: string;
     name: string;
     image?: string;
+    verified?: boolean;
+    isPremium?: boolean;
   };
   stock: number;
   inStock: boolean;
@@ -240,18 +242,18 @@ export const searchProducts = async (
 };
 
 /**
- * Get new arrivals
+ * Get new arrivals (products created in the last 2 weeks, sorted newest first)
  */
 export const getNewArrivals = async (limit: number = 10): Promise<ProductsResponse> => {
   try {
     console.log('🆕 Fetching new arrivals...');
-    
-    const response = await api.get<ProductsResponse>(
-      `/products/new-arrivals?limit=${limit}`
-    );
-    
+
+    const response = await api.get<ProductsResponse>('/products', {
+      params: { sort: 'newest', limit },
+    });
+
     console.log('✅ New arrivals fetched:', response.data.data.products.length);
-    
+
     return response.data;
   } catch (error) {
     console.error('❌ Get new arrivals error:', error);
@@ -384,6 +386,38 @@ export const updateProduct = async (productId: string, data: any) => {
         handleApiError(error);
         throw error;
     }
+};
+
+/**
+ * Get flash sale products (products with >= 10% discount)
+ * Fetches popular products and filters client-side for those with significant discounts
+ */
+export const getFlashSaleProducts = async (limit: number = 20): Promise<Product[]> => {
+  try {
+    // Try dedicated flash sale endpoint first
+    const response = await api.get<ProductsResponse>('/products/flash-sales', {
+      params: { limit },
+    });
+    if (response.data.success && response.data.data.products?.length > 0) {
+      return response.data.data.products;
+    }
+
+    // Fallback: get on-sale products filtered for >=10% off
+    const fallback = await api.get<ProductsResponse>('/products/on-sale', {
+      params: { limit },
+    });
+    if (fallback.data.success && fallback.data.data.products) {
+      return fallback.data.data.products.filter((p) => {
+        if (!p.originalPrice || p.originalPrice <= p.price) return false;
+        return ((p.originalPrice - p.price) / p.originalPrice) >= 0.10;
+      });
+    }
+
+    return [];
+  } catch (error) {
+    console.error('Get flash sale products error:', error);
+    return [];
+  }
 };
 
 /**

@@ -470,7 +470,7 @@ const VendorProductDetailScreen = () => {
   // ============================================================
   if (loading || !product) {
     return (
-      <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
         <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color="#CC3366" />
@@ -490,10 +490,11 @@ const VendorProductDetailScreen = () => {
   // RENDER
   // ============================================================
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ paddingBottom: 40 }}>
         {/* Hero Image */}
         <View style={{ height: height * 0.45 }} className="relative bg-gray-100">
           <ScrollView

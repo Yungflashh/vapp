@@ -195,7 +195,7 @@ const MyDigitalProductsScreen = ({ navigation }: MyDigitalProductsScreenProps) =
   if (isLoading) {
     console.log('⏳ Rendering: LOADING STATE');
     return (
-      <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-gray-50" edges={['top', 'bottom']}>
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#8B5CF6" />
           <Text className="text-gray-500 mt-4">Loading your digital products...</Text>
@@ -208,7 +208,7 @@ const MyDigitalProductsScreen = ({ navigation }: MyDigitalProductsScreenProps) =
   console.log('📦 Products count:', products.length);
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-gray-50" edges={['top', 'bottom']}>
       {/* Header */}
       <View className="bg-white px-4 py-3 flex-row items-center justify-between border-b border-gray-100">
         <View className="flex-row items-center">
@@ -247,7 +247,8 @@ const MyDigitalProductsScreen = ({ navigation }: MyDigitalProductsScreenProps) =
         </View>
       ) : (
         // Products List
-        <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+        <ScrollView showsVerticalScrollIndicator={false} className="flex-1"
+        contentContainerStyle={{ paddingBottom: 40 }}>
           <View className="px-4 py-4">
             <Text className="text-sm text-gray-500 mb-4">
               {products.length} {products.length === 1 ? 'product' : 'products'} available

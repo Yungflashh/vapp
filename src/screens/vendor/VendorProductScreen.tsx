@@ -10,6 +10,8 @@ import {
   RefreshControl,
   Alert,
   StatusBar,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -29,6 +31,7 @@ interface VendorProduct {
   createdAt: string;
   productType?: string;
   category?: string;
+  status?: string;
 }
 
 type StockFilter = 'all' | 'low' | 'out' | 'active';
@@ -259,8 +262,28 @@ console.log('My products response:', JSON.stringify(response, null, 2));
     </TouchableOpacity>
   );
 
+  const getApprovalStatus = (status?: string) => {
+    switch (status) {
+      case 'active':
+        return { label: 'Active', color: '#10B981', bgColor: '#D1FAE5' };
+      case 'pending_approval':
+        return { label: 'Pending Approval', color: '#F59E0B', bgColor: '#FEF3C7' };
+      case 'inactive':
+        return { label: 'Inactive', color: '#6B7280', bgColor: '#F3F4F6' };
+      case 'draft':
+        return { label: 'Draft', color: '#6B7280', bgColor: '#F3F4F6' };
+      case 'rejected':
+        return { label: 'Rejected', color: '#EF4444', bgColor: '#FEE2E2' };
+      case 'suspended':
+        return { label: 'Suspended', color: '#EF4444', bgColor: '#FEE2E2' };
+      default:
+        return { label: status || 'Unknown', color: '#6B7280', bgColor: '#F3F4F6' };
+    }
+  };
+
   const renderProductCard = (product: VendorProduct) => {
     const stockStatus = getStockStatus(product.stock);
+    const approvalStatus = getApprovalStatus(product.status);
 
     return (
       <TouchableOpacity
@@ -337,10 +360,10 @@ console.log('My products response:', JSON.stringify(response, null, 2));
             </View>
           </View>
 
-          {/* Stock Status Badge */}
-          <View className="mt-2">
+          {/* Stock Status & Approval Status Badges */}
+          <View className="mt-2 flex-row items-center">
             <View
-              className="px-2 py-1 rounded-lg self-start"
+              className="px-2 py-1 rounded-lg"
               style={{ backgroundColor: stockStatus.bgColor }}
             >
               <Text
@@ -348,6 +371,17 @@ console.log('My products response:', JSON.stringify(response, null, 2));
                 style={{ color: stockStatus.color }}
               >
                 {stockStatus.label}
+              </Text>
+            </View>
+            <View
+              className="px-2 py-1 rounded-lg ml-2"
+              style={{ backgroundColor: approvalStatus.bgColor }}
+            >
+              <Text
+                className="text-xs font-semibold"
+                style={{ color: approvalStatus.color }}
+              >
+                {approvalStatus.label}
               </Text>
             </View>
           </View>
@@ -358,19 +392,23 @@ console.log('My products response:', JSON.stringify(response, null, 2));
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1" style={{ backgroundColor: '#FFF0F5' }} edges={['top', 'bottom']}>
-        <StatusBar barStyle="dark-content" backgroundColor="#FFF0F5" />
+      <SafeAreaView className="flex-1" style={{ backgroundColor: '#F3F4F6' }} edges={['top', 'bottom']}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <StatusBar barStyle="dark-content" />
         <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color="#CC3366" />
           <Text className="text-gray-500 mt-4">Loading products...</Text>
         </View>
-      </SafeAreaView>
+      
+      </KeyboardAvoidingView>
+    </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1" style={{ backgroundColor: '#FFF0F5' }} edges={['top', 'bottom']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFF0F5" />
+    <SafeAreaView className="flex-1" style={{ backgroundColor: '#F3F4F6' }} edges={['top', 'bottom']}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <StatusBar barStyle="dark-content" />
 
       {/* Header */}
       <View className="px-6 pt-4 pb-6">
@@ -557,6 +595,8 @@ console.log('My products response:', JSON.stringify(response, null, 2));
       </ScrollView>
 
       <Toast />
+    
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };

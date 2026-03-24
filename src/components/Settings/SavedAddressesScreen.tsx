@@ -245,7 +245,7 @@ const SavedAddressesScreen = ({ navigation }: SavedAddressesScreenProps) => {
 
   const handleSaveAddress = async () => {
     if (!validateAddressForm()) {
-      Toast.show({ type: 'warning', text1: 'Invalid Information', text2: 'Please fix the errors in the form' });
+      Toast.show({ type: 'info', text1: 'Invalid Information', text2: 'Please fix the errors in the form' });
       return;
     }
 
@@ -323,7 +323,7 @@ const SavedAddressesScreen = ({ navigation }: SavedAddressesScreenProps) => {
   // ─── Loading ─────────────────────────────────────────────
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-gray-50" edges={['top', 'bottom']}>
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#CC3366" />
           <Text className="text-gray-500 mt-4">Loading addresses...</Text>
@@ -334,7 +334,7 @@ const SavedAddressesScreen = ({ navigation }: SavedAddressesScreenProps) => {
 
   // ─── Main Render ─────────────────────────────────────────
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-gray-50" edges={['top', 'bottom']}>
       {/* Header */}
       <View className="bg-white px-4 py-3 flex-row items-center justify-between border-b border-gray-100">
         <View className="flex-row items-center">

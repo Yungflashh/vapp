@@ -13,6 +13,8 @@ import {
   Alert,
   ActivityIndicator,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -229,19 +231,23 @@ const DeleteAccountScreen = () => {
 
   if (checkingStatus) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-gray-50" edges={['top', 'bottom']}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
         <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color="#CC3366" />
         </View>
-      </SafeAreaView>
+      
+      </KeyboardAvoidingView>
+    </SafeAreaView>
     );
   }
 
   // Show existing request status
   if (existingRequest) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-gray-50" edges={['top', 'bottom']}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
         {/* Header */}
@@ -395,13 +401,16 @@ const DeleteAccountScreen = () => {
         </ScrollView>
 
         <Toast />
-      </SafeAreaView>
+      
+      </KeyboardAvoidingView>
+    </SafeAreaView>
     );
   }
 
   // Show deletion request form
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-gray-50" edges={['top', 'bottom']}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       {/* Header */}
@@ -605,6 +614,8 @@ const DeleteAccountScreen = () => {
       </ScrollView>
 
       <Toast />
+    
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };

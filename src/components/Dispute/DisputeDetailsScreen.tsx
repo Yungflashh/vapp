@@ -250,7 +250,7 @@ const DisputeDetailsScreen = ({ route, navigation }: DisputeDetailsScreenProps) 
 
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-gray-50" edges={['top', 'bottom']}>
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#CC3366" />
           <Text className="text-gray-500 mt-4">Loading dispute...</Text>
@@ -261,7 +261,7 @@ const DisputeDetailsScreen = ({ route, navigation }: DisputeDetailsScreenProps) 
 
   if (!dispute) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-gray-50" edges={['top', 'bottom']}>
         <View className="flex-1 items-center justify-center">
           <Icon name="alert-circle-outline" size={64} color="#EF4444" />
           <Text className="text-gray-900 font-bold text-lg mt-4">Dispute Not Found</Text>
@@ -279,7 +279,7 @@ const DisputeDetailsScreen = ({ route, navigation }: DisputeDetailsScreenProps) 
   const statusInfo = getStatusInfo(dispute.status);
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-gray-50" edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         className="flex-1"
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -317,6 +317,7 @@ const DisputeDetailsScreen = ({ route, navigation }: DisputeDetailsScreenProps) 
         <ScrollView
           ref={scrollViewRef}
           showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: isResolved ? 40 : 40 }}
           className="flex-1"
           refreshControl={
             <RefreshControl
@@ -326,7 +327,6 @@ const DisputeDetailsScreen = ({ route, navigation }: DisputeDetailsScreenProps) 
               tintColor="#CC3366"
             />
           }
-          contentContainerStyle={{ paddingBottom: isResolved ? 20 : 0 }}
         >
           {/* Dispute Info Card */}
           <View className="bg-white px-4 py-4 mt-2">

@@ -20,7 +20,11 @@
       "Bash(pushd \"C:/Users/YungFlash/Desktop/vspotApp/vspotApp\" && npx tsc --noEmit --skipLibCheck 2>&1 | grep -i \"CheckoutScreen\" && popd)",
       "Bash(pushd \"C:/Users/YungFlash/Desktop/vspotApp/vspotApp\" && npx tsc --noEmit --skipLibCheck 2>&1 | grep -i \"CheckoutScreen\\\\|wallet.service\\\\|order.service\" && popd)",
       "Bash(pushd \"C:/Users/YungFlash/Desktop/vspotApp/vspotApp\" && npx tsc --noEmit --skipLibCheck 2>&1 | grep -i \"ProfileScreen\\\\|RewardsScreen\\\\|CheckoutScreen\\\\|reward.controller\" && popd)",
-      "Bash(pushd \"C:/Users/YungFlash/Desktop/vspotApp/vspotApp\" && npx tsc --noEmit --skipLibCheck 2>&1 | grep -i \"OrdersScreen\" && popd)"
+      "Bash(pushd \"C:/Users/YungFlash/Desktop/vspotApp/vspotApp\" && npx tsc --noEmit --skipLibCheck 2>&1 | grep -i \"OrdersScreen\" && popd)",
+      "Bash(cd:*)",
+      "Bash(find C:/Users/YungFlash/Downloads/vendorspot-admin/src -name *vendor* -o -name *Vendor*)",
+      "Bash(find C:UsersYungFlashDesktopvspotAppvspotAppsrc -name *AuthContext* -o -name *auth.context*)",
+      "Bash(find C:UsersYungFlashDownloadsvendorspot-backendsrcmodels -type f -name *.ts)"
     ]
   }
 }

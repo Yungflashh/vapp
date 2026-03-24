@@ -24,7 +24,7 @@ const SignInModal = ({ visible, onClose, onSignIn, message }: SignInModalProps) 
               <Icon name="lock-closed-outline" size={28} color="#CC3366" />
             </View>
             <Text className="text-lg font-bold text-gray-900 text-center mb-2">
-              Sign In Required
+              Create an Account
             </Text>
             <Text className="text-sm text-gray-500 text-center leading-5">
               {message}
@@ -36,7 +36,7 @@ const SignInModal = ({ visible, onClose, onSignIn, message }: SignInModalProps) 
             activeOpacity={0.8}
           >
             <Text className="text-white text-base font-semibold text-center">
-              Sign In / Create Account
+              Sign Up / Sign In
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -45,7 +45,7 @@ const SignInModal = ({ visible, onClose, onSignIn, message }: SignInModalProps) 
             activeOpacity={0.8}
           >
             <Text className="text-gray-400 text-sm font-medium text-center">
-              Not now
+              Continue browsing
             </Text>
           </TouchableOpacity>
         </View>

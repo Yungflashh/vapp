@@ -9,6 +9,9 @@ import {
   RefreshControl,
   Share,
   Dimensions,
+  Modal,
+  TextInput,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -25,6 +28,7 @@ import {
   type AffiliateDashboard,
   type AffiliateEarnings,
 } from '@/services/affiliate.service';
+import api from '@/services/api.config';
 
 type AffiliateScreenProps = NativeStackScreenProps<RootStackParamList, 'Affiliate'>;
 
@@ -38,6 +42,10 @@ const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
   const [isActivating, setIsActivating] = useState(false);
   const [isAffiliate, setIsAffiliate] = useState(false);
   const [userName, setUserName] = useState('User');
+  const [activeTab, setActiveTab] = useState<'overview' | 'history'>('overview');
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
 
   useEffect(() => {
     checkAffiliateStatus();
@@ -174,6 +182,44 @@ const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
     }
   };
 
+  const handleWithdraw = async () => {
+    const amount = parseFloat(withdrawAmount);
+    const available = dashboard?.summary.availableBalance || 0;
+
+    if (!amount || amount <= 0) {
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Enter a valid amount' });
+      return;
+    }
+    if (amount > available) {
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Amount exceeds available balance' });
+      return;
+    }
+
+    try {
+      setIsWithdrawing(true);
+      const response = await api.post('/wallet/withdraw', { amount });
+
+      if (response.data.success) {
+        Toast.show({
+          type: 'success',
+          text1: 'Withdrawal Requested',
+          text2: `₦${amount.toLocaleString()} withdrawal is being processed`,
+        });
+        setShowWithdrawModal(false);
+        setWithdrawAmount('');
+        await fetchDashboardData();
+      }
+    } catch (error: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: error.response?.data?.message || 'Failed to process withdrawal',
+      });
+    } finally {
+      setIsWithdrawing(false);
+    }
+  };
+
   // Bar chart component
   const SimpleBarChart = () => {
     let displayData = earningsData?.earningsByDate || [];
@@ -252,7 +298,7 @@ const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
   // ==================== ACTIVATION SCREEN ====================
   if (!isAffiliate && !isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
         <View className="px-4 py-3 flex-row items-center justify-between border-b border-gray-100">
           <View className="flex-row items-center">
             <TouchableOpacity
@@ -333,7 +379,7 @@ const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
   // ==================== LOADING SCREEN ====================
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#CC3366" />
           <Text className="text-gray-500 mt-4">Loading affiliate data...</Text>
@@ -347,7 +393,7 @@ const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
   const hasLinks = affiliateLinks.length > 0;
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-gray-50" edges={['top', 'bottom']}>
       {/* Header - Analytics icon instead of notification/settings */}
       <View className="bg-white px-4 py-3 flex-row items-center justify-between border-b border-gray-100">
         <View className="flex-row items-center">
@@ -376,6 +422,7 @@ const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 40 }}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -468,6 +515,57 @@ const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
           </View>
         </View>
 
+        {/* Withdraw Earnings Button */}
+        <View className="px-4 pb-4">
+          <TouchableOpacity
+            onPress={() => setShowWithdrawModal(true)}
+            className="rounded-2xl overflow-hidden"
+            activeOpacity={0.8}
+            style={{
+              backgroundColor: '#CC3366',
+              shadowColor: '#CC3366',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: 8,
+            }}
+          >
+            <View className="flex-row items-center justify-center py-4 px-6">
+              <MaterialCommunityIcons name="bank-transfer-out" size={22} color="#FFFFFF" />
+              <Text className="text-white font-bold text-base ml-2">Withdraw Earnings</Text>
+              <View className="bg-white/20 rounded-full px-3 py-1 ml-3">
+                <Text className="text-white text-xs font-bold">
+                  ₦{(dashboard?.summary.availableBalance || 0).toLocaleString()}
+                </Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Tab Switcher */}
+        <View className="px-4 pb-4">
+          <View className="flex-row bg-gray-100 rounded-xl p-1">
+            <TouchableOpacity
+              onPress={() => setActiveTab('overview')}
+              className={`flex-1 py-2.5 rounded-lg ${activeTab === 'overview' ? 'bg-white shadow-sm' : ''}`}
+            >
+              <Text className={`text-center text-sm font-semibold ${activeTab === 'overview' ? 'text-pink-600' : 'text-gray-500'}`}>
+                Overview
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setActiveTab('history')}
+              className={`flex-1 py-2.5 rounded-lg ${activeTab === 'history' ? 'bg-white shadow-sm' : ''}`}
+            >
+              <Text className={`text-center text-sm font-semibold ${activeTab === 'history' ? 'text-pink-600' : 'text-gray-500'}`}>
+                Commission History
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {activeTab === 'overview' ? (
+        <>
         {/* Invite a Vendor */}
         <View className="px-4 pb-4">
           <View className="bg-white rounded-2xl p-4 shadow-sm">
@@ -799,7 +897,257 @@ const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
             <SimpleBarChart />
           </View>
         </View>
+        </>
+        ) : (
+        <>
+        {/* Commission History Tab */}
+        <View className="px-4 pb-4">
+          <View className="bg-white rounded-2xl p-4 shadow-sm">
+            <View className="flex-row items-center justify-between mb-4">
+              <View className="flex-row items-center">
+                <Icon name="receipt-outline" size={20} color="#CC3366" />
+                <Text className="text-base font-bold text-gray-900 ml-2">Commission History</Text>
+              </View>
+              <View className="bg-pink-100 px-3 py-1 rounded-full">
+                <Text className="text-pink-600 text-xs font-bold">
+                  {dashboard?.recentConversions?.length || 0} transactions
+                </Text>
+              </View>
+            </View>
+
+            {(!dashboard?.recentConversions || dashboard.recentConversions.length === 0) ? (
+              <View className="items-center py-8">
+                <View className="w-16 h-16 bg-gray-100 rounded-full items-center justify-center mb-3">
+                  <Icon name="receipt-outline" size={28} color="#9CA3AF" />
+                </View>
+                <Text className="text-sm font-semibold text-gray-700 mb-1">No commissions yet</Text>
+                <Text className="text-xs text-gray-500 text-center px-4">
+                  Share your affiliate links to start earning commissions on every sale!
+                </Text>
+              </View>
+            ) : (
+              <View>
+                {dashboard.recentConversions.map((conversion: any, index: number) => {
+                  const date = new Date(conversion.createdAt);
+                  const formattedDate = date.toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  });
+                  const formattedTime = date.toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  });
+
+                  const status = conversion.paymentStatus || conversion.status || 'completed';
+                  const statusColor = status === 'completed' ? '#10B981'
+                    : status === 'pending' ? '#F59E0B'
+                    : status === 'failed' ? '#EF4444' : '#6B7280';
+                  const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
+
+                  return (
+                    <View
+                      key={conversion._id || index}
+                      className={`py-4 ${
+                        index < dashboard.recentConversions.length - 1
+                          ? 'border-b border-gray-100'
+                          : ''
+                      }`}
+                    >
+                      <View className="flex-row items-start">
+                        <View
+                          className="w-10 h-10 rounded-full items-center justify-center mr-3"
+                          style={{ backgroundColor: `${statusColor}15` }}
+                        >
+                          <Icon
+                            name={status === 'completed' ? 'checkmark-circle' : status === 'pending' ? 'time' : 'close-circle'}
+                            size={20}
+                            color={statusColor}
+                          />
+                        </View>
+                        <View className="flex-1">
+                          <Text className="text-sm font-semibold text-gray-900">
+                            Order #{conversion.orderNumber}
+                          </Text>
+                          {conversion.items && conversion.items.length > 0 && (
+                            <Text className="text-xs text-gray-500 mt-0.5" numberOfLines={1}>
+                              {conversion.items.map((i: any) => i.productName).join(', ')}
+                            </Text>
+                          )}
+                          <View className="flex-row items-center mt-1">
+                            <Text className="text-xs text-gray-400">{formattedDate} at {formattedTime}</Text>
+                            <View className="w-1 h-1 bg-gray-300 rounded-full mx-2" />
+                            <Text className="text-xs font-semibold" style={{ color: statusColor }}>
+                              {statusLabel}
+                            </Text>
+                          </View>
+                        </View>
+                        <View className="items-end">
+                          <Text className="text-sm font-bold text-green-600">
+                            +₦{(conversion.affiliateCommission || 0).toLocaleString()}
+                          </Text>
+                          <Text className="text-xs text-gray-400 mt-0.5">
+                            from ₦{(conversion.total || 0).toLocaleString()}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Top Performing Products in History Tab */}
+        <View className="px-4 pb-6">
+          <View className="bg-white rounded-2xl p-4 shadow-sm">
+            <View className="flex-row items-center mb-4">
+              <Icon name="trophy-outline" size={20} color="#F59E0B" />
+              <Text className="text-base font-bold text-gray-900 ml-2">Top Performing Products</Text>
+            </View>
+
+            {(!dashboard?.topPerformingLinks || dashboard.topPerformingLinks.length === 0) ? (
+              <View className="items-center py-6">
+                <View className="w-16 h-16 bg-gray-100 rounded-full items-center justify-center mb-3">
+                  <Icon name="trophy-outline" size={28} color="#9CA3AF" />
+                </View>
+                <Text className="text-sm font-semibold text-gray-700 mb-1">No data yet</Text>
+                <Text className="text-xs text-gray-500 text-center px-4">
+                  Generate affiliate links for products to track their performance.
+                </Text>
+              </View>
+            ) : (
+              <View>
+                {dashboard.topPerformingLinks.map((link: any, index: number) => {
+                  const productName = link.product?.name || 'General Link';
+                  const conversionRate = link.clicks > 0
+                    ? ((link.conversions / link.clicks) * 100).toFixed(1)
+                    : '0.0';
+
+                  return (
+                    <View
+                      key={link._id || index}
+                      className={`py-3 ${
+                        index < dashboard.topPerformingLinks.length - 1
+                          ? 'border-b border-gray-100'
+                          : ''
+                      }`}
+                    >
+                      <View className="flex-row items-center mb-2">
+                        <View
+                          className={`w-8 h-8 rounded-full items-center justify-center mr-3 ${
+                            index === 0 ? 'bg-yellow-100' : index === 1 ? 'bg-gray-200' : 'bg-orange-100'
+                          }`}
+                        >
+                          <Text
+                            className={`text-xs font-bold ${
+                              index === 0 ? 'text-yellow-600' : index === 1 ? 'text-gray-600' : 'text-orange-600'
+                            }`}
+                          >
+                            #{index + 1}
+                          </Text>
+                        </View>
+                        <View className="flex-1">
+                          <Text className="text-sm font-semibold text-gray-900" numberOfLines={1}>
+                            {productName}
+                          </Text>
+                        </View>
+                        <Text className="text-sm font-bold text-green-600">
+                          ₦{(link.totalEarned || 0).toLocaleString()}
+                        </Text>
+                      </View>
+                      <View className="flex-row ml-11">
+                        <Text className="text-xs text-gray-500 mr-3">
+                          {link.clicks || 0} clicks
+                        </Text>
+                        <Text className="text-xs text-gray-500 mr-3">
+                          {link.conversions || 0} sales
+                        </Text>
+                        <Text className="text-xs text-pink-600 font-semibold">
+                          {conversionRate}% rate
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        </View>
+        </>
+        )}
       </ScrollView>
+
+      {/* Withdraw Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={showWithdrawModal}
+        onRequestClose={() => setShowWithdrawModal(false)}
+      >
+        <View className="flex-1 bg-black/50 items-center justify-center px-6">
+          <View className="bg-white rounded-2xl p-6 w-full max-w-sm">
+            <View className="w-16 h-16 bg-pink-100 rounded-full items-center justify-center self-center mb-4">
+              <MaterialCommunityIcons name="bank-transfer-out" size={32} color="#CC3366" />
+            </View>
+
+            <Text className="text-xl font-bold text-gray-900 text-center mb-2">
+              Withdraw Earnings
+            </Text>
+            <Text className="text-sm text-gray-500 text-center mb-1">
+              Available Balance
+            </Text>
+            <Text className="text-2xl font-bold text-green-600 text-center mb-6">
+              ₦{(dashboard?.summary.availableBalance || 0).toLocaleString()}
+            </Text>
+
+            <Text className="text-sm font-semibold text-gray-700 mb-2">Amount to withdraw</Text>
+            <View className="flex-row items-center bg-gray-50 rounded-xl px-4 py-3 mb-2">
+              <Text className="text-lg font-bold text-gray-400 mr-2">₦</Text>
+              <TextInput
+                className="flex-1 text-lg font-bold text-gray-900"
+                placeholder="0.00"
+                placeholderTextColor="#9CA3AF"
+                value={withdrawAmount}
+                onChangeText={setWithdrawAmount}
+                keyboardType="numeric"
+              />
+            </View>
+
+            <TouchableOpacity
+              onPress={() => setWithdrawAmount(String(dashboard?.summary.availableBalance || 0))}
+              className="self-end mb-6"
+            >
+              <Text className="text-xs font-semibold text-pink-600">Withdraw All</Text>
+            </TouchableOpacity>
+
+            <View className="flex-row gap-3">
+              <TouchableOpacity
+                className="flex-1 py-3.5 rounded-xl border border-gray-300"
+                onPress={() => {
+                  setShowWithdrawModal(false);
+                  setWithdrawAmount('');
+                }}
+              >
+                <Text className="text-gray-700 font-semibold text-center">Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                className="flex-1 py-3.5 rounded-xl"
+                style={{ backgroundColor: '#CC3366' }}
+                onPress={handleWithdraw}
+                disabled={isWithdrawing}
+              >
+                {isWithdrawing ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text className="text-white font-semibold text-center">Withdraw</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };

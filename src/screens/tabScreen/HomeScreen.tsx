@@ -1,6 +1,6 @@
 // screens/HomeScreen.tsx - FIXED WITH UNIFIED SEARCH
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, FlatList, ActivityIndicator, RefreshControl, Share } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, FlatList, ActivityIndicator, RefreshControl, Share, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { CompositeScreenProps, useFocusEffect } from '@react-navigation/native';
@@ -10,11 +10,14 @@ import { BottomTabParamList } from '@/navigation/BottomTabNavigator';
 import Icon from 'react-native-vector-icons/Ionicons';
 import MaterialIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Toast from 'react-native-toast-message';
+import VerifyBadge from '@/components/VerifyBadge';
 import { ProductCard } from '@/components/Products/ProductCard';
 import {
   getProducts,
   getRecommendedProducts,
   getTrendingProducts,
+  getNewArrivals,
+  getFlashSaleProducts,
   Product,
   ProductFilters,
 } from '@/services/product.service';
@@ -29,6 +32,9 @@ import { getCart } from '@/services/cart.service';
 import { useNotifications } from '@/context/NotificationContext';
 import { useAuth } from '@/context/AuthContext';
 import SignInModal from '@/components/SignInModal';
+import GuestEmailModal from '@/components/GuestEmailModal';
+import WelcomeTour from '@/components/WelcomeTour';
+import { getGuestCartCount } from '@/services/guest-storage.service';
 
 type HomeScreenProps = CompositeScreenProps<
   BottomTabScreenProps<BottomTabParamList, 'Home'>,
@@ -43,6 +49,7 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
   const { unreadCount: notificationCount } = useNotifications();
   const [showSignInModal, setShowSignInModal] = useState(false);
   const [signInMessage, setSignInMessage] = useState('');
+  const [showGuestEmailModal, setShowGuestEmailModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeSearchQuery, setActiveSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'popular' | 'product' | 'vendor' | 'search'>('popular');
@@ -52,6 +59,9 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
   
   const [products, setProducts] = useState<Product[]>([]);
   const [trendingProducts, setTrendingProducts] = useState<Product[]>([]);
+  const [newArrivals, setNewArrivals] = useState<Product[]>([]);
+  const [flashSaleProducts, setFlashSaleProducts] = useState<Product[]>([]);
+  const [digitalProducts, setDigitalProducts] = useState<Product[]>([]);
   const [topVendors, setTopVendors] = useState<Vendor[]>([]);
   const [allVendors, setAllVendors] = useState<Vendor[]>([]);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
@@ -63,6 +73,11 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSortMenu, setShowSortMenu] = useState(false);
+  const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [searchBarLayout, setSearchBarLayout] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const searchBarRef = React.useRef<View>(null);
+  const [searchBarPageY, setSearchBarPageY] = useState(0);
 
   // Search results state
   const [isSearching, setIsSearching] = useState(false);
@@ -121,8 +136,11 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
       await Promise.all([
         fetchProducts(),
         fetchTrendingProducts(),
+        fetchNewArrivals(),
         fetchTopVendors(),
         fetchCartCount(),
+        fetchFlashSales(),
+        fetchDigitalProducts(),
       ]);
     } catch (err: any) {
       setError('Failed to load data');
@@ -172,9 +190,21 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
     }
   };
 
+  const fetchNewArrivals = async () => {
+    try {
+      const response = await getNewArrivals(10);
+      if (response.success && response.data.products) {
+        setNewArrivals(response.data.products);
+      }
+    } catch (err) {
+      console.error('Error fetching new arrivals:', err);
+    }
+  };
+
   const fetchCartCount = async () => {
     if (isGuest) {
-      setCartCount(0);
+      const count = await getGuestCartCount();
+      setCartCount(count);
       return;
     }
     try {
@@ -197,6 +227,28 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
       }
     } catch (err) {
       console.error('Error fetching top vendors:', err);
+    }
+  };
+
+  const fetchFlashSales = async () => {
+    try {
+      const results = await getFlashSaleProducts(20);
+      setFlashSaleProducts(results);
+    } catch (err) {
+      console.error('Error fetching flash sale products:', err);
+    }
+  };
+
+  const fetchDigitalProducts = async () => {
+    try {
+      const response = await getProducts({ limit: 10, category: categoriesMap.get('digital-products') || undefined } as any);
+      if (response.success && response.data.products) {
+        // Filter for digital product type in case category filter didn't work
+        const digital = response.data.products.filter((p: Product) => p.productType === 'digital');
+        setDigitalProducts(digital.length > 0 ? digital : response.data.products.slice(0, 10));
+      }
+    } catch (err) {
+      console.error('Error fetching digital products:', err);
     }
   };
 
@@ -256,7 +308,7 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
   // ==================== UNIFIED SEARCH ====================
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
-      Toast.show({ type: 'warning', text1: 'Empty Search', text2: 'Please enter a search term' });
+      Toast.show({ type: 'info', text1: 'Empty Search', text2: 'Please enter a search term' });
       return;
     }
 
@@ -309,6 +361,81 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
     }
   };
 
+  const searchDebounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleSearchQueryChange = (text: string) => {
+    setSearchQuery(text);
+
+    // Clear previous debounce
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+
+    if (text.trim().length >= 2) {
+      const query = text.trim().toLowerCase();
+
+      // Instant: suggest from already-loaded local data
+      const localSuggestions: string[] = [];
+      allCategories.forEach(c => {
+        if (c.name.toLowerCase().includes(query) && !localSuggestions.includes(c.name)) {
+          localSuggestions.push(c.name);
+        }
+      });
+      products.forEach(p => {
+        if (p.name.toLowerCase().includes(query) && !localSuggestions.includes(p.name)) {
+          localSuggestions.push(p.name);
+        }
+      });
+      topVendors.forEach(v => {
+        if (v.name.toLowerCase().includes(query) && !localSuggestions.includes(v.name)) {
+          localSuggestions.push(v.name);
+        }
+      });
+
+      // Show local suggestions immediately
+      setSearchSuggestions(localSuggestions.slice(0, 8));
+      setShowSuggestions(localSuggestions.length > 0);
+
+      // Debounced: fetch from backend for broader results
+      searchDebounceRef.current = setTimeout(async () => {
+        try {
+          const [productRes, vendorRes] = await Promise.all([
+            getProducts({ search: query, limit: 8 }).catch(() => null),
+            getTopVendors(20, 'rating').catch(() => null),
+          ]);
+
+          const apiSuggestions: string[] = [...localSuggestions];
+
+          // Add product names from API
+          if (productRes?.success && productRes.data.products) {
+            productRes.data.products.forEach((p: Product) => {
+              if (!apiSuggestions.includes(p.name)) {
+                apiSuggestions.push(p.name);
+              }
+            });
+          }
+
+          // Add vendor names from API
+          if (vendorRes?.success && vendorRes.data.vendors) {
+            vendorRes.data.vendors
+              .filter((v: Vendor) => v.name.toLowerCase().includes(query))
+              .forEach((v: Vendor) => {
+                if (!apiSuggestions.includes(v.name)) {
+                  apiSuggestions.push(v.name);
+                }
+              });
+          }
+
+          setSearchSuggestions(apiSuggestions.slice(0, 8));
+          setShowSuggestions(apiSuggestions.length > 0);
+        } catch (err) {
+          // Keep local suggestions on error
+        }
+      }, 300);
+    } else {
+      setShowSuggestions(false);
+      setSearchSuggestions([]);
+    }
+  };
+
   const clearSearch = () => {
     setSearchQuery('');
     setActiveSearchQuery('');
@@ -344,20 +471,27 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
   };
 
   const handleFollowVendor = async (vendor: Vendor) => {
+    if (isGuest) {
+      setShowGuestEmailModal(true);
+      return;
+    }
     try {
       if (vendor.isFollowing) {
         await unfollowVendor(vendor.id);
-        setTopVendors(prev => prev.map(v => v.id === vendor.id ? { ...v, isFollowing: false } : v));
-        setSearchVendors(prev => prev.map(v => v.id === vendor.id ? { ...v, isFollowing: false } : v));
+        setTopVendors(prev => prev.map(v => v.id === vendor.id ? { ...v, isFollowing: false, followers: Math.max(0, (v.followers || 0) - 1) } : v));
+        setAllVendors(prev => prev.map(v => v.id === vendor.id ? { ...v, isFollowing: false, followers: Math.max(0, (v.followers || 0) - 1) } : v));
+        setSearchVendors(prev => prev.map(v => v.id === vendor.id ? { ...v, isFollowing: false, followers: Math.max(0, (v.followers || 0) - 1) } : v));
         Toast.show({ type: 'success', text1: 'Unfollowed', text2: `You unfollowed ${vendor.name}` });
       } else {
         await followVendor(vendor.id);
-        setTopVendors(prev => prev.map(v => v.id === vendor.id ? { ...v, isFollowing: true } : v));
-        setSearchVendors(prev => prev.map(v => v.id === vendor.id ? { ...v, isFollowing: true } : v));
+        setTopVendors(prev => prev.map(v => v.id === vendor.id ? { ...v, isFollowing: true, followers: (v.followers || 0) + 1 } : v));
+        setAllVendors(prev => prev.map(v => v.id === vendor.id ? { ...v, isFollowing: true, followers: (v.followers || 0) + 1 } : v));
+        setSearchVendors(prev => prev.map(v => v.id === vendor.id ? { ...v, isFollowing: true, followers: (v.followers || 0) + 1 } : v));
         Toast.show({ type: 'success', text1: 'Following', text2: `You are now following ${vendor.name}` });
       }
-    } catch (err) {
-      Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to update follow status' });
+    } catch (err: any) {
+      console.error('Follow error:', err?.response?.data || err.message);
+      Toast.show({ type: 'error', text1: 'Error', text2: err?.response?.data?.message || 'Failed to update follow status' });
     }
   };
 
@@ -396,7 +530,7 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
       activeOpacity={0.7}
     >
       <View className="relative">
-        <View className="w-16 h-16 rounded-full bg-gray-200 border-2 border-pink-500 overflow-hidden">
+        <View className={`w-16 h-16 rounded-full bg-gray-200 border-2 ${item.isPremium ? 'border-pink-500' : 'border-gray-300'} overflow-hidden`}>
           {item.image ? (
             <Image source={{ uri: item.image }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
           ) : (
@@ -406,8 +540,8 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
           )}
         </View>
         {item.verified && (
-          <View className="absolute -bottom-1 -right-1 w-6 h-6 bg-blue-500 rounded-full items-center justify-center border-2 border-white">
-            <Icon name="checkmark" size={14} color="#FFFFFF" />
+          <View className="absolute -bottom-1 -right-1">
+            <VerifyBadge size={20} isPremium={item.isPremium} />
           </View>
         )}
       </View>
@@ -422,53 +556,57 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
   );
 
   const renderVendorCard = ({ item }: { item: Vendor }) => (
-    <TouchableOpacity 
+    <TouchableOpacity
       className="w-[48%] mb-4"
       onPress={() => navigation.navigate('VendorProfile', { vendorId: item.id })}
       activeOpacity={0.8}
     >
       <View className="bg-white rounded-2xl overflow-hidden shadow-sm">
-        <View className="relative h-28">
+        {/* Cover Image */}
+        <View className="relative h-24">
           {item.coverImage ? (
             <Image source={{ uri: item.coverImage }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
           ) : (
-            <View className="w-full h-full bg-pink-100 items-center justify-center">
-              <Icon name="storefront-outline" size={32} color="#CC3366" />
+            <View className="w-full h-full bg-gray-100 items-center justify-center">
+              <Icon name="storefront-outline" size={28} color="#CC3366" />
             </View>
           )}
-          <TouchableOpacity 
-            className={`absolute top-3 right-3 px-4 py-1.5 rounded-full ${item.isFollowing ? 'bg-pink-500' : 'bg-gray-800/80'}`}
+          {/* Follow icon top right */}
+          <TouchableOpacity
+            className="absolute top-2 right-2 w-8 h-8 rounded-full items-center justify-center"
+            style={{ backgroundColor: item.isFollowing ? 'rgba(204,51,102,0.9)' : 'rgba(0,0,0,0.5)' }}
             onPress={(e) => {
               e.stopPropagation();
               handleFollowVendor(item);
             }}
           >
-            <Text className="text-white text-xs font-semibold">{item.isFollowing ? 'Following' : 'Follow'}</Text>
+            <Icon name={item.isFollowing ? 'person-remove-outline' : 'person-add-outline'} size={14} color="#FFFFFF" />
           </TouchableOpacity>
-          <View className="absolute bottom-3 left-3 flex-row items-center">
-            <Icon name="location" size={12} color="#FFFFFF" />
-            <Text className="text-white text-xs ml-1">{item.location || 'Lagos, Nigeria'}</Text>
-          </View>
-          <View className="absolute -bottom-6 left-3">
-            <View className="w-14 h-14 rounded-full bg-white border-2 border-white overflow-hidden shadow-md">
+          {/* Profile image bottom left */}
+          <View className="absolute -bottom-5 left-3">
+            <View className="w-12 h-12 rounded-full bg-white border-2 border-white overflow-hidden shadow-md">
               {item.image ? (
                 <Image source={{ uri: item.image }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
               ) : (
                 <View className="w-full h-full bg-gray-200 items-center justify-center">
-                  <Icon name="person" size={24} color="#9CA3AF" />
+                  <Icon name="person" size={20} color="#9CA3AF" />
                 </View>
               )}
             </View>
           </View>
         </View>
-        <View className="pt-8 px-3 pb-3">
-          <View className="flex-row items-center justify-between mb-1">
-            <Text className="text-sm font-bold text-gray-900 flex-1" numberOfLines={1}>{item.name}</Text>
+        {/* Card body */}
+        <View className="pt-7 px-3 pb-3">
+          <View className="flex-row items-center mb-0.5">
+            <Text className="text-sm font-bold text-gray-900 flex-shrink" numberOfLines={1}>{item.name}</Text>
             {item.verified && (
-              <View className="ml-1">
-                <Icon name="checkmark-circle" size={16} color="#3B82F6" />
-              </View>
+              <View style={{ marginLeft: 4 }}><VerifyBadge size={14} isPremium={item.isPremium} /></View>
             )}
+          </View>
+          {/* Location - visible, not behind image */}
+          <View className="flex-row items-center mb-1">
+            <Icon name="location-outline" size={12} color="#9CA3AF" />
+            <Text className="text-xs text-gray-500 ml-0.5" numberOfLines={1}>{item.location || 'Lagos, Nigeria'}</Text>
           </View>
           <View className="flex-row items-center mb-2">
             <Icon name="star" size={12} color="#FBBF24" />
@@ -685,9 +823,9 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
                   </View>
                   <View className="flex-1">
                     <View className="flex-row items-center">
-                      <Text className="text-sm font-bold text-gray-900">{vendor.name}</Text>
+                      <Text className="text-sm font-bold text-gray-900" numberOfLines={1}>{vendor.name}</Text>
                       {vendor.verified && (
-                        <Icon name="checkmark-circle" size={14} color="#3B82F6" style={{ marginLeft: 4 }} />
+                        <View style={{ marginLeft: 4 }}><VerifyBadge size={14} isPremium={vendor.isPremium} /></View>
                       )}
                     </View>
                     <Text className="text-xs text-gray-500 mt-0.5" numberOfLines={1}>
@@ -891,11 +1029,63 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
         )}
       </View>
 
+      {/* New Arrivals */}
+      {newArrivals.length > 0 && (
+        <View className="bg-white px-4 py-4 mb-2">
+          <View className="flex-row justify-between items-center mb-4">
+            <Text className="text-xl font-bold text-gray-900">New Arrivals</Text>
+            <TouchableOpacity onPress={() => { clearSearch(); setActiveCategory('all'); setSortBy('newest'); setActiveTab('product'); }}>
+              <Text className="text-pink-500 font-medium">View All</Text>
+            </TouchableOpacity>
+          </View>
+          <FlatList
+            data={newArrivals.slice(0, 10)}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                className="mr-4 w-40"
+                onPress={() => navigation.navigate('ProductDetails', { productId: item.id })}
+                activeOpacity={0.8}
+              >
+                <View className="bg-gray-50 rounded-2xl overflow-hidden">
+                  <View className="relative">
+                    <View className="bg-gray-200 aspect-square items-center justify-center">
+                      {item.images?.[0] ? (
+                        <Image source={{ uri: item.images[0] }} className="w-full h-full" resizeMode="cover" />
+                      ) : (
+                        <Icon name="image-outline" size={40} color="#9CA3AF" />
+                      )}
+                    </View>
+                    <View className="absolute top-2 left-2 bg-green-500 px-2 py-0.5 rounded-full">
+                      <Text className="text-[10px] font-bold text-white">NEW</Text>
+                    </View>
+                  </View>
+                  <View className="p-3">
+                    <Text className="text-sm font-semibold text-gray-900 mb-1" numberOfLines={1}>{item.name}</Text>
+                    <Text className="text-xs text-gray-500 mb-2" numberOfLines={1}>{item.category}</Text>
+                    <View className="flex-row items-center justify-between">
+                      <Text className="text-base font-bold text-gray-900">{'\u20A6'}{item.price.toLocaleString()}</Text>
+                      {item.discountPercentage && (
+                        <View className="bg-green-100 px-2 py-1 rounded">
+                          <Text className="text-xs font-bold text-green-600">{item.discountPercentage}</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            )}
+            keyExtractor={(item) => item.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+          />
+        </View>
+      )}
+
       {/* Recommended Products */}
-      <View className="bg-white px-4 py-4 mb-2">
+      <View className="bg-pink-50 px-4 py-4 mb-2">
         <View className="flex-row justify-between items-center mb-4">
           <Text className="text-xl font-bold text-gray-900">Recommended for You</Text>
-          <TouchableOpacity onPress={() => { clearSearch(); setActiveTab('product'); }}>
+          <TouchableOpacity onPress={() => { clearSearch(); setActiveCategory('all'); setSortBy('rating'); setActiveTab('product'); }}>
             <Text className="text-pink-500 font-medium">View All</Text>
           </TouchableOpacity>
         </View>
@@ -928,10 +1118,73 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
         )}
       </View>
 
+      {/* Flash Sales */}
+      {flashSaleProducts.length > 0 && (
+        <View className="bg-white px-4 py-4 mb-2">
+          <View className="flex-row justify-between items-center mb-4">
+            <View className="flex-row items-center">
+              <Icon name="flame" size={20} color="#EF4444" />
+              <Text className="text-xl font-bold text-gray-900 ml-1.5">Flash Sales</Text>
+            </View>
+            <View className="bg-red-50 px-2.5 py-1 rounded-full flex-row items-center">
+              <Icon name="time-outline" size={12} color="#EF4444" />
+              <Text className="text-xs font-semibold text-red-500 ml-1">Limited Time</Text>
+            </View>
+          </View>
+          <FlatList
+            data={flashSaleProducts.slice(0, 10)}
+            renderItem={({ item }) => {
+              const discountPercent = item.originalPrice && item.originalPrice > item.price
+                ? Math.round(((item.originalPrice - item.price) / item.originalPrice) * 100)
+                : 0;
+              return (
+                <TouchableOpacity
+                  className="mr-4 w-40"
+                  onPress={() => navigation.navigate('ProductDetails', { productId: item.id })}
+                  activeOpacity={0.8}
+                >
+                  <View className="bg-gray-50 rounded-2xl overflow-hidden">
+                    <View className="relative">
+                      <View className="bg-gray-200 aspect-square items-center justify-center">
+                        {item.images?.[0] ? (
+                          <Image source={{ uri: item.images[0] }} className="w-full h-full" resizeMode="cover" />
+                        ) : (
+                          <Icon name="image-outline" size={40} color="#9CA3AF" />
+                        )}
+                      </View>
+                      {discountPercent > 0 && (
+                        <View className="absolute top-2 left-2 bg-red-500 px-2 py-0.5 rounded-full">
+                          <Text className="text-[10px] font-bold text-white">-{discountPercent}%</Text>
+                        </View>
+                      )}
+                    </View>
+                    <View className="p-3">
+                      <Text className="text-sm font-semibold text-gray-900 mb-1" numberOfLines={1}>{item.name}</Text>
+                      <Text className="text-xs text-gray-500 mb-2" numberOfLines={1}>{item.category}</Text>
+                      <View className="flex-row items-center">
+                        <Text className="text-base font-bold text-gray-900">{'\u20A6'}{item.price.toLocaleString()}</Text>
+                      </View>
+                      {item.originalPrice && item.originalPrice > item.price ? (
+                        <Text className="text-xs text-gray-400 line-through mt-0.5">
+                          {'\u20A6'}{item.originalPrice.toLocaleString()}
+                        </Text>
+                      ) : null}
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            }}
+            keyExtractor={(item) => item.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+          />
+        </View>
+      )}
+
       {/* Digital Products Banner */}
       <View className="px-4 mb-2">
-        <TouchableOpacity 
-          className="bg-purple-600 rounded-2xl p-6" 
+        <TouchableOpacity
+          className="bg-purple-600 rounded-2xl p-6"
           activeOpacity={0.9}
           onPress={() => {
             clearSearch();
@@ -956,11 +1209,59 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
         </TouchableOpacity>
       </View>
 
+      {/* Digital Products */}
+      {digitalProducts.length > 0 && (
+        <View className="bg-white px-4 py-4 mb-2">
+          <View className="flex-row justify-between items-center mb-4">
+            <View className="flex-row items-center">
+              <Icon name="download-outline" size={20} color="#7C3AED" />
+              <Text className="text-xl font-bold text-gray-900 ml-1.5">Digital Products</Text>
+            </View>
+            <TouchableOpacity onPress={() => { clearSearch(); setActiveCategory('digital-products'); setActiveTab('product'); }}>
+              <Text className="text-pink-500 font-medium">View All</Text>
+            </TouchableOpacity>
+          </View>
+          <FlatList
+            data={digitalProducts.slice(0, 10)}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                className="mr-4 w-40"
+                onPress={() => navigation.navigate('ProductDetails', { productId: item.id })}
+                activeOpacity={0.8}
+              >
+                <View className="bg-gray-50 rounded-2xl overflow-hidden">
+                  <View className="relative">
+                    <View className="bg-gray-200 aspect-square items-center justify-center">
+                      {item.images?.[0] ? (
+                        <Image source={{ uri: item.images[0] }} className="w-full h-full" resizeMode="cover" />
+                      ) : (
+                        <Icon name="image-outline" size={40} color="#9CA3AF" />
+                      )}
+                    </View>
+                    <View className="absolute top-2 left-2 bg-purple-500 px-2 py-0.5 rounded-full">
+                      <Text className="text-[10px] font-bold text-white">DIGITAL</Text>
+                    </View>
+                  </View>
+                  <View className="p-3">
+                    <Text className="text-sm font-semibold text-gray-900 mb-1" numberOfLines={1}>{item.name}</Text>
+                    <Text className="text-xs text-gray-500 mb-2" numberOfLines={1}>{item.category}</Text>
+                    <Text className="text-base font-bold text-gray-900">{'\u20A6'}{item.price.toLocaleString()}</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            )}
+            keyExtractor={(item) => item.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+          />
+        </View>
+      )}
+
       {/* Trending Products */}
       <View className="bg-white px-4 py-4 mb-2">
         <View className="flex-row justify-between items-center mb-4">
           <Text className="text-xl font-bold text-gray-900">Trending Now</Text>
-          <TouchableOpacity onPress={() => { clearSearch(); setActiveCategory('all'); setActiveTab('product'); }}>
+          <TouchableOpacity onPress={() => { clearSearch(); setActiveCategory('all'); setSortBy('popular'); setActiveTab('product'); }}>
             <Text className="text-pink-500 font-medium">View All</Text>
           </TouchableOpacity>
         </View>
@@ -989,7 +1290,7 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
                   <Text className="text-sm font-semibold text-gray-900 mb-1" numberOfLines={1}>{item.name}</Text>
                   <Text className="text-xs text-gray-500 mb-2" numberOfLines={1}>{item.category}</Text>
                   <View className="flex-row items-center justify-between">
-                    <Text className="text-base font-bold text-pink-500">₦{item.price.toLocaleString()}</Text>
+                    <Text className="text-base font-bold text-gray-900">₦{item.price.toLocaleString()}</Text>
                     {item.discountPercentage && (
                       <View className="bg-green-100 px-2 py-1 rounded">
                         <Text className="text-xs font-bold text-green-600">{item.discountPercentage}</Text>
@@ -1017,16 +1318,27 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
   // ==================== MAIN RENDER ====================
   return (
     <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
-      {/* Header */}
-      <View className="bg-white px-4 py-3 flex-row items-center justify-between">
-        <View className="flex-row items-center">
-          <Icon name="location" size={20} color="#CC3366" />
-          <Text className="text-sm font-semibold text-gray-900 ml-1.5">Lagos, Nigeria</Text>
-          <Icon name="chevron-down" size={16} color="#6B7280" />
-        </View>
-        <View className="flex-row items-center gap-4">
+      {/* Header - Address & Icons */}
+      <View className="bg-white px-5 py-4 flex-row items-center justify-between">
+        <TouchableOpacity
+          className="flex-row items-center flex-1"
+          onPress={() => {
+            if (isGuest) {
+              setSignInMessage('Sign in to manage your delivery addresses.');
+              setShowSignInModal(true);
+              return;
+            }
+            navigation.navigate('SavedAddresses');
+          }}
+          activeOpacity={0.7}
+        >
+          <Icon name="location" size={18} color="#CC3366" />
+          <Text className="text-sm font-medium text-gray-500 ml-1.5" numberOfLines={1}>Lagos, Nigeria</Text>
+          <Icon name="chevron-down" size={14} color="#9CA3AF" />
+        </TouchableOpacity>
+        <View className="flex-row items-center" style={{ gap: 18 }}>
           <TouchableOpacity onPress={() => navigation.navigate('Categories')}>
-            <Icon name="grid-outline" size={24} color="#111827" />
+            <Icon name="grid-outline" size={22} color="#111827" />
           </TouchableOpacity>
           <TouchableOpacity className="relative" onPress={() => {
             if (isGuest) {
@@ -1036,22 +1348,15 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
             }
             navigation.navigate('Notifications');
           }}>
-            <Icon name="notifications-outline" size={24} color="#111827" />
+            <Icon name="notifications-outline" size={22} color="#111827" />
             {notificationCount > 0 && (
               <View className="absolute -top-1 -right-1 w-4 h-4 bg-pink-500 rounded-full items-center justify-center">
                 <Text className="text-[10px] text-white font-bold">{notificationCount}</Text>
               </View>
             )}
           </TouchableOpacity>
-          <TouchableOpacity className="relative" onPress={() => {
-            if (isGuest) {
-              setSignInMessage('Sign in to add items to your cart and start shopping.');
-              setShowSignInModal(true);
-              return;
-            }
-            navigation.navigate('Cart');
-          }}>
-            <Icon name="cart-outline" size={24} color="#111827" />
+          <TouchableOpacity className="relative" onPress={() => navigation.navigate('Cart')}>
+            <Icon name="cart-outline" size={22} color="#111827" />
             {cartCount > 0 && (
               <View className="absolute -top-1 -right-1 w-4 h-4 bg-pink-500 rounded-full items-center justify-center">
                 <Text className="text-[10px] text-white font-bold">{cartCount}</Text>
@@ -1061,57 +1366,66 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
         </View>
       </View>
 
-      <ScrollView 
-        showsVerticalScrollIndicator={false} 
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 30 }}
         refreshControl={
-          <RefreshControl 
-            refreshing={isRefreshing} 
-            onRefresh={onRefresh} 
-            colors={['#CC3366']} 
-            tintColor="#CC3366" 
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={onRefresh}
+            colors={['#CC3366']}
+            tintColor="#CC3366"
           />
         }
       >
         {/* Search Bar */}
-        <View className="bg-pink-500 px-4 py-8">
+        <View className="bg-pink-500 px-4 py-5 mt-1" style={{ zIndex: 10 }}>
           <Text className="text-white text-2xl font-bold mb-4 text-center">
             Looking for Something? It's Here.
           </Text>
-          <View className="flex-row items-center bg-white rounded-lg">
-            <Icon name="search" size={20} color="#9CA3AF" style={{ marginLeft: 16 }} />
-            <TextInput
-              className="flex-1 px-3 py-3 text-base text-gray-900"
-              placeholder="Search products, categories or vendors"
-              placeholderTextColor="#9CA3AF"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              onSubmitEditing={handleSearch}
-              returnKeyType="search"
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity
-                onPress={() => {
-                  setSearchQuery('');
-                  if (activeSearchQuery) clearSearch();
-                }}
-                className="px-2"
-              >
-                <Icon name="close-circle" size={20} color="#9CA3AF" />
+          <View ref={searchBarRef} onLayout={() => {
+            searchBarRef.current?.measureInWindow((x, y, width, height) => {
+              setSearchBarPageY(y + height);
+              setSearchBarLayout({ x, y, width, height });
+            });
+          }}>
+            <View className="flex-row items-center bg-white rounded-lg">
+              <Icon name="search" size={20} color="#9CA3AF" style={{ marginLeft: 16 }} />
+              <TextInput
+                className="flex-1 px-3 py-3 text-base text-gray-900"
+                placeholder="Search products, categories or vendors"
+                placeholderTextColor="#9CA3AF"
+                value={searchQuery}
+                onChangeText={handleSearchQueryChange}
+                onSubmitEditing={() => { setShowSuggestions(false); handleSearch(); }}
+                onFocus={() => { if (searchSuggestions.length > 0) setShowSuggestions(true); }}
+                returnKeyType="search"
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity
+                  onPress={() => {
+                    setSearchQuery('');
+                    setShowSuggestions(false);
+                    if (activeSearchQuery) clearSearch();
+                  }}
+                  className="px-2"
+                >
+                  <Icon name="close-circle" size={20} color="#9CA3AF" />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity className="bg-yellow-400 px-6 py-3 rounded-r-lg" onPress={() => { setShowSuggestions(false); handleSearch(); }}>
+                <Text className="text-gray-900 font-semibold">Search</Text>
               </TouchableOpacity>
-            )}
-            <TouchableOpacity className="bg-yellow-400 px-6 py-3 rounded-r-lg" onPress={handleSearch}>
-              <Text className="text-gray-900 font-semibold">Search</Text>
-            </TouchableOpacity>
+            </View>
           </View>
         </View>
 
-        {/* Tab Navigation */}
-        <View className="px-4 py-4 bg-white">
-          <View className="flex-row gap-3">
+        {/* Tab Navigation — horizontally scrollable */}
+        <View className="py-3 bg-white">
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}>
             {activeTab === 'search' ? (
-              // Show search active state
-              <View className="flex-row gap-3 flex-1">
-                <View className="px-6 py-2.5 rounded-full flex-row items-center bg-pink-500 flex-1 justify-center">
+              <>
+                <View className="px-6 py-2.5 rounded-full flex-row items-center bg-pink-500">
                   <Icon name="search" size={18} color="#FFFFFF" />
                   <Text className="ml-2 font-medium text-white" numberOfLines={1}>
                     "{activeSearchQuery}"
@@ -1124,7 +1438,7 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
                   <Icon name="close" size={18} color="#6B7280" />
                   <Text className="ml-1 font-medium text-gray-600">Clear</Text>
                 </TouchableOpacity>
-              </View>
+              </>
             ) : (
               <>
                 <TouchableOpacity
@@ -1162,7 +1476,7 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
                 </TouchableOpacity>
               </>
             )}
-          </View>
+          </ScrollView>
         </View>
 
         {/* Tab Content */}
@@ -1181,6 +1495,78 @@ const HomeScreen = ({ navigation }: HomeScreenProps) => {
         }}
         message={signInMessage}
       />
+
+      <GuestEmailModal
+        visible={showGuestEmailModal}
+        onClose={() => setShowGuestEmailModal(false)}
+        onSuccess={() => {
+          setShowGuestEmailModal(false);
+          // Refresh data now that user is authenticated
+          fetchCartCount();
+          fetchInitialData();
+        }}
+        onGoToSignIn={() => {
+          setShowGuestEmailModal(false);
+          exitGuestMode();
+        }}
+      />
+
+      {/* Welcome Tour for customers */}
+      {!isGuest && (
+        <WelcomeTour
+          role="customer"
+          userName={undefined}
+          onComplete={() => {}}
+        />
+      )}
+
+      {/* Search Suggestions Overlay - rendered outside ScrollView for Android compatibility */}
+      {showSuggestions && searchBarLayout && (
+        <Modal transparent visible={showSuggestions} animationType="none" onRequestClose={() => setShowSuggestions(false)}>
+          <TouchableOpacity
+            activeOpacity={1}
+            style={{ flex: 1 }}
+            onPress={() => setShowSuggestions(false)}
+          >
+            <View style={{ position: 'absolute', top: searchBarPageY, left: 16, right: 16, backgroundColor: '#FFFFFF', borderBottomLeftRadius: 8, borderBottomRightRadius: 8, elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8 }}>
+              {searchSuggestions.map((suggestion, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  className="flex-row items-center px-4 py-3 border-b border-gray-100"
+                  onPress={() => {
+                    setSearchQuery(suggestion);
+                    setShowSuggestions(false);
+                    setActiveSearchQuery(suggestion.toLowerCase());
+                    setActiveTab('search');
+                    const query = suggestion.toLowerCase();
+                    setIsSearching(true);
+                    Promise.all([
+                      getProducts({ search: query, limit: 20 }).catch(() => null),
+                      getTopVendors(50, 'rating').catch(() => null),
+                    ]).then(([productRes, vendorRes]) => {
+                      if (productRes?.success) setSearchProducts(productRes.data.products || []);
+                      else setSearchProducts([]);
+                      if (vendorRes?.success) {
+                        setSearchVendors(vendorRes.data.vendors.filter(
+                          (v: Vendor) => v.name.toLowerCase().includes(query) || v.description?.toLowerCase().includes(query)
+                        ));
+                      } else setSearchVendors([]);
+                      setSearchCategories(allCategories.filter(
+                        c => c.name.toLowerCase().includes(query) || c.slug.toLowerCase().includes(query)
+                      ));
+                      setIsSearching(false);
+                    });
+                  }}
+                >
+                  <Icon name="search-outline" size={16} color="#9CA3AF" />
+                  <Text className="text-sm text-gray-700 ml-3 flex-1" numberOfLines={1}>{suggestion}</Text>
+                  <Icon name="arrow-forward-outline" size={14} color="#D1D5DB" />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 };

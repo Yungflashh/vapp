@@ -13,17 +13,21 @@ import {
   Modal,
   KeyboardAvoidingView,
   Platform,
+  Share,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/navigation';
 import Icon from 'react-native-vector-icons/Ionicons';
 import MaterialIcon from 'react-native-vector-icons/MaterialCommunityIcons';
+import VerifyBadge from '@/components/VerifyBadge';
 import Toast from 'react-native-toast-message';
 import { getProductById, getSimilarProducts, Product as ApiProduct } from '../../services/product.service';
 import { addToCart } from '@/services/cart.service';
 import { generateAffiliateLink } from '@/services/affiliate.service';
 import { useAuth } from '@/context/AuthContext';
 import SignInModal from '@/components/SignInModal';
+import GuestEmailModal from '@/components/GuestEmailModal';
+import { addToGuestCart } from '@/services/guest-storage.service';
 import { getProductReviews, Review } from '@/services/review.service';
 import {
   askQuestion,
@@ -218,6 +222,7 @@ const ProductDetailsScreen = ({ route, navigation }: Props) => {
   const { productId } = route.params;
   const { isGuest, exitGuestMode } = useAuth();
   const [showSignInModal, setShowSignInModal] = useState(false);
+  const [showGuestEmailModal, setShowGuestEmailModal] = useState(false);
 
   const [product, setProduct] = useState<ApiProduct | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -233,6 +238,7 @@ const ProductDetailsScreen = ({ route, navigation }: Props) => {
 
   // Cart
   const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [showCartPopup, setShowCartPopup] = useState(false);
 
   // Affiliate
   const [affiliateLink, setAffiliateLink] = useState<string | null>(null);
@@ -418,12 +424,8 @@ const ProductDetailsScreen = ({ route, navigation }: Props) => {
   // ============================================================
   const handleAddToCart = async () => {
     if (!product) return;
-    if (isGuest) {
-      setShowSignInModal(true);
-      return;
-    }
     if (product.productType === 'physical' && !selectedSize) {
-      Toast.show({ type: 'warning', text1: 'Size Required', text2: 'Please select a size' });
+      Toast.show({ type: 'info', text1: 'Size Required', text2: 'Please select a size' });
       return;
     }
     try {
@@ -432,8 +434,19 @@ const ProductDetailsScreen = ({ route, navigation }: Props) => {
       if (selectedSize) variantParts.push(`Size: ${selectedSize}`);
       if (selectedColor) variantParts.push(`Color: ${selectedColor}`);
       const variant = variantParts.length > 0 ? variantParts.join(', ') : undefined;
-      const response = await addToCart(product.id, quantity, variant);
-      if (response.success) Toast.show({ type: 'success', text1: 'Added to Cart', text2: `${quantity}x ${product.name}` });
+
+      if (isGuest) {
+        // Save to local storage for guests
+        await addToGuestCart(
+          { _id: product.id, name: product.name, price: product.price, images: product.images || [] },
+          quantity,
+          variant
+        );
+        setShowCartPopup(true);
+      } else {
+        const response = await addToCart(product.id, quantity, variant);
+        if (response.success) setShowCartPopup(true);
+      }
     } catch (err: any) {
       Toast.show({ type: 'error', text1: 'Error', text2: err.response?.data?.message || 'Failed to add to cart' });
     } finally {
@@ -526,14 +539,27 @@ const ProductDetailsScreen = ({ route, navigation }: Props) => {
   // RENDER
   // ============================================================
   return (
-    <View className="flex-1 bg-white">
+    <View className="flex-1 bg-gray-50">
       {/* Floating Header */}
       <View className="flex-row items-center justify-between px-4 py-3 absolute top-0 left-0 right-0 z-10" style={{ paddingTop: 50 }}>
         <TouchableOpacity onPress={() => navigation.goBack()} className="w-10 h-10 bg-black/30 rounded-full items-center justify-center">
           <Icon name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <View className="flex-row gap-2">
-          <TouchableOpacity className="w-10 h-10 bg-black/30 rounded-full items-center justify-center">
+          <TouchableOpacity
+            className="w-10 h-10 bg-black/30 rounded-full items-center justify-center"
+            onPress={async () => {
+              if (!product) return;
+              try {
+                await Share.share({
+                  message: `Check out ${product.name} on VendorSpot!\n₦${product.price.toLocaleString()}\n\nhttps://vendorspot.com/products/${productId}`,
+                  title: product.name,
+                });
+              } catch (err) {
+                console.error('Share error:', err);
+              }
+            }}
+          >
             <Icon name="share-outline" size={24} color="#FFFFFF" />
           </TouchableOpacity>
           <TouchableOpacity onPress={toggleFavorite} className="w-10 h-10 bg-black/30 rounded-full items-center justify-center">
@@ -542,7 +568,8 @@ const ProductDetailsScreen = ({ route, navigation }: Props) => {
         </View>
       </View>
 
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#CC3366']} />}>
+      <ScrollView className="flex-1" showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#CC3366']} />}
+      contentContainerStyle={{ paddingBottom: 40 }}>
         {/* Image Carousel */}
         <View style={{ height: 400 }}>
           <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} onMomentumScrollEnd={(e) => setCurrentImageIndex(Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH))}>
@@ -572,10 +599,14 @@ const ProductDetailsScreen = ({ route, navigation }: Props) => {
               <Text className="text-gray-500 text-xs mt-0.5">Tap to view store</Text>
             </View>
             <View className="flex-row items-center">
-              <View className="bg-pink-50 px-3 py-1.5 rounded-full flex-row items-center mr-2">
-                <Icon name="checkmark-circle" size={16} color="#CC3366" />
-                <Text className="text-pink-500 text-xs font-semibold ml-1">Verified</Text>
-              </View>
+              {(product.vendor.verified || product.vendor.isPremium) && (
+                <View className={`px-3 py-1.5 rounded-full flex-row items-center mr-2 ${product.vendor.isPremium ? 'bg-blue-50' : 'bg-yellow-50'}`}>
+                  <VerifyBadge size={16} isPremium={product.vendor.isPremium} />
+                  <Text className={`text-xs font-semibold ml-1 ${product.vendor.isPremium ? 'text-blue-600' : 'text-yellow-600'}`}>
+                    {product.vendor.isPremium ? 'Premium' : 'Verified'}
+                  </Text>
+                </View>
+              )}
               <Icon name="chevron-forward" size={20} color="#9CA3AF" />
             </View>
           </View>
@@ -1013,8 +1044,54 @@ const ProductDetailsScreen = ({ route, navigation }: Props) => {
           setShowSignInModal(false);
           exitGuestMode();
         }}
-        message="Sign in or create an account to add items to your cart."
+        message="Quick sign up with just your email to start shopping! You can complete your profile later."
       />
+
+      <GuestEmailModal
+        visible={showGuestEmailModal}
+        onClose={() => setShowGuestEmailModal(false)}
+        onSuccess={() => {
+          setShowGuestEmailModal(false);
+          // User is now authenticated, retry add to cart
+          handleAddToCart();
+        }}
+        onGoToSignIn={() => {
+          setShowGuestEmailModal(false);
+          exitGuestMode();
+        }}
+      />
+
+      {/* Cart Popup - Continue Shopping or Proceed to Cart */}
+      <Modal transparent visible={showCartPopup} animationType="fade" onRequestClose={() => setShowCartPopup(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 }}>
+          <View className="bg-white rounded-2xl p-6 w-full" style={{ maxWidth: 340 }}>
+            <View className="items-center mb-4">
+              <View className="w-14 h-14 rounded-full bg-green-100 items-center justify-center mb-3">
+                <Icon name="checkmark-circle" size={32} color="#10B981" />
+              </View>
+              <Text className="text-lg font-bold text-gray-900">Added to Cart!</Text>
+              <Text className="text-sm text-gray-500 mt-1 text-center">
+                {quantity}x {product?.name}
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => {
+                setShowCartPopup(false);
+                navigation.navigate('Cart');
+              }}
+              className="bg-pink-500 py-3.5 rounded-xl mb-3"
+            >
+              <Text className="text-white text-center font-bold text-base">Proceed to Cart</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setShowCartPopup(false)}
+              className="bg-gray-100 py-3.5 rounded-xl"
+            >
+              <Text className="text-gray-700 text-center font-bold text-base">Continue Shopping</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };

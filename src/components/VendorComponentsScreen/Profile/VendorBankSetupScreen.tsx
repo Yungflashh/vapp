@@ -13,6 +13,8 @@ import {
   StatusBar,
   ActivityIndicator,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -159,17 +161,21 @@ const VendorBankSetupScreen = () => {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-gray-50" edges={['top', 'bottom']}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
         <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color="#CC3366" />
         </View>
-      </SafeAreaView>
+      
+      </KeyboardAvoidingView>
+    </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-gray-50" edges={['top', 'bottom']}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       {/* Header */}
@@ -409,6 +415,8 @@ const VendorBankSetupScreen = () => {
       </Modal>
 
       <Toast />
+    
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };

@@ -16,7 +16,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -34,6 +34,7 @@ import {
 import { getDeliveryRates, createOrder, initializePayment } from '@/services/order.service';
 import { Cart } from '@/services/cart.service';
 import { getWallet } from '@/services/wallet.service';
+import { useAuth } from '@/context/AuthContext';
 
 interface DeliveryOption {
   id: string;
@@ -75,8 +76,12 @@ type CheckoutRouteProp = RouteProp<RootStackParamList, 'Checkout'>;
 const CheckoutScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<CheckoutRouteProp>();
+  const { isGuest } = useAuth();
+  const insets = useSafeAreaInsets();
 
   const [currentStep, setCurrentStep] = useState(1);
+  // Guest email reserved for future guest checkout support
+  const [guestEmail, setGuestEmail] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isLoadingRates, setIsLoadingRates] = useState(false);
@@ -110,7 +115,7 @@ const CheckoutScreen = () => {
   const subtotal = cartData?.subtotal || 0;
   const discount = cartData?.discount || 0;
 
-  const paymentMethods: PaymentMethod[] = [
+  const allPaymentMethods: PaymentMethod[] = [
     {
       id: 'paystack',
       name: 'Pay with Paystack',
@@ -134,6 +139,11 @@ const CheckoutScreen = () => {
     },
   ];
 
+  // Guests can only use Paystack and Flutterwave (no wallet/VCredits)
+  const paymentMethods = isGuest
+    ? allPaymentMethods.filter(m => m.id !== 'wallet')
+    : allPaymentMethods;
+
   const selectedDelivery = deliveryOptions.find(opt => opt.id === selectedDeliveryOption);
   const deliveryFee = selectedDelivery?.price || 0;
   const totalAmount = subtotal - discount + deliveryFee;
@@ -143,7 +153,7 @@ const CheckoutScreen = () => {
 
   useEffect(() => {
     fetchAddresses();
-    fetchVCreditsBalance();
+    if (!isGuest) fetchVCreditsBalance();
   }, []);
 
   useEffect(() => {
@@ -422,7 +432,7 @@ const CheckoutScreen = () => {
   const handleCreateAddress = async () => {
     if (!validateAddressForm()) {
       Toast.show({
-        type: 'warning',
+        type: 'info',
         text1: 'Invalid Information',
         text2: 'Please fix the errors in the form',
       });
@@ -559,7 +569,7 @@ const CheckoutScreen = () => {
     if (currentStep === 1) {
       if (!selectedAddress) {
         Toast.show({
-          type: 'warning',
+          type: 'info',
           text1: 'Select Address',
           text2: 'Please select a delivery address',
         });
@@ -584,7 +594,7 @@ const CheckoutScreen = () => {
     } else if (currentStep === 2) {
       if (!selectedDeliveryOption) {
         Toast.show({
-          type: 'warning',
+          type: 'info',
           text1: 'Select Delivery',
           text2: 'Please select a delivery option',
         });
@@ -600,7 +610,7 @@ const CheckoutScreen = () => {
     // If VCredits cover full amount, no payment method selection needed
     if (!selectedPaymentMethod && vCreditsToApply < totalAmount) {
       Toast.show({
-        type: 'warning',
+        type: 'info',
         text1: 'Select Payment',
         text2: 'Please select a payment method',
       });
@@ -646,7 +656,18 @@ const CheckoutScreen = () => {
         return 'standard';
       };
 
-      const checkoutData = {
+      // Guest email validation
+      if (isGuest && (!guestEmail || !guestEmail.includes('@'))) {
+        Toast.show({
+          type: 'error',
+          text1: 'Email Required',
+          text2: 'Please enter a valid email address to continue',
+        });
+        setIsProcessing(false);
+        return;
+      }
+
+      const checkoutData: any = {
         shippingAddress,
         paymentMethod: selectedPaymentMethod,
         deliveryType: getDeliveryType(selectedRate),
@@ -654,7 +675,8 @@ const CheckoutScreen = () => {
         selectedDeliveryPrice: selectedRate.price,
         selectedCourier: selectedRate.courier,
         vendorBreakdown: selectedRate.vendorBreakdown,
-        vCreditsAmount: vCreditsToApply,
+        vCreditsAmount: isGuest ? 0 : vCreditsToApply,
+        ...(isGuest && { guestEmail: guestEmail.trim() }),
       };
 
       // ✅ FLOW: Wallet or VCredits cover full amount → wallet path, otherwise card + VCredits
@@ -722,7 +744,7 @@ const CheckoutScreen = () => {
         }
       }
     } catch (error: any) {
-      console.error('❌ Error placing order:', error);
+      console.error('❌ Error placing order:', error.response?.data || error.message);
       Toast.show({
         type: 'error',
         text1: 'Order Failed',
@@ -741,7 +763,7 @@ const CheckoutScreen = () => {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 120 }}
+        contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 160 }}
       >
         {addresses.length === 0 ? (
           <View className="bg-white rounded-2xl p-8 items-center">
@@ -865,7 +887,7 @@ const CheckoutScreen = () => {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 120 }}
+        contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 160 }}
       >
         {isLoadingRates ? (
           <View className="bg-white rounded-2xl p-8 items-center">
@@ -991,7 +1013,7 @@ const CheckoutScreen = () => {
     <View className="flex-1">
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 120 }}
+        contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 160 }}
       >
         <Text className="text-lg font-bold text-gray-900 py-4">Payment Method</Text>
 
@@ -1209,30 +1231,30 @@ const CheckoutScreen = () => {
     }
 
     return (
-      <View className="flex-row items-center justify-between px-6 py-4 bg-white">
-        <View className="flex-row items-center flex-1">
-          <View className={`w-8 h-8 rounded-full items-center justify-center ${currentStep >= 1 ? 'bg-pink-500' : 'bg-gray-200'}`}>
-            <Text className={`font-bold ${currentStep >= 1 ? 'text-white' : 'text-gray-400'}`}>1</Text>
+      <View className="flex-row items-center justify-between px-4 py-3 bg-white">
+        <View className="flex-row items-center">
+          <View className={`w-6 h-6 rounded-full items-center justify-center ${currentStep >= 1 ? 'bg-pink-500' : 'bg-gray-200'}`}>
+            <Text className={`text-xs font-bold ${currentStep >= 1 ? 'text-white' : 'text-gray-400'}`}>1</Text>
           </View>
-          <Text className={`ml-2 font-semibold text-sm ${currentStep === 1 ? 'text-gray-900' : 'text-gray-400'}`}>
+          <Text className={`ml-1.5 font-semibold text-xs ${currentStep === 1 ? 'text-gray-900' : 'text-gray-400'}`}>
             Address
           </Text>
         </View>
         <View className="h-0.5 flex-1 bg-gray-200 mx-2" />
-        <View className="flex-row items-center flex-1">
-          <View className={`w-8 h-8 rounded-full items-center justify-center ${currentStep >= 2 ? 'bg-pink-500' : 'bg-gray-200'}`}>
-            <Text className={`font-bold ${currentStep >= 2 ? 'text-white' : 'text-gray-400'}`}>2</Text>
+        <View className="flex-row items-center">
+          <View className={`w-6 h-6 rounded-full items-center justify-center ${currentStep >= 2 ? 'bg-pink-500' : 'bg-gray-200'}`}>
+            <Text className={`text-xs font-bold ${currentStep >= 2 ? 'text-white' : 'text-gray-400'}`}>2</Text>
           </View>
-          <Text className={`ml-2 font-semibold text-sm ${currentStep === 2 ? 'text-gray-900' : 'text-gray-400'}`}>
+          <Text className={`ml-1.5 font-semibold text-xs ${currentStep === 2 ? 'text-gray-900' : 'text-gray-400'}`}>
             Delivery
           </Text>
         </View>
         <View className="h-0.5 flex-1 bg-gray-200 mx-2" />
-        <View className="flex-row items-center flex-1">
-          <View className={`w-8 h-8 rounded-full items-center justify-center ${currentStep >= 3 ? 'bg-pink-500' : 'bg-gray-200'}`}>
-            <Text className={`font-bold ${currentStep >= 3 ? 'text-white' : 'text-gray-400'}`}>3</Text>
+        <View className="flex-row items-center">
+          <View className={`w-6 h-6 rounded-full items-center justify-center ${currentStep >= 3 ? 'bg-pink-500' : 'bg-gray-200'}`}>
+            <Text className={`text-xs font-bold ${currentStep >= 3 ? 'text-white' : 'text-gray-400'}`}>3</Text>
           </View>
-          <Text className={`ml-2 font-semibold text-sm ${currentStep === 3 ? 'text-gray-900' : 'text-gray-400'}`}>
+          <Text className={`ml-1.5 font-semibold text-xs ${currentStep === 3 ? 'text-gray-900' : 'text-gray-400'}`}>
             Payment
           </Text>
         </View>
@@ -1473,7 +1495,7 @@ const CheckoutScreen = () => {
 
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-gray-50" edges={['top', 'bottom']}>
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#CC3366" />
           <Text className="text-gray-500 mt-4">Loading checkout...</Text>
@@ -1483,7 +1505,7 @@ const CheckoutScreen = () => {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-gray-50" edges={['top', 'bottom']}>
       <View className="bg-white px-6 py-3 flex-row items-center justify-between border-b border-gray-100">
         <TouchableOpacity
           className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center"
@@ -1510,7 +1532,7 @@ const CheckoutScreen = () => {
       {currentStep === 2 && renderDeliveryStep()}
       {currentStep === 3 && renderPaymentStep()}
 
-      <View className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-6 py-4 shadow-lg">
+      <View className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-6 pt-4 shadow-lg" style={{ paddingBottom: Math.max(insets.bottom, 16) }}>
         <View className="flex-row items-center justify-between mb-3">
           <View>
             <Text className="text-gray-600 text-sm">

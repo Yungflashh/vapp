@@ -46,7 +46,9 @@ import NotificationsScreen from '@/screens/NotificationsScreen';
 import ChatScreen from '@/screens/ChatScreen';
 import CategoryProductsScreen from '@/screens/CategoryProductsScreen';
 import GuestBottomTabNavigator from './GuestBottomTabNavigator';
+import VendorEarningsScreen from '@/screens/vendor/VendorEarningsScreen';
 import LegalScreen from '@/screens/LegalScreen';
+import LeaderboardScreen from '@/screens/LeaderboardScreen';
 
 export type RootStackParamList = {
   Main: undefined;
@@ -95,10 +97,11 @@ export type RootStackParamList = {
    Notifications: undefined;
    NotificationSettings: undefined;
    Chat: {
-     conversationId: string;
+     conversationId?: string;
      receiverId: string;
      receiverName: string;
      receiverAvatar?: string;
+     initialMessage?: string;
    };
      PaymentWebView: {
     paymentUrl: string;
@@ -107,7 +110,9 @@ export type RootStackParamList = {
     checkoutSnapshot: any;
   };
   Challenges: undefined;
+  Leaderboard: { challengeId?: string } | undefined;
   CategoryProducts: { categoryId: string; categoryName: string };
+  VendorEarnings: undefined;
   Legal: { tab?: 'privacy' | 'terms' | 'returns' };
 };
 
@@ -189,27 +194,8 @@ function AppNavigator() {
   return (
     <Stack.Navigator>
       {/* Conditional Main Screen */}
-      {isVendor && !hasVendorProfile ? (
-        // Vendor without profile - show setup first, with VendorMain accessible
-        <>
-          <Stack.Screen
-            name="VendorSetup"
-            component={VendorSetupScreen}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="PaymentSetup"
-            component={PaymentSetupScreen}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="VendorMain"
-            component={VendorBottomTabNavigator}
-            options={{ headerShown: false }}
-          />
-        </>
-      ) : isVendor && hasVendorProfile ? (
-        // Vendor with profile - show vendor tabs
+      {isVendor ? (
+        // Vendor - show vendor tabs (setup flow is handled in Auth navigator)
         <Stack.Screen
           name="VendorMain"
           component={VendorBottomTabNavigator}
@@ -417,8 +403,18 @@ function AppNavigator() {
   options={{ headerShown: false }}
 />
 <Stack.Screen
+  name="Leaderboard"
+  component={LeaderboardScreen}
+  options={{ headerShown: false }}
+/>
+<Stack.Screen
   name="CategoryProducts"
   component={CategoryProductsScreen}
+  options={{ headerShown: false }}
+/>
+<Stack.Screen
+  name="VendorEarnings"
+  component={VendorEarningsScreen}
   options={{ headerShown: false }}
 />
 <Stack.Screen
@@ -462,6 +458,11 @@ function GuestAppNavigator() {
       <Stack.Screen
         name="Legal"
         component={LegalScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Cart"
+        component={CartScreen}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>

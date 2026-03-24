@@ -177,7 +177,7 @@ const FileDisputeScreen = ({ route, navigation }: FileDisputeScreenProps) => {
   )?.label;
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-gray-50" edges={['top', 'bottom']}>
       {/* Header */}
       <View className="bg-white px-4 py-3 flex-row items-center border-b border-gray-100">
         <TouchableOpacity
@@ -193,7 +193,8 @@ const FileDisputeScreen = ({ route, navigation }: FileDisputeScreenProps) => {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
       >
-      <ScrollView showsVerticalScrollIndicator={false} className="flex-1" keyboardShouldPersistTaps="handled">
+      <ScrollView showsVerticalScrollIndicator={false} className="flex-1" keyboardShouldPersistTaps="handled"
+      contentContainerStyle={{ paddingBottom: 40 }}>
         {/* Order Info Banner */}
         <View className="bg-white px-4 py-4 mt-2">
           <View className="bg-red-50 rounded-xl p-4">

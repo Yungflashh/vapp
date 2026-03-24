@@ -17,13 +17,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import MaterialIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Toast from 'react-native-toast-message';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { useAuth } from '@/context/AuthContext';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy'; // ✅ Use legacy API
 import api from '../../../services/api.config';
 import { Address, getAddresses } from '@/services/address.service';
+import { getMyVendorProfile } from '@/services/vendor.service';
 
 interface Category {
   _id: string;
@@ -42,6 +44,9 @@ interface FormErrors {
 
 const AddProductScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
+  const route = useRoute<any>();
+  const { login } = useAuth();
+  const isSetupFlow = route.params?.isSetupFlow ?? false;
 
   // Form state
   const [name, setName] = useState('');
@@ -55,6 +60,7 @@ const AddProductScreen = () => {
   const [categoryName, setCategoryName] = useState('');
   const [productType, setProductType] = useState<'physical' | 'digital'>('physical');
   const [isFeatured, setIsFeatured] = useState(false);
+  const [isFlashSale, setIsFlashSale] = useState(false);
   const [isAffiliate, setIsAffiliate] = useState(false);
   const [affiliateCommission, setAffiliateCommission] = useState('10');
   const [images, setImages] = useState<string[]>([]);
@@ -97,11 +103,52 @@ const AddProductScreen = () => {
 
   const fetchAddresses = async () => {
     try {
+      const allAddresses: Address[] = [];
+
+      // Fetch user's saved addresses
       const response = await getAddresses();
       if (response.success && response.data.addresses) {
-        setSavedAddresses(response.data.addresses);
-        const defaultAddr = response.data.addresses.find((a: Address) => a.isDefault);
-        if (defaultAddr) setPickupAddress(defaultAddr);
+        allAddresses.push(...response.data.addresses);
+      }
+
+      // Also fetch vendor's business address
+      try {
+        const vendorRes = await getMyVendorProfile();
+        if (vendorRes.success && vendorRes.data?.vendorProfile?.businessAddress) {
+          const ba = vendorRes.data.vendorProfile.businessAddress;
+          if (ba.street && ba.city && ba.state) {
+            const businessAddr: Address = {
+              _id: 'vendor_business_address',
+              user: '',
+              label: 'Business Address',
+              fullName: vendorRes.data.vendorProfile.businessName || '',
+              phone: vendorRes.data.vendorProfile.businessPhone || '',
+              street: ba.street,
+              city: ba.city,
+              state: ba.state,
+              country: ba.country || 'Nigeria',
+              postalCode: ba.postalCode || '',
+              isDefault: false,
+              createdAt: '',
+              updatedAt: '',
+            };
+            // Add only if not already in the list
+            const exists = allAddresses.some(
+              (a) => a.street === businessAddr.street && a.city === businessAddr.city
+            );
+            if (!exists) allAddresses.unshift(businessAddr);
+          }
+        }
+      } catch (vendorErr) {
+        // Vendor profile may not exist, that's fine
+      }
+
+      setSavedAddresses(allAddresses);
+      const defaultAddr = allAddresses.find((a: Address) => a.isDefault);
+      if (defaultAddr) {
+        setPickupAddress(defaultAddr);
+      } else if (allAddresses.length > 0) {
+        setPickupAddress(allAddresses[0]);
       }
     } catch (error) {
       console.log('Could not load addresses:', error);
@@ -349,6 +396,7 @@ const AddProductScreen = () => {
       category,
       productType,
       isFeatured,
+      isFlashSale,
       isAffiliate,
       affiliateCommission: isAffiliate ? Number(affiliateCommission) : undefined,
       pickupAddress: pickupAddress?._id || undefined,
@@ -388,7 +436,12 @@ const AddProductScreen = () => {
         });
 
         setTimeout(() => {
-          navigation.goBack();
+          if (isSetupFlow) {
+            // During vendor setup flow, trigger auth state change to switch to main app
+            login();
+          } else {
+            navigation.goBack();
+          }
         }, 1000);
       }
     } catch (error: any) {
@@ -422,15 +475,18 @@ const AddProductScreen = () => {
         {/* Header */}
         <View className="bg-white px-6 py-4 flex-row items-center justify-between border-b border-gray-200">
           <View className="flex-row items-center">
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center mr-3"
-            >
-              <Icon name="arrow-back" size={20} color="#111827" />
-            </TouchableOpacity>
-            <Text className="text-lg font-bold text-gray-900">Add New Product</Text>
+            {!isSetupFlow && (
+              <TouchableOpacity
+                onPress={() => navigation.goBack()}
+                className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center mr-3"
+              >
+                <Icon name="arrow-back" size={20} color="#111827" />
+              </TouchableOpacity>
+            )}
+            <Text className="text-lg font-bold text-gray-900">
+              {isSetupFlow ? 'Add Your First Product' : 'Add New Product'}
+            </Text>
           </View>
-          
           <TouchableOpacity
             onPress={handleSubmit}
             disabled={loading}
@@ -629,56 +685,72 @@ const AddProductScreen = () => {
               VendorSpot charges a small commission on each sale. Set your prices accordingly.
             </Text>
 
-            {/* Price */}
-            <View className="mb-4">
-              <Text className="text-sm font-semibold text-gray-700 mb-2">
-                Price (₦) <Text className="text-red-500">*</Text>
-              </Text>
-              <TextInput
-                className={`bg-gray-50 px-4 py-3 rounded-lg text-base text-gray-900 ${
-                  formErrors.price ? 'border-2 border-red-500' : ''
-                }`}
-                placeholder="0"
-                placeholderTextColor="#9CA3AF"
-                value={price}
-                onChangeText={(text) => {
-                  setPrice(text);
-                  if (formErrors.price) {
-                    setFormErrors({ ...formErrors, price: undefined });
-                  }
-                }}
-                keyboardType="numeric"
-              />
-              {formErrors.price && (
-                <Text className="text-red-500 text-xs mt-1">{formErrors.price}</Text>
-              )}
-            </View>
+            {/* Original Price and Selling Price - Side by side */}
+            <View className="flex-row mb-2">
+              <View className="flex-1 mr-2">
+                <Text className="text-sm font-semibold text-gray-700 mb-2">
+                  Original Price (₦) <Text className="text-gray-400 text-xs">(Optional)</Text>
+                </Text>
+                <TextInput
+                  className="bg-gray-50 px-4 py-3 rounded-lg text-base text-gray-900"
+                  placeholder="0"
+                  placeholderTextColor="#9CA3AF"
+                  value={compareAtPrice}
+                  onChangeText={(text) => {
+                    setCompareAtPrice(text);
+                    // Auto-disable flash sale if discount drops below 10%
+                    if (isFlashSale && price) {
+                      const disc = ((Number(text) - Number(price)) / Number(text)) * 100;
+                      if (isNaN(disc) || disc < 10) setIsFlashSale(false);
+                    }
+                  }}
+                  keyboardType="numeric"
+                />
+              </View>
 
-            {/* Selling Price (Optional) */}
-            <View className="mb-4">
-              <Text className="text-sm font-semibold text-gray-700 mb-2">
-                Selling Price (₦) <Text className="text-gray-400">(Optional)</Text>
-              </Text>
-              <Text className="text-xs text-gray-500 mb-2">
-                If set higher than price, the discount will be shown to customers
-              </Text>
-              <TextInput
-                className="bg-gray-50 px-4 py-3 rounded-lg text-base text-gray-900"
-                placeholder="0"
-                placeholderTextColor="#9CA3AF"
-                value={compareAtPrice}
-                onChangeText={setCompareAtPrice}
-                keyboardType="numeric"
-              />
+              <View className="flex-1 ml-2">
+                <Text className="text-sm font-semibold text-gray-700 mb-2">
+                  Selling Price (₦) <Text className="text-red-500">*</Text>
+                </Text>
+                <TextInput
+                  className={`bg-gray-50 px-4 py-3 rounded-lg text-base text-gray-900 ${
+                    formErrors.price ? 'border-2 border-red-500' : ''
+                  }`}
+                  placeholder="0"
+                  placeholderTextColor="#9CA3AF"
+                  value={price}
+                  onChangeText={(text) => {
+                    setPrice(text);
+                    if (formErrors.price) {
+                      setFormErrors({ ...formErrors, price: undefined });
+                    }
+                    // Auto-disable flash sale if discount drops below 10%
+                    if (isFlashSale && compareAtPrice) {
+                      const disc = ((Number(compareAtPrice) - Number(text)) / Number(compareAtPrice)) * 100;
+                      if (isNaN(disc) || disc < 10) setIsFlashSale(false);
+                    }
+                  }}
+                  keyboardType="numeric"
+                />
+                {formErrors.price && (
+                  <Text className="text-red-500 text-xs mt-1">{formErrors.price}</Text>
+                )}
+              </View>
             </View>
 
             {calculateDiscount() && (
-              <View className="bg-green-50 px-3 py-2 rounded-lg">
+              <View className="bg-green-50 px-3 py-2 rounded-lg mb-3">
                 <Text className="text-green-700 font-semibold text-sm">
                   Discount: {calculateDiscount()}
                 </Text>
               </View>
             )}
+
+            <View className="bg-blue-50 px-3 py-2 rounded-lg">
+              <Text className="text-blue-700 text-xs">
+                VendorSpot charges a 5% commission on each sale. Please factor this into your pricing.
+              </Text>
+            </View>
           </View>
 
           {/* Inventory */}
@@ -882,6 +954,62 @@ const AddProductScreen = () => {
               <View
                 className={`w-12 h-6 rounded-full items-center ${
                   isFeatured ? 'bg-pink-500 justify-end' : 'bg-gray-300 justify-start'
+                } flex-row px-1`}
+              >
+                <View className="w-5 h-5 rounded-full bg-white" />
+              </View>
+            </TouchableOpacity>
+
+            {/* Flash Sale */}
+            <TouchableOpacity
+              onPress={() => {
+                if (!isFlashSale) {
+                  // Turning ON - validate discount >= 10%
+                  const sellingPrice = Number(price);
+                  const originalPrice = Number(compareAtPrice);
+                  if (!compareAtPrice || !price || originalPrice <= sellingPrice) {
+                    Toast.show({
+                      type: 'info',
+                      text1: 'Set Compare-At Price',
+                      text2: 'Enter a compare-at price higher than the selling price to enable flash sale',
+                    });
+                    return;
+                  }
+                  const discountPercent = ((originalPrice - sellingPrice) / originalPrice) * 100;
+                  if (discountPercent < 10) {
+                    Toast.show({
+                      type: 'info',
+                      text1: 'Minimum 10% Discount Required',
+                      text2: `Current discount is ${Math.round(discountPercent)}%. Increase the difference between prices.`,
+                    });
+                    return;
+                  }
+                }
+                setIsFlashSale(!isFlashSale);
+              }}
+              className="flex-row items-center justify-between mb-4 pb-4 border-b border-gray-100"
+            >
+              <View className="flex-1 mr-3">
+                <View className="flex-row items-center mb-1">
+                  <Icon name="flame" size={16} color="#EF4444" style={{ marginRight: 4 }} />
+                  <Text className="text-base font-semibold text-gray-900">Flash Sale</Text>
+                </View>
+                <Text className="text-sm text-gray-500">
+                  Add to flash sales section (requires at least 10% off)
+                </Text>
+                {isFlashSale && compareAtPrice && price && Number(compareAtPrice) > Number(price) && (
+                  <View className="flex-row items-center mt-2">
+                    <View className="bg-red-100 px-2 py-0.5 rounded-full">
+                      <Text className="text-xs font-bold text-red-500">
+                        {Math.round(((Number(compareAtPrice) - Number(price)) / Number(compareAtPrice)) * 100)}% OFF
+                      </Text>
+                    </View>
+                  </View>
+                )}
+              </View>
+              <View
+                className={`w-12 h-6 rounded-full items-center ${
+                  isFlashSale ? 'bg-red-500 justify-end' : 'bg-gray-300 justify-start'
                 } flex-row px-1`}
               >
                 <View className="w-5 h-5 rounded-full bg-white" />
@@ -1123,67 +1251,116 @@ const AddProductScreen = () => {
         animationType="slide"
         onRequestClose={() => setShowAddressPicker(false)}
       >
-        <TouchableOpacity
-          activeOpacity={1}
-          onPress={() => setShowAddressPicker(false)}
-          className="flex-1 justify-end"
-          style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <TouchableOpacity
             activeOpacity={1}
-            onPress={(e) => e.stopPropagation()}
-            style={{ maxHeight: '60%' }}
-            className="bg-white rounded-t-3xl"
+            onPress={() => setShowAddressPicker(false)}
+            className="flex-1 justify-end"
+            style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
           >
-            <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-200">
-              <Text className="text-lg font-bold text-gray-900">Select Pickup Address</Text>
-              <TouchableOpacity
-                onPress={() => setShowAddressPicker(false)}
-                className="w-8 h-8 rounded-full bg-gray-100 items-center justify-center"
-              >
-                <Icon name="close" size={20} color="#111827" />
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={(e) => e.stopPropagation()}
+              style={{ maxHeight: '75%', minHeight: 300 }}
+              className="bg-white rounded-t-3xl"
+            >
+              {/* Drag Handle */}
+              <View className="items-center pt-3 pb-1">
+                <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: '#D1D5DB' }} />
+              </View>
 
-            <ScrollView contentContainerStyle={{ padding: 16 }}>
-              {savedAddresses.length > 0 ? (
-                savedAddresses.map((addr) => (
-                  <TouchableOpacity
-                    key={addr._id}
-                    onPress={() => {
-                      setPickupAddress(addr);
-                      setShowAddressPicker(false);
-                    }}
-                    className={`p-4 rounded-xl mb-3 border ${
-                      pickupAddress?._id === addr._id
-                        ? 'border-pink-400 bg-pink-50'
-                        : 'border-gray-200 bg-white'
-                    }`}
-                  >
-                    <View className="flex-row items-center justify-between mb-1">
-                      <Text className="text-sm font-bold text-gray-900 capitalize">{addr.label}</Text>
-                      {pickupAddress?._id === addr._id && (
-                        <Icon name="checkmark-circle" size={20} color="#CC3366" />
-                      )}
-                    </View>
-                    <Text className="text-sm text-gray-600">
-                      {addr.street}, {addr.city}, {addr.state}
+              <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-200">
+                <Text className="text-lg font-bold text-gray-900">Select Pickup Address</Text>
+                <TouchableOpacity
+                  onPress={() => setShowAddressPicker(false)}
+                  className="w-8 h-8 rounded-full bg-gray-100 items-center justify-center"
+                >
+                  <Icon name="close" size={20} color="#111827" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView
+                contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+                showsVerticalScrollIndicator={true}
+                keyboardShouldPersistTaps="handled"
+                style={{ flex: 1 }}
+              >
+                {savedAddresses.length > 0 ? (
+                  savedAddresses.map((addr) => (
+                    <TouchableOpacity
+                      key={addr._id}
+                      onPress={() => {
+                        setPickupAddress(addr);
+                        setShowAddressPicker(false);
+                      }}
+                      className={`p-4 rounded-xl mb-3 border ${
+                        pickupAddress?._id === addr._id
+                          ? 'border-pink-400 bg-pink-50'
+                          : 'border-gray-200 bg-white'
+                      }`}
+                    >
+                      <View className="flex-row items-center justify-between mb-1">
+                        <Text className="text-sm font-bold text-gray-900 capitalize">{addr.label}</Text>
+                        {pickupAddress?._id === addr._id && (
+                          <Icon name="checkmark-circle" size={20} color="#CC3366" />
+                        )}
+                      </View>
+                      <Text className="text-sm text-gray-600">
+                        {addr.street}, {addr.city}, {addr.state}
+                      </Text>
+                      <Text className="text-xs text-gray-400 mt-1">{addr.phone}</Text>
+                    </TouchableOpacity>
+                  ))
+                ) : (
+                  <View className="items-center py-8">
+                    <Icon name="location-outline" size={40} color="#D1D5DB" />
+                    <Text className="text-gray-500 mt-3 text-center">
+                      No saved addresses. Add one from your profile settings.
                     </Text>
-                    <Text className="text-xs text-gray-400 mt-1">{addr.phone}</Text>
-                  </TouchableOpacity>
-                ))
-              ) : (
-                <View className="items-center py-8">
-                  <Icon name="location-outline" size={40} color="#D1D5DB" />
-                  <Text className="text-gray-500 mt-3 text-center">
-                    No saved addresses. Add one from your profile settings.
+                  </View>
+                )}
+              </ScrollView>
+
+              {/* Footer with navigate to settings */}
+              <View className="px-6 py-4 border-t border-gray-200 bg-white" style={{ paddingBottom: Platform.OS === 'ios' ? 34 : 16 }}>
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowAddressPicker(false);
+                    navigation.navigate('SavedAddresses' as any);
+                  }}
+                  className="bg-pink-500 py-3 rounded-lg"
+                >
+                  <Text className="text-white text-base font-semibold text-center">
+                    Manage Addresses
                   </Text>
-                </View>
-              )}
-            </ScrollView>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
           </TouchableOpacity>
-        </TouchableOpacity>
+        </KeyboardAvoidingView>
       </Modal>
+
+      {/* Skip option during setup flow */}
+      {isSetupFlow && (
+        <View className="bg-white px-6 pb-6 border-t border-gray-100" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: -3 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 5 }}>
+          <View className="flex-row items-center bg-pink-50 rounded-lg px-4 py-3 mt-4 mb-3">
+            <Icon name="information-circle" size={18} color="#CC3366" />
+            <Text className="text-xs text-gray-600 ml-2 flex-1">
+              You can always add products later from your dashboard.
+            </Text>
+          </View>
+          <TouchableOpacity
+            className="py-3.5 rounded-xl items-center"
+            style={{ backgroundColor: '#CC3366' }}
+            onPress={() => login()}
+          >
+            <Text className="text-white font-semibold text-base">Skip for Now</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       <Toast />
     </SafeAreaView>

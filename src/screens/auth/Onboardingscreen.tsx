@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, FlatList, Dimensions, NativeSyntheticEvent, NativeScrollEvent, Image, ImageSourcePropType } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthStackParamList } from '@/navigation/AuthNavigator';
 import { useAuth } from '@/context/AuthContext';
 
@@ -48,6 +49,14 @@ const OnboardingScreen = ({ navigation }: OnboardingScreenProps) => {
     setCurrentIndex(index);
   };
 
+  const markOnboardingSeen = async () => {
+    try {
+      await AsyncStorage.setItem('hasSeenOnboarding', 'true');
+    } catch (error) {
+      console.error('Error saving onboarding flag:', error);
+    }
+  };
+
   const handleNext = () => {
     if (currentIndex < slides.length - 1) {
       flatListRef.current?.scrollToIndex({
@@ -55,11 +64,13 @@ const OnboardingScreen = ({ navigation }: OnboardingScreenProps) => {
         animated: true,
       });
     } else {
+      markOnboardingSeen();
       navigation.navigate('Login');
     }
   };
 
   const handleSkip = () => {
+    markOnboardingSeen();
     navigation.navigate('Login');
   };
 
@@ -150,7 +161,7 @@ const OnboardingScreen = ({ navigation }: OnboardingScreenProps) => {
           </TouchableOpacity>
 
           {/* Browse as Guest */}
-          <TouchableOpacity onPress={enterGuestMode} className="mt-4">
+          <TouchableOpacity onPress={() => { markOnboardingSeen(); enterGuestMode(); }} className="mt-4">
             <Text className="text-gray-400 text-sm text-center">
               Guest Mode
             </Text>

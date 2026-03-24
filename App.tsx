@@ -31,15 +31,15 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <NotificationProvider>
-          <SocketProvider>
+        <SocketProvider>
+          <NotificationProvider>
             <NavigationContainer linking={linking}>
               <RootNavigator />
               <StatusBar style="auto" />
             </NavigationContainer>
             <Toast config={toastConfig} />
-          </SocketProvider>
-        </NotificationProvider>
+          </NotificationProvider>
+        </SocketProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );

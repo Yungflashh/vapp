@@ -54,7 +54,8 @@ export interface VerifyOTPResponse {
   success: boolean;
   message: string;
   data: {
-    token: string;
+    accessToken: string;
+    refreshToken: string;
     user: any;
   };
 }
@@ -128,10 +129,18 @@ export const verifyOTP = async (data: VerifyOTPRequest): Promise<VerifyOTPRespon
     
     console.log('✅ OTP verification successful:', response.data);
     
-    // Store token if provided
-    if (response.data.success && response.data.data.token) {
-      await AsyncStorage.setItem('authToken', response.data.data.token);
-      await AsyncStorage.setItem('userData', JSON.stringify(response.data.data.user));
+    // Store tokens if provided
+    if (response.data.success && response.data.data) {
+      const { accessToken, refreshToken, user } = response.data.data;
+      if (accessToken) {
+        await AsyncStorage.setItem('authToken', accessToken);
+      }
+      if (refreshToken) {
+        await AsyncStorage.setItem('refreshToken', refreshToken);
+      }
+      if (user) {
+        await AsyncStorage.setItem('userData', JSON.stringify(user));
+      }
     }
     
     return response.data;
@@ -156,6 +165,38 @@ export const resendOTP = async (email: string) => {
     return response.data;
   } catch (error) {
     console.error('❌ Resend OTP error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};
+
+/**
+ * Guest register - quick signup with just email
+ * Creates account instantly, returns tokens
+ */
+export const guestRegister = async (email: string): Promise<LoginResponse> => {
+  try {
+    console.log('👤 Guest registration with:', email);
+
+    const response = await api.post<LoginResponse>('/auth/guest-register', { email });
+
+    if (response.data.success && response.data.data) {
+      const { accessToken, refreshToken, user } = response.data.data;
+
+      if (accessToken) {
+        await AsyncStorage.setItem('authToken', accessToken);
+      }
+      if (refreshToken) {
+        await AsyncStorage.setItem('refreshToken', refreshToken);
+      }
+      if (user) {
+        await AsyncStorage.setItem('userData', JSON.stringify(user));
+      }
+    }
+
+    return response.data;
+  } catch (error) {
+    console.error('❌ Guest register error:', error);
     handleApiError(error);
     throw error;
   }

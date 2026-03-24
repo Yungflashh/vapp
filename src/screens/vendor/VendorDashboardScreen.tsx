@@ -22,9 +22,12 @@ import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { BarChart, LineChart } from 'react-native-chart-kit';
 import { getVendorDashboard } from '@/services/vendor.service';
+import { getWallet } from '@/services/wallet.service';
 import { LinearGradient } from 'expo-linear-gradient';
+import TierBadge from '@/components/TierBadge';
 import { useNotifications } from '@/context/NotificationContext';
 import { useAuth } from '@/context/AuthContext';
+import WelcomeTour from '@/components/WelcomeTour';
 
 const { width } = Dimensions.get('window');
 const CHART_WIDTH = width - 92;
@@ -115,11 +118,11 @@ const formatNumber = (num: number): string => {
 
 const getTierConfig = (tier: string) => {
   const configs: Record<string, { color: string; gradient: string[] }> = {
-    Bronze: { color: '#CD7F32', gradient: ['#CD7F32', '#B8733A'] },
-    Silver: { color: '#C0C0C0', gradient: ['#C0C0C0', '#A8A8A8'] },
-    Gold: { color: '#FFD700', gradient: ['#FFD700', '#FFA500'] },
-    Platinum: { color: '#E5E4E2', gradient: ['#E5E4E2', '#BDC3C7'] },
-    Diamond: { color: '#B9F2FF', gradient: ['#B9F2FF', '#00CED1'] },
+    Bronze: { color: '#8C2BE7', gradient: ['#8C2BE7', '#7B1FA2'] },
+    Silver: { color: '#B3B3B3', gradient: ['#B3B3B3', '#9E9E9E'] },
+    Gold: { color: '#CCA94F', gradient: ['#CCA94F', '#B8943A'] },
+    Platinum: { color: '#D7195B', gradient: ['#D7195B', '#C2185B'] },
+    Diamond: { color: '#3B82F6', gradient: ['#3B82F6', '#2563EB'] },
   };
   return configs[tier] || configs.Bronze;
 };
@@ -194,7 +197,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   onNotificationsPress,
   notificationCount = 0,
 }) => (
-  <View className="px-6 pt-4 pb-6">
+  <View className="px-6 pt-4 pb-2">
     <View className="flex-row items-center justify-between">
       <View className="flex-row items-center flex-1">
         <View className="w-14 h-14 rounded-full bg-white items-center justify-center mr-3 border-2 border-pink-300 shadow-sm">
@@ -352,11 +355,8 @@ const RewardsTierCard: React.FC<RewardsTierCardProps> = ({
 
         <View className="flex-row items-center justify-between mb-4">
           <View className="flex-row items-center flex-1">
-            <View
-              className="w-12 h-12 rounded-xl items-center justify-center"
-              style={{ backgroundColor: tierConfig.color + '30' }}
-            >
-              <Icon name="star" size={26} color={tierConfig.color} />
+            <View className="w-12 h-12 rounded-xl items-center justify-center overflow-hidden">
+              <TierBadge tier={tier} size={48} />
             </View>
             <View className="ml-3 flex-1">
               <Text className="text-lg font-bold text-gray-900">
@@ -490,10 +490,10 @@ const SalesChart: React.FC<SalesChartProps> = ({
 const LoadingState: React.FC = () => (
   <SafeAreaView
     className="flex-1"
-    style={{ backgroundColor: '#FFF0F5' }}
+    style={{ backgroundColor: '#FFF8FA' }}
     edges={['top', 'bottom']}
   >
-    <StatusBar barStyle="dark-content" backgroundColor="#FFF0F5" />
+    <StatusBar barStyle="dark-content" backgroundColor="#FFF8FA" />
     <View className="flex-1 items-center justify-center">
       <ActivityIndicator size="large" color="#CC3366" />
       <Text className="text-gray-600 mt-4 text-base">Loading dashboard...</Text>
@@ -508,10 +508,10 @@ interface ErrorStateProps {
 const ErrorState: React.FC<ErrorStateProps> = ({ onRetry }) => (
   <SafeAreaView
     className="flex-1"
-    style={{ backgroundColor: '#FFF0F5' }}
+    style={{ backgroundColor: '#FFF8FA' }}
     edges={['top', 'bottom']}
   >
-    <StatusBar barStyle="dark-content" backgroundColor="#FFF0F5" />
+    <StatusBar barStyle="dark-content" backgroundColor="#FFF8FA" />
     <View className="flex-1 items-center justify-center px-6">
       <Icon name="warning-outline" size={64} color="#EF4444" />
       <Text className="text-xl font-bold text-gray-900 mt-4">
@@ -550,9 +550,20 @@ const VendorDashboardScreen: React.FC = () => {
 
   const fetchDashboard = async () => {
     try {
-      const response = await getVendorDashboard();
+      const [response, walletRes] = await Promise.all([
+        getVendorDashboard(),
+        getWallet().catch(() => null),
+      ]);
       if (response.success) {
-        setDashboard(response.data);
+        const data = response.data;
+        // Merge wallet data into overview if available
+        if (walletRes?.success && walletRes.data?.wallet) {
+          const w = walletRes.data.wallet;
+          console.log('💰 Dashboard wallet:', JSON.stringify(w, null, 2));
+          data.overview.todaySales = w.balance ?? data.overview.todaySales;
+          (data.overview as any).totalWithdrawn = w.totalWithdrawn ?? 0;
+        }
+        setDashboard(data);
       } else {
         throw new Error('Failed to fetch dashboard data');
       }
@@ -592,8 +603,17 @@ const VendorDashboardScreen: React.FC = () => {
 
   const statsData = [
     {
+      icon: 'cash-outline',
+      label: 'Total Revenue',
+      value: formatCurrency(dashboard.overview.totalRevenue),
+      change: dashboard.overview.revenueChange,
+      iconColor: '#10B981',
+      iconBg: 'bg-green-100',
+      shadowColor: '#10B981',
+    },
+    {
       icon: 'wallet-outline',
-      label: "Today's Sales",
+      label: 'Available Balance',
       value: formatCurrency(dashboard.overview.todaySales),
       change: dashboard.overview.todaySalesChange,
       iconColor: '#CC3366',
@@ -601,44 +621,35 @@ const VendorDashboardScreen: React.FC = () => {
       shadowColor: '#CC3366',
     },
     {
+      icon: 'arrow-down-circle-outline',
+      label: 'Total Withdrawn',
+      value: formatCurrency((dashboard.overview as any).totalWithdrawn || 0),
+      change: undefined,
+      iconColor: '#F59E0B',
+      iconBg: 'bg-yellow-100',
+      shadowColor: '#F59E0B',
+    },
+    {
       icon: 'bag-handle-outline',
       label: 'Total Orders',
-      value: dashboard.overview.todayOrders.toString(),
+      value: dashboard.overview.totalOrders.toString(),
       change: dashboard.overview.ordersChange,
-      iconColor: '#CC3366',
-      iconBg: 'bg-pink-100',
-      shadowColor: '#CC3366',
-    },
-    {
-      icon: 'eye-outline',
-      label: 'Product Views',
-      value: formatNumber(dashboard.overview.totalViews),
-      change: dashboard.overview.viewsChange,
-      iconColor: '#8B5CF6',
-      iconBg: 'bg-purple-100',
-      shadowColor: '#8B5CF6',
-    },
-    {
-      icon: 'bar-chart-outline',
-      label: 'Total Revenue',
-      value: formatCurrency(dashboard.overview.totalRevenue),
-      change: dashboard.overview.revenueChange,
-      iconColor: '#CC3366',
-      iconBg: 'bg-pink-100',
-      shadowColor: '#CC3366',
+      iconColor: '#3B82F6',
+      iconBg: 'bg-blue-100',
+      shadowColor: '#3B82F6',
     },
   ];
 
   return (
     <SafeAreaView
       className="flex-1"
-      style={{ backgroundColor: '#FFF0F5' }}
+      style={{ backgroundColor: '#FFF8FA' }}
       edges={['top', 'bottom']}
     >
-      <StatusBar barStyle="dark-content" backgroundColor="#FFF0F5" />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFF8FA" />
       <ScrollView
         showsVerticalScrollIndicator={false}
-        style={{ backgroundColor: '#FFF0F5' }}
+        style={{ backgroundColor: '#FFF8FA' }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -665,20 +676,50 @@ const VendorDashboardScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* Verification Banner */}
-        {dashboard.profile.verificationProgress < 100 && (
-          <VerificationBanner
-            progress={dashboard.profile.verificationProgress}
-            onVerifyPress={handleVerificationPress}
-          />
-        )}
-
         {/* Rewards Tier Card */}
         {dashboard.rewardsTier && (
           <RewardsTierCard
             tier={dashboard.rewardsTier.tier}
             points={dashboard.rewardsTier.points}
             pointsToNextTier={dashboard.rewardsTier.pointsToNextTier}
+          />
+        )}
+
+        {/* Quick Actions */}
+        <View className="px-6 mb-4">
+          <Text className="text-base font-bold text-gray-900 mb-3">Quick Actions</Text>
+          <View className="flex-row flex-wrap justify-between">
+            {[
+              { icon: 'add-circle-outline', label: 'Add Product', route: 'AddProduct', color: '#CC3366' },
+              { icon: 'clipboard-outline', label: 'Orders', route: 'VendorOrders', color: '#3B82F6' },
+              { icon: 'shield-outline', label: 'Disputes', route: 'DisputeCenter', color: '#EF4444' },
+              { icon: 'wallet-outline', label: 'Withdraw', route: 'VendorEarnings', color: '#F59E0B' },
+              { icon: 'trophy-outline', label: 'Rewards', route: 'Rewards', color: '#10B981' },
+              { icon: 'gift-outline', label: 'Refer & Earn', route: 'Affiliate', color: '#8B5CF6' },
+              { icon: 'storefront-outline', label: 'Store Setup', route: 'VendorStoreSetup', color: '#6366F1' },
+              { icon: 'card-outline', label: 'Bank Setup', route: 'VendorBankSetup', color: '#0EA5E9' },
+            ].map((action, idx) => (
+              <TouchableOpacity
+                key={idx}
+                className="w-[48%] bg-white rounded-2xl p-4 mb-3 flex-row items-center"
+                style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 }}
+                onPress={() => navigation.navigate(action.route as never)}
+                activeOpacity={0.7}
+              >
+                <View className="w-10 h-10 rounded-xl items-center justify-center mr-3" style={{ backgroundColor: action.color + '20' }}>
+                  <Icon name={action.icon} size={20} color={action.color} />
+                </View>
+                <Text className="text-sm font-semibold text-gray-900 flex-1" numberOfLines={1}>{action.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* Verification Banner */}
+        {dashboard.profile.verificationProgress < 100 && (
+          <VerificationBanner
+            progress={dashboard.profile.verificationProgress}
+            onVerifyPress={handleVerificationPress}
           />
         )}
 
@@ -689,9 +730,60 @@ const VendorDashboardScreen: React.FC = () => {
           onPeriodChange={setChartPeriod}
         />
 
+        {/* Top Selling Products */}
+        {dashboard.topProducts && dashboard.topProducts.length > 0 && (
+          <View className="mx-6 mb-4">
+            <View
+              className="bg-white rounded-2xl p-5"
+              style={{ shadowColor: '#CC3366', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 5 }}
+            >
+              <Text className="text-lg font-bold text-gray-900 mb-4">Top Selling Products</Text>
+              {dashboard.topProducts.slice(0, 5).map((product, index) => (
+                <TouchableOpacity
+                  key={product.id}
+                  className="flex-row items-center py-3"
+                  style={index < dashboard.topProducts.length - 1 ? { borderBottomWidth: 1, borderBottomColor: '#F3F4F6' } : {}}
+                  onPress={() => navigation.navigate('VendorProductDetail' as never, { productId: product.id } as never)}
+                  activeOpacity={0.7}
+                >
+                  <Text className="text-sm font-bold text-gray-400 w-6">{index + 1}</Text>
+                  <View className="w-12 h-12 rounded-xl bg-gray-100 overflow-hidden mr-3">
+                    {product.image ? (
+                      <Image source={{ uri: product.image }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                    ) : (
+                      <View className="flex-1 items-center justify-center">
+                        <Icon name="cube-outline" size={20} color="#9CA3AF" />
+                      </View>
+                    )}
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-sm font-semibold text-gray-900" numberOfLines={1}>{product.name}</Text>
+                    <View className="flex-row items-center mt-1">
+                      <Text className="text-xs text-gray-500">{formatCurrency(product.price)}</Text>
+                      <Text className="text-xs text-gray-400 mx-2">|</Text>
+                      <Text className="text-xs text-pink-500 font-semibold">{product.totalSales} sold</Text>
+                    </View>
+                  </View>
+                  <View className="flex-row items-center">
+                    <Icon name="star" size={12} color="#FBBF24" />
+                    <Text className="text-xs font-semibold text-gray-700 ml-1">{product.rating?.toFixed(1) || '0.0'}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+
         {/* Bottom Spacing */}
         <View className="h-24" />
       </ScrollView>
+
+      {/* Welcome Tour for vendors */}
+      <WelcomeTour
+        role="vendor"
+        userName={dashboard.profile?.businessName}
+        onComplete={() => {}}
+      />
     </SafeAreaView>
   );
 };

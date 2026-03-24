@@ -9,6 +9,7 @@ import {
   Platform,
   StatusBar,
   Dimensions,
+  Image,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -94,11 +95,34 @@ const CategoryProductsScreen = () => {
 
   const renderProduct = useCallback(({ item }: { item: Product }) => (
     <View style={{ width: CARD_WIDTH, marginBottom: 12 }}>
-      <ProductCard
-        product={item}
-        onPress={handleProductPress}
-        style="grid"
-      />
+      <View style={{ width: '100%' }}>
+        <TouchableOpacity
+          onPress={() => handleProductPress(item)}
+          activeOpacity={0.8}
+        >
+          <View style={{ backgroundColor: '#FFFFFF', borderRadius: 16, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 }}>
+            <View style={{ backgroundColor: '#F3F4F6', aspectRatio: 1, alignItems: 'center', justifyContent: 'center' }}>
+              {(item.thumbnail || item.images?.[0]) ? (
+                <Image source={{ uri: item.thumbnail || item.images[0] }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+              ) : (
+                <Icon name="image-outline" size={40} color="#9CA3AF" />
+              )}
+            </View>
+            <View style={{ padding: 10 }}>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: '#111827', marginBottom: 4 }} numberOfLines={2}>{item.name}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                <Icon name="star" size={12} color="#FBBF24" />
+                <Text style={{ fontSize: 11, color: '#111827', fontWeight: '600', marginLeft: 3 }}>{item.rating?.toFixed(1) || '0.0'}</Text>
+                <Text style={{ fontSize: 11, color: '#9CA3AF', marginLeft: 3 }}>({item.reviews || 0})</Text>
+              </View>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: '#111827' }}>₦{item.price?.toLocaleString()}</Text>
+              {item.originalPrice && item.originalPrice > item.price && (
+                <Text style={{ fontSize: 11, color: '#9CA3AF', textDecorationLine: 'line-through' }}>₦{item.originalPrice.toLocaleString()}</Text>
+              )}
+            </View>
+          </View>
+        </TouchableOpacity>
+      </View>
     </View>
   ), [handleProductPress]);
 
@@ -140,7 +164,7 @@ const CategoryProductsScreen = () => {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#F9FAFB' }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#F9FAFB' }} edges={['top', 'bottom']}>
       <StatusBar
         barStyle="dark-content"
         backgroundColor="#FFFFFF"

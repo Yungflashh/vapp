@@ -26,7 +26,8 @@ export interface NotificationsResponse {
 export interface UnreadCountResponse {
   success: boolean;
   data: {
-    count: number;
+    unreadCount: number;
+    count?: number;
   };
 }
 

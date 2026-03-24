@@ -104,7 +104,7 @@ const PointsHistoryScreen = ({ navigation }: PointsHistoryScreenProps) => {
 
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#CC3366" />
           <Text className="text-gray-500 mt-4">Loading history...</Text>
@@ -114,7 +114,7 @@ const PointsHistoryScreen = ({ navigation }: PointsHistoryScreenProps) => {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-gray-50" edges={['top', 'bottom']}>
       {/* Header */}
       <View className="bg-white px-4 py-3 flex-row items-center border-b border-gray-100">
         <TouchableOpacity
@@ -128,6 +128,7 @@ const PointsHistoryScreen = ({ navigation }: PointsHistoryScreenProps) => {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 40 }}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}

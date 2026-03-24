@@ -16,10 +16,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getMyVendorProfile, uploadKYCDocument, submitKYCDocuments } from '@/services/vendor.service';
 import Toast from 'react-native-toast-message';
 
@@ -44,9 +45,9 @@ const DOCUMENT_TYPES = [
   {
     id: 'CAC',
     name: 'CAC Certificate',
-    description: 'Business registration certificate',
+    description: 'Business registration certificate (optional)',
     icon: 'document-text-outline',
-    required: true,
+    required: false,
     weight: 16.67,
   },
   {
@@ -69,18 +70,33 @@ const DOCUMENT_TYPES = [
 
 const VendorKYCVerificationScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
+  const route = useRoute<any>();
+  const isSetupFlow = route.params?.isSetupFlow ?? false;
   
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState<string | null>(null);
-  
+
   const [verificationStatus, setVerificationStatus] = useState<'pending' | 'verified' | 'rejected'>('pending');
   const [uploadedDocuments, setUploadedDocuments] = useState<KYCDocument[]>([]);
   const [newDocuments, setNewDocuments] = useState<{ type: string; uri: string; name: string }[]>([]);
   const [hasSocialMedia, setHasSocialMedia] = useState(false);
 
   useEffect(() => {
-    fetchKYCStatus();
+    // Load cached state first, then fetch fresh data
+    const loadCachedThenFetch = async () => {
+      try {
+        const cached = await AsyncStorage.getItem('kyc_status_cache');
+        if (cached) {
+          const data = JSON.parse(cached);
+          setVerificationStatus(data.verificationStatus || 'pending');
+          setUploadedDocuments(data.uploadedDocuments || []);
+          setHasSocialMedia(data.hasSocialMedia || false);
+        }
+      } catch {}
+      fetchKYCStatus();
+    };
+    loadCachedThenFetch();
   }, []);
 
   const fetchKYCStatus = async () => {
@@ -94,12 +110,21 @@ const VendorKYCVerificationScreen = () => {
         console.log('📋 Verification status:', profile?.verificationStatus);
         console.log('📋 KYC documents:', JSON.stringify(profile?.kycDocuments));
 
-        setVerificationStatus(profile?.verificationStatus || 'pending');
-        setUploadedDocuments(profile?.kycDocuments || []);
-
-        // Check if social media is filled
+        const status = profile?.verificationStatus || 'pending';
+        const docs = profile?.kycDocuments || [];
         const sm = profile?.socialMedia;
-        setHasSocialMedia(!!(sm?.facebook || sm?.instagram || sm?.twitter || sm?.tiktok));
+        const socialMedia = !!(sm?.facebook || sm?.instagram || sm?.twitter || sm?.tiktok);
+
+        setVerificationStatus(status);
+        setUploadedDocuments(docs);
+        setHasSocialMedia(socialMedia);
+
+        // Cache for instant load next time
+        AsyncStorage.setItem('kyc_status_cache', JSON.stringify({
+          verificationStatus: status,
+          uploadedDocuments: docs,
+          hasSocialMedia: socialMedia,
+        }));
       }
     } catch (error) {
       console.error('Error fetching KYC status:', error);
@@ -220,23 +245,24 @@ const VendorKYCVerificationScreen = () => {
       const response = await uploadKYCDocument(uri, documentType);
       console.log(`📤 Upload response:`, JSON.stringify(response));
 
-      // If uploadKYCDocument didn't throw, the upload succeeded
-      // Extract URL from whatever response shape we get
-      const uploadedUrl = response?.data?.url || response?.url || uri;
+      const uploadedUrl = response?.data?.url || (response as any)?.url || uri;
 
+      // Mark as uploaded locally
       setNewDocuments(prev => [
         ...prev.filter(doc => doc.type !== documentType),
-        {
-          type: documentType,
-          uri: uploadedUrl,
-          name: fileName,
-        },
+        { type: documentType, uri: uploadedUrl, name: fileName },
+      ]);
+
+      // Also add to uploadedDocuments since the backend already saved it
+      setUploadedDocuments(prev => [
+        ...prev.filter(doc => doc.type !== documentType),
+        { type: documentType, documentUrl: uploadedUrl, verificationStatus: 'pending' },
       ]);
 
       Toast.show({
         type: 'success',
-        text1: 'Uploaded',
-        text2: `${DOCUMENT_TYPES.find(d => d.id === documentType)?.name || documentType} uploaded successfully`,
+        text1: 'Saved',
+        text2: `${DOCUMENT_TYPES.find(d => d.id === documentType)?.name || documentType} uploaded and saved`,
       });
     } catch (error: any) {
       console.error(`❌ Upload ${documentType} failed:`, error?.response?.data || error.message);
@@ -252,45 +278,34 @@ const VendorKYCVerificationScreen = () => {
 
   const handleSubmit = async () => {
     try {
-      if (newDocuments.length === 0) {
-        Toast.show({
-          type: 'error',
-          text1: 'No Documents',
-          text2: 'Please upload at least one document',
-        });
-        return;
-      }
+      // Documents are already saved individually on upload
+      // This just triggers a verification review request
+      const allDocs = [
+        ...uploadedDocuments.map(doc => ({ type: doc.type, documentUrl: doc.documentUrl })),
+        ...newDocuments
+          .filter(doc => !uploadedDocuments.some(u => u.type === doc.type))
+          .map(doc => ({ type: doc.type, documentUrl: doc.uri })),
+      ];
 
-      // Check if required documents are uploaded
-      const hasNIN = newDocuments.some(doc => doc.type === 'NIN') || uploadedDocuments.some(doc => doc.type === 'NIN');
-      const hasCAC = newDocuments.some(doc => doc.type === 'CAC') || uploadedDocuments.some(doc => doc.type === 'CAC');
-
-      if (!hasNIN || !hasCAC) {
-        Toast.show({
-          type: 'error',
-          text1: 'Missing Required Documents',
-          text2: 'Please upload NIN and CAC Certificate',
-        });
+      if (allDocs.length === 0) {
+        Toast.show({ type: 'error', text1: 'No Documents', text2: 'Please upload at least one document' });
         return;
       }
 
       setSubmitting(true);
-      
-      const documents = newDocuments.map(doc => ({
-        type: doc.type,
-        documentUrl: doc.uri,
-      }));
-      
-      const response = await submitKYCDocuments(documents);
+      const response = await submitKYCDocuments(allDocs);
 
       if (response.success) {
-        Toast.show({
-          type: 'success',
-          text1: 'Success',
-          text2: 'Documents submitted for verification',
-        });
-        
-        navigation.goBack();
+        Toast.show({ type: 'success', text1: 'Success', text2: 'Documents submitted for verification' });
+        if (isSetupFlow) {
+          // During vendor setup flow, navigate to add first product
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'AddProduct', params: { isSetupFlow: true } }],
+          });
+        } else {
+          navigation.goBack();
+        }
       }
     } catch (error: any) {
       Toast.show({
@@ -319,7 +334,7 @@ const VendorKYCVerificationScreen = () => {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-gray-50" edges={['top', 'bottom']}>
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
         <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color="#CC3366" />
@@ -329,18 +344,22 @@ const VendorKYCVerificationScreen = () => {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-gray-50" edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       {/* Header */}
       <View className="bg-white px-6 py-4 flex-row items-center border-b border-gray-100">
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center mr-3"
-        >
-          <Icon name="arrow-back" size={20} color="#111827" />
-        </TouchableOpacity>
-        <Text className="text-lg font-bold text-gray-900 flex-1">KYC Verification</Text>
+        {!isSetupFlow && (
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            className="w-10 h-10 rounded-full bg-gray-100 items-center justify-center mr-3"
+          >
+            <Icon name="arrow-back" size={20} color="#111827" />
+          </TouchableOpacity>
+        )}
+        <Text className="text-lg font-bold text-gray-900 flex-1">
+          {isSetupFlow ? 'Verify Your Identity' : 'KYC Verification'}
+        </Text>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -627,9 +646,12 @@ const VendorKYCVerificationScreen = () => {
         </View>
       </ScrollView>
 
-      {/* Submit Button */}
-      {verificationStatus !== 'verified' && newDocuments.length > 0 && (
+      {/* Submit Button — docs are saved individually, this requests verification review */}
+      {verificationStatus !== 'verified' && (uploadedDocuments.length > 0 || newDocuments.length > 0) && (
         <View className="absolute bottom-0 left-0 right-0 bg-white px-6 py-4 border-t border-gray-100">
+          <Text className="text-xs text-gray-500 text-center mb-2">
+            Documents are saved automatically. Submit when you're ready for review.
+          </Text>
           <TouchableOpacity
             onPress={handleSubmit}
             disabled={submitting}
@@ -647,6 +669,30 @@ const VendorKYCVerificationScreen = () => {
             ) : (
               <Text className="text-white font-bold text-base">Submit for Verification</Text>
             )}
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Skip option during setup flow */}
+      {isSetupFlow && (
+        <View className="bg-white px-6 pb-6 border-t border-gray-100" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: -3 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 5 }}>
+          <View className="flex-row items-center bg-pink-50 rounded-lg px-4 py-3 mt-4 mb-3">
+            <Icon name="information-circle" size={18} color="#CC3366" />
+            <Text className="text-xs text-gray-600 ml-2 flex-1">
+              You can always verify your identity later from your profile settings.
+            </Text>
+          </View>
+          <TouchableOpacity
+            className="py-3.5 rounded-xl items-center"
+            style={{ backgroundColor: '#CC3366' }}
+            onPress={() => {
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'AddProduct', params: { isSetupFlow: true } }],
+              });
+            }}
+          >
+            <Text className="text-white font-semibold text-base">Skip for Now</Text>
           </TouchableOpacity>
         </View>
       )}

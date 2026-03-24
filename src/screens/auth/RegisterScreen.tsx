@@ -300,6 +300,21 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
             />
           </View>
 
+          {/* How did you hear about us */}
+          <Text className="text-sm text-gray-400 mb-2">
+            How did you hear about Vendorspot? (Optional)
+          </Text>
+          <TouchableOpacity
+            className="border border-gray-200 rounded-lg px-4 py-3 mb-4 flex-row justify-between items-center"
+            onPress={() => { if (!loading) setShowHearAboutPicker(true); }}
+            disabled={loading}
+          >
+            <Text className={`text-base ${hearAbout ? 'text-gray-900' : 'text-gray-400'}`}>
+              {hearAbout || 'Select option'}
+            </Text>
+            <Icon name="chevron-down" size={20} color="#9CA3AF" />
+          </TouchableOpacity>
+
           {/* Password Input */}
           <View className="flex-row items-center border border-gray-200 rounded-lg px-4 py-3 mb-4">
             <Icon name="lock-closed-outline" size={20} color="#9CA3AF" />
@@ -312,16 +327,14 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
               editable={!loading}
-              returnKeyType="next"
-              onSubmitEditing={() => hearAboutRef.current?.focus()}
+              returnKeyType="done"
               onFocus={() => handleInputFocus(passwordRef)}
-              blurOnSubmit={false}
             />
             <TouchableOpacity onPress={() => setShowPassword(!showPassword)} disabled={loading}>
-              <Icon 
-                name={showPassword ? "eye-outline" : "eye-off-outline"} 
-                size={20} 
-                color="#9CA3AF" 
+              <Icon
+                name={showPassword ? "eye-outline" : "eye-off-outline"}
+                size={20}
+                color="#9CA3AF"
               />
             </TouchableOpacity>
           </View>
@@ -330,21 +343,6 @@ const RegisterScreen = ({ navigation }: RegisterScreenProps) => {
           <Text className={`text-xs ${passwordStrength.color} mb-6`}>
             Password strength: {passwordStrength.strength}
           </Text>
-
-          {/* How did you hear about us */}
-          <Text className="text-sm text-gray-400 mb-2">
-            How did you hear about Vendorspot? (Optional)
-          </Text>
-          <TouchableOpacity
-            className="border border-gray-200 rounded-lg px-4 py-3 mb-6 flex-row justify-between items-center"
-            onPress={() => { if (!loading) setShowHearAboutPicker(true); }}
-            disabled={loading}
-          >
-            <Text className={`text-base ${hearAbout ? 'text-gray-900' : 'text-gray-400'}`}>
-              {hearAbout || 'Select option'}
-            </Text>
-            <Icon name="chevron-down" size={20} color="#9CA3AF" />
-          </TouchableOpacity>
 
           {/* Create Account Button */}
           <TouchableOpacity 

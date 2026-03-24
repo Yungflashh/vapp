@@ -18,7 +18,10 @@ import { RootStackParamList } from '@/navigation';
 import { BottomTabParamList } from '@/navigation/BottomTabNavigator';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Toast from 'react-native-toast-message';
-import { logout, getCurrentUser } from '@/services/auth.service';
+import VerifyBadge from '@/components/VerifyBadge';
+import TierBadge from '@/components/TierBadge';
+import { logout as logoutApi, getCurrentUser } from '@/services/auth.service';
+import { useAuth } from '@/context/AuthContext';
 import { getCart } from '@/services/cart.service';
 import { getOrders } from '@/services/order.service';
 import { getUserPoints } from '@/services/reward.service';
@@ -60,6 +63,7 @@ interface RecentOrder {
 }
 
 const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
+  const { logout: authLogout } = useAuth();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [walletBalance, setWalletBalance] = useState(0);
   const [vCreditsBalance, setVCreditsBalance] = useState(0);
@@ -157,39 +161,27 @@ const ProfileScreen = ({ navigation }: ProfileScreenProps) => {
   };
 
   const handleLogoutConfirm = async () => {
+    setShowLogoutModal(false);
     try {
-      setShowLogoutModal(false);
-      await logout();
-      Toast.show({
-        type: 'success',
-        text1: 'Logged Out',
-        text2: 'You have been logged out successfully',
-      });
-      // Use reset to clear the navigation stack and go to Login
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Login' as any }],
-      });
+      await logoutApi();
     } catch (error) {
-      console.error('Logout error:', error);
-      // Even if the API call fails, still navigate to login since local storage is cleared
-      Toast.show({
-        type: 'info',
-        text1: 'Logged Out',
-        text2: 'You have been logged out',
-      });
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Login' as any }],
-      });
+      // API call may fail (404, network) - that's fine
+      console.log('Logout API call failed (non-blocking):', error);
     }
+    // Clear auth state - this automatically navigates to Login via RootNavigator
+    await authLogout();
+    Toast.show({
+      type: 'success',
+      text1: 'Logged Out',
+      text2: 'You have been logged out successfully',
+    });
   };
 
 // Updated ProfileScreen.tsx - Add this line to the quickActions array
 
 const quickActions = [
   { id: 'orders', icon: 'receipt', label: 'Orders', color: '#CC3366', screen: 'Orders' },
-  { id: 'rewards', icon: 'star', label: 'Rewards', color: '#F59E0B', screen: 'Rewards' },
+  { id: 'rewards', icon: 'star', label: 'Rewards', color: '#8C2BE7', screen: 'Rewards' },
   { id: 'addresses', icon: 'location', label: 'Addresses', color: '#10B981', screen: 'SavedAddresses' },
   // { id: 'reviews', icon: 'star', label: 'Reviews', color: '#3B82F6', screen: null },
   { id: 'wishlist', icon: 'heart', label: 'Wishlist', color: '#EF4444', screen: 'Wishlist' },
@@ -204,15 +196,17 @@ const quickActions = [
   const getTierColor = () => {
     switch (userTier.toUpperCase()) {
       case 'BRONZE':
-        return '#CD7F32';
+        return '#8C2BE7';
       case 'SILVER':
-        return '#C0C0C0';
+        return '#B3B3B3';
       case 'GOLD':
-        return '#FFD700';
+        return '#CCA94F';
       case 'PLATINUM':
-        return '#E5E4E2';
+        return '#D7195B';
+      case 'DIAMOND':
+        return '#3B82F6';
       default:
-        return '#CD7F32';
+        return '#8C2BE7';
     }
   };
 
@@ -254,6 +248,7 @@ const quickActions = [
 
       <ScrollView
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 40 }}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -277,8 +272,8 @@ const quickActions = [
                 )}
               </View>
               {user?.emailVerified && (
-                <View className="absolute -bottom-1 -right-1 w-6 h-6 bg-pink-500 rounded-full items-center justify-center border-2 border-white">
-                  <Icon name="checkmark" size={12} color="#FFFFFF" />
+                <View className="absolute -bottom-1 -right-1">
+                  <VerifyBadge size={20} />
                 </View>
               )}
             </View>
@@ -338,11 +333,8 @@ const quickActions = [
           <View className="bg-white rounded-2xl p-4 shadow-sm mb-3">
             <View className="flex-row items-center justify-between">
               <View className="flex-row items-center flex-1">
-                <View
-                  className="w-12 h-12 rounded-xl items-center justify-center mr-3"
-                  style={{ backgroundColor: getTierColor() }}
-                >
-                  <Icon name="star" size={24} color="#FFFFFF" />
+                <View className="w-12 h-12 rounded-xl items-center justify-center mr-3 overflow-hidden">
+                  <TierBadge tier={userTier.charAt(0) + userTier.slice(1).toLowerCase()} size={48} />
                 </View>
                 <View className="flex-1">
                   <Text className="text-sm font-bold text-gray-900">{userTier}</Text>

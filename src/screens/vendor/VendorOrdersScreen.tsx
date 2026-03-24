@@ -14,12 +14,14 @@ import {
   StatusBar,
   Animated,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { getVendorOrders, updateVendorOrderStatus } from '@/services/order.service';
+import { getVendorOrders, updateVendorOrderStatus, getOrders, Order } from '@/services/order.service';
 import { RootStackParamList } from '@/navigation/index';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -310,7 +312,9 @@ const getItemName = (item: VendorOrderItem): string => {
 const VendorOrdersScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
 
+  const [mode, setMode] = useState<'sales' | 'purchases'>('sales');
   const [orders, setOrders] = useState<VendorOrder[]>([]);
+  const [myOrders, setMyOrders] = useState<Order[]>([]);
   const [activeTab, setActiveTab] = useState('all');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -319,8 +323,6 @@ const VendorOrdersScreen: React.FC = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalOrders, setTotalOrders] = useState(0);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [errorVisible, setErrorVisible] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
@@ -366,9 +368,50 @@ const VendorOrdersScreen: React.FC = () => {
     }
   }, []);
 
-  useEffect(() => { 
-    fetchOrders(1); 
+  // ── Fetch My Purchases ──
+  const fetchMyPurchases = useCallback(async (pg = 1, isRefresh = false) => {
+    try {
+      if (pg === 1) {
+        isRefresh ? setRefreshing(true) : setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+
+      const res = await getOrders(pg, 20);
+
+      if (res.success) {
+        const fetched = res.data?.orders || [];
+        if (pg === 1) {
+          setMyOrders(fetched);
+        } else {
+          setMyOrders(prev => {
+            const ids = new Set(prev.map(o => o._id));
+            return [...prev, ...fetched.filter(o => !ids.has(o._id))];
+          });
+        }
+        setTotalPages(res.meta?.totalPages || 1);
+        setTotalOrders(res.meta?.total || fetched.length);
+        setPage(pg);
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'Failed to load orders';
+      setErrorMsg(msg);
+      setErrorVisible(true);
+      if (pg === 1) setMyOrders([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+      setLoadingMore(false);
+    }
   }, []);
+
+  useEffect(() => {
+    if (mode === 'sales') {
+      fetchOrders(1);
+    } else {
+      fetchMyPurchases(1);
+    }
+  }, [mode]);
 
   // ── Client-side Filter ──
   const filteredOrders = useMemo(() => {
@@ -391,54 +434,35 @@ const VendorOrdersScreen: React.FC = () => {
     return result;
   }, [orders, activeTab, search]);
 
+  // ── Client-side filter for purchases ──
+  const filteredPurchases = useMemo(() => {
+    let result = [...myOrders];
+    if (activeTab !== 'all') {
+      result = result.filter(o => o.status === activeTab);
+    }
+    if (search.trim()) {
+      const q = search.toLowerCase().trim();
+      result = result.filter(o => {
+        const matchOrder = o.orderNumber?.toLowerCase().includes(q);
+        const matchProduct = o.items.some(i => (i.productName || '').toLowerCase().includes(q));
+        return matchOrder || matchProduct;
+      });
+    }
+    return result;
+  }, [myOrders, activeTab, search]);
+
   const statusCount = (key: string) => {
-    return key === 'all' ? orders.length : orders.filter(o => o.status === key).length;
+    const list = mode === 'sales' ? orders : myOrders;
+    return key === 'all' ? list.length : list.filter(o => o.status === key).length;
   };
 
   // ── Actions ──
-  const onRefresh = () => fetchOrders(1, true);
-  
-  const onLoadMore = () => { 
+  const onRefresh = () => mode === 'sales' ? fetchOrders(1, true) : fetchMyPurchases(1, true);
+
+  const onLoadMore = () => {
     if (!loadingMore && page < totalPages) {
-      fetchOrders(page + 1);
+      mode === 'sales' ? fetchOrders(page + 1) : fetchMyPurchases(page + 1);
     }
-  };
-
-  const handleUpdateStatus = async (orderId: string, newStatus: string) => {
-    try {
-      setUpdatingId(orderId);
-      const res = await updateVendorOrderStatus(orderId, newStatus);
-      
-      if (res.data?.success) {
-        setOrders(prev => prev.map(o => 
-          o._id === orderId ? { ...o, status: newStatus } : o
-        ));
-        setSuccessMsg(`Order marked as ${fmtStatus(newStatus)}`);
-        setSuccessVisible(true);
-        setExpandedId(null);
-      }
-    } catch (err: any) {
-      const msg = err?.response?.data?.message || 'Failed to update status';
-      setErrorMsg(msg);
-      setErrorVisible(true);
-    } finally {
-      setUpdatingId(null);
-    }
-  };
-
-  const confirmUpdate = (orderId: string, newStatus: string) => {
-    Alert.alert(
-      'Update Order Status',
-      `Are you sure you want to mark this order as "${fmtStatus(newStatus)}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Confirm', 
-          onPress: () => handleUpdateStatus(orderId, newStatus),
-          style: 'default'
-        },
-      ]
-    );
   };
 
   // ── RENDER: Header ──
@@ -494,7 +518,7 @@ const VendorOrdersScreen: React.FC = () => {
           returnKeyType="search"
         />
         {search.length > 0 && (
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={() => setSearch('')}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
@@ -502,27 +526,51 @@ const VendorOrdersScreen: React.FC = () => {
           </TouchableOpacity>
         )}
       </View>
+
+      {/* Sales / My Purchases Toggle */}
+      <View className="flex-row mt-4 bg-gray-100 rounded-xl p-1">
+        <TouchableOpacity
+          onPress={() => { setMode('sales'); setActiveTab('all'); setSearch(''); }}
+          className={`flex-1 py-2.5 rounded-lg items-center flex-row justify-center ${mode === 'sales' ? 'bg-white' : ''}`}
+          style={mode === 'sales' ? { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 } : {}}
+        >
+          <Ionicons name="storefront-outline" size={16} color={mode === 'sales' ? '#CC3366' : '#6B7280'} />
+          <Text className={`text-sm font-semibold ml-1.5 ${mode === 'sales' ? 'text-pink-500' : 'text-gray-500'}`}>
+            Sales
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => { setMode('purchases'); setActiveTab('all'); setSearch(''); }}
+          className={`flex-1 py-2.5 rounded-lg items-center flex-row justify-center ${mode === 'purchases' ? 'bg-white' : ''}`}
+          style={mode === 'purchases' ? { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 } : {}}
+        >
+          <Ionicons name="bag-handle-outline" size={16} color={mode === 'purchases' ? '#CC3366' : '#6B7280'} />
+          <Text className={`text-sm font-semibold ml-1.5 ${mode === 'purchases' ? 'text-pink-500' : 'text-gray-500'}`}>
+            My Purchases
+          </Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
   // ── RENDER: Tabs ──
   const renderTabs = () => (
-    <View className="bg-white pb-3">
+    <View className="bg-white py-3">
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}
+        contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
       >
         {ORDER_STATUSES.map(tab => {
           const active = activeTab === tab.key;
           const count = statusCount(tab.key);
-          
+
           return (
             <TouchableOpacity
               key={tab.key}
               onPress={() => setActiveTab(tab.key)}
               activeOpacity={0.7}
-              className={`flex-row items-center h-10 px-4 rounded-xl ${
+              className={`flex-row items-center h-11 px-4 rounded-xl ${
                 active ? 'bg-pink-500' : 'bg-gray-100'
               }`}
               style={active ? {
@@ -533,10 +581,10 @@ const VendorOrdersScreen: React.FC = () => {
                 elevation: 4,
               } : {}}
             >
-              <Ionicons 
-                name={tab.icon} 
-                size={16} 
-                color={active ? '#FFF' : '#6B7280'} 
+              <Ionicons
+                name={tab.icon as any}
+                size={16}
+                color={active ? '#FFF' : '#6B7280'}
               />
               <Text 
                 className={`text-sm font-semibold ml-1.5 ${
@@ -569,17 +617,14 @@ const VendorOrdersScreen: React.FC = () => {
 
   // ── RENDER: Order Card ──
   const renderCard = ({ item: order }: { item: VendorOrder }) => {
-    const expanded = expandedId === order._id;
-    const nextStatus = STATUS_FLOW[order.status] || null;
     const statusConfig = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending;
     const paymentConfig = PAYMENT_CONFIG[order.paymentStatus] || PAYMENT_CONFIG.pending;
-    const isUpdating = updatingId === order._id;
     const vendorTotal = order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
     return (
       <TouchableOpacity
-        activeOpacity={0.95}
-        onPress={() => setExpandedId(expanded ? null : order._id)}
+        activeOpacity={0.7}
+        onPress={() => navigation.navigate('VendorOrderDetail', { orderId: order._id })}
         className="bg-white rounded-3xl mb-4 overflow-hidden"
         style={{
           shadowColor: '#000',
@@ -626,15 +671,15 @@ const VendorOrdersScreen: React.FC = () => {
             </View>
             
             <View className={`px-3 py-1.5 rounded-lg ${paymentConfig.bg} flex-row items-center`}>
-              <Ionicons name={paymentConfig.icon} size={12} color={paymentConfig.text.replace('text-', '#')} />
+              <Ionicons name={paymentConfig.icon as any} size={12} color={paymentConfig.text.replace('text-', '#')} />
               <Text className={`text-xs font-bold ${paymentConfig.text} ml-1`}>
-                {fmtStatus(order.paymentStatus || '')}
+                {order.paymentStatus === 'completed' ? 'Paid' : fmtStatus(order.paymentStatus || '')}
               </Text>
             </View>
           </View>
 
           {/* Items Preview (show first 2 when collapsed) */}
-          {order.items.slice(0, expanded ? undefined : 2).map((item, idx) => {
+          {order.items.slice(0, 2).map((item, idx) => {
             const img = getItemImage(item);
             const name = getItemName(item);
             const isDigital = (item.productType || '').toUpperCase() === 'DIGITAL';
@@ -690,7 +735,7 @@ const VendorOrdersScreen: React.FC = () => {
           })}
 
           {/* Show more items indicator */}
-          {!expanded && order.items.length > 2 && (
+          {order.items.length > 2 && (
             <View className="py-2 items-center border-t border-gray-50">
               <Text className="text-xs text-gray-500 font-medium">
                 +{order.items.length - 2} more {order.items.length - 2 === 1 ? 'item' : 'items'}
@@ -729,136 +774,107 @@ const VendorOrdersScreen: React.FC = () => {
             )}
           </View>
 
-          {/* Expanded Details */}
-          {expanded && (
-            <View className="mt-5 pt-5 border-t border-gray-100">
-              {/* Contact Details */}
-              {order.user?.phone && (
-                <View className="flex-row items-center mb-3">
-                  <View className="w-8 h-8 rounded-lg bg-gray-100 items-center justify-center mr-3">
-                    <Ionicons name="call-outline" size={16} color="#6B7280" />
-                  </View>
-                  <Text className="text-sm text-gray-700 flex-1">
-                    {order.user.phone}
-                  </Text>
+          {/* Tap to view indicator */}
+          <View className="flex-row items-center justify-center mt-3 pt-3 border-t border-gray-100">
+            <Text className="text-xs text-gray-400 font-medium mr-1">View Details</Text>
+            <Ionicons name="chevron-forward" size={14} color="#9CA3AF" />
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  // ── RENDER: Purchase Card ──
+  const renderPurchaseCard = ({ item: order }: { item: Order }) => {
+    const statusConfig = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending;
+
+    return (
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onPress={() => navigation.navigate('OrderDetails', { orderId: order._id })}
+        className="bg-white rounded-3xl mb-4 overflow-hidden"
+        style={{
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.06,
+          shadowRadius: 12,
+          elevation: 6,
+        }}
+      >
+        <View className="p-5">
+          {/* Header Row */}
+          <View className="flex-row justify-between items-start mb-4">
+            <View className="flex-1">
+              <Text className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                Order
+              </Text>
+              <Text className="text-lg font-bold text-gray-900" style={{ letterSpacing: -0.5 }}>
+                #{order.orderNumber}
+              </Text>
+              <Text className="text-xs text-gray-400 mt-1">
+                {fmtDate(order.createdAt)}
+              </Text>
+            </View>
+            <View className={`px-4 py-2 rounded-xl ${statusConfig.bg}`}>
+              <Text className={`text-xs font-bold ${statusConfig.text} uppercase tracking-wide`}>
+                {fmtStatus(order.status)}
+              </Text>
+            </View>
+          </View>
+
+          {/* Items Preview */}
+          {order.items.slice(0, 2).map((item, idx) => (
+            <View
+              key={idx}
+              className={`flex-row items-center py-3 ${idx > 0 ? 'border-t border-gray-50' : ''}`}
+            >
+              {item.productImage ? (
+                <Image
+                  source={{ uri: item.productImage }}
+                  className="w-16 h-16 rounded-xl bg-gray-100"
+                  resizeMode="cover"
+                />
+              ) : (
+                <View className="w-16 h-16 rounded-xl bg-gray-50 items-center justify-center">
+                  <Ionicons name="cube-outline" size={24} color="#D1D5DB" />
                 </View>
               )}
-
-              {/* Payment Method */}
-              <View className="flex-row items-center mb-3">
-                <View className="w-8 h-8 rounded-lg bg-gray-100 items-center justify-center mr-3">
-                  <Ionicons name="card-outline" size={16} color="#6B7280" />
-                </View>
-                <Text className="text-sm text-gray-700 flex-1">
-                  {fmtStatus(order.paymentMethod || 'N/A')}
+              <View className="flex-1 ml-3">
+                <Text className="text-sm font-semibold text-gray-800" numberOfLines={1}>
+                  {item.productName || 'Product'}
                 </Text>
-              </View>
-
-              {/* Shipping Address */}
-              {order.shippingAddress && !order.isDigital && (
-                <View className="flex-row items-start mb-3">
-                  <View className="w-8 h-8 rounded-lg bg-gray-100 items-center justify-center mr-3">
-                    <Ionicons name="location-outline" size={16} color="#6B7280" />
-                  </View>
-                  <Text className="text-sm text-gray-700 flex-1 leading-5">
-                    {[
-                      order.shippingAddress.street,
-                      order.shippingAddress.city,
-                      order.shippingAddress.state,
-                    ].filter(Boolean).join(', ')}
-                  </Text>
-                </View>
-              )}
-
-              {/* Tracking */}
-              {order.vendorShipment?.trackingNumber && (
-                <View className="flex-row items-center mb-3">
-                  <View className="w-8 h-8 rounded-lg bg-gray-100 items-center justify-center mr-3">
-                    <Ionicons name="navigate-outline" size={16} color="#6B7280" />
-                  </View>
-                  <Text className="text-sm text-gray-700 flex-1">
-                    Tracking: {order.vendorShipment.trackingNumber}
-                  </Text>
-                </View>
-              )}
-
-              {/* Action Buttons */}
-              <View className="flex-row flex-wrap gap-3 mt-5">
-                {/* Update Status Button */}
-                {nextStatus && order.status !== 'cancelled' && order.status !== 'delivered' && (
-                  <TouchableOpacity
-                    onPress={() => confirmUpdate(order._id, nextStatus)}
-                    disabled={isUpdating}
-                    activeOpacity={0.8}
-                    className="flex-1 min-w-[140px]"
-                    style={{
-                      shadowColor: '#CC3366',
-                      shadowOffset: { width: 0, height: 3 },
-                      shadowOpacity: 0.3,
-                      shadowRadius: 6,
-                      elevation: 4,
-                    }}
-                  >
-                    <LinearGradient
-                      colors={['#CC3366', '#DB2777']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={{
-                        paddingVertical: 12,
-                        paddingHorizontal: 16,
-                        borderRadius: 12,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      {isUpdating ? (
-                        <ActivityIndicator size={16} color="#fff" />
-                      ) : (
-                        <>
-                          <Ionicons name="checkmark-circle" size={18} color="#fff" />
-                          <Text className="text-white text-sm font-bold ml-2">
-                            Mark {fmtStatus(nextStatus)}
-                          </Text>
-                        </>
-                      )}
-                    </LinearGradient>
-                  </TouchableOpacity>
-                )}
-
-                {/* View Details Button */}
-                <TouchableOpacity
-                  onPress={() => navigation.navigate('VendorOrderDetail', { orderId: order._id })}
-                  activeOpacity={0.8}
-                  className="flex-row items-center justify-center border-2 border-pink-500 px-4 py-3 rounded-xl flex-1 min-w-[120px]"
-                >
-                  <Ionicons name="eye-outline" size={18} color="#CC3366" />
-                  <Text className="text-pink-500 text-sm font-bold ml-2">
-                    View Details
-                  </Text>
-                </TouchableOpacity>
-
-                {/* Cancel Button */}
-                {(order.status === 'pending' || order.status === 'confirmed') && (
-                  <TouchableOpacity
-                    onPress={() => confirmUpdate(order._id, 'cancelled')}
-                    disabled={isUpdating}
-                    activeOpacity={0.8}
-                    className="flex-row items-center justify-center border-2 border-rose-500 px-4 py-3 rounded-xl"
-                  >
-                    <Ionicons name="close-circle-outline" size={18} color="#EF4444" />
-                    <Text className="text-rose-500 text-sm font-bold ml-2">
-                      Cancel
-                    </Text>
-                  </TouchableOpacity>
+                {item.variant && (
+                  <Text className="text-xs text-gray-400 mt-1">{item.variant}</Text>
                 )}
               </View>
+              <View className="items-end ml-3">
+                <Text className="text-xs text-gray-400 mb-1">x{item.quantity}</Text>
+                <Text className="text-sm font-bold text-gray-900">{fmtPrice(item.price)}</Text>
+              </View>
+            </View>
+          ))}
+
+          {order.items.length > 2 && (
+            <View className="py-2 items-center border-t border-gray-50">
+              <Text className="text-xs text-gray-500 font-medium">
+                +{order.items.length - 2} more {order.items.length - 2 === 1 ? 'item' : 'items'}
+              </Text>
             </View>
           )}
 
-          {/* Expand/Collapse Indicator */}
-          <View className="items-center mt-3">
-            <View className="w-10 h-1 rounded-full bg-gray-200" />
+          {/* Total */}
+          <View className="flex-row justify-between items-center mt-4 pt-4 border-t border-gray-100">
+            <View>
+              <Text className="text-xs text-gray-500 font-medium mb-1">Total</Text>
+              <Text className="text-xl font-bold text-gray-900" style={{ letterSpacing: -0.5 }}>
+                {fmtPrice(order.total)}
+              </Text>
+            </View>
+          </View>
+
+          <View className="flex-row items-center justify-center mt-3 pt-3 border-t border-gray-100">
+            <Text className="text-xs text-gray-400 font-medium mr-1">View Details</Text>
+            <Ionicons name="chevron-forward" size={14} color="#9CA3AF" />
           </View>
         </View>
       </TouchableOpacity>
@@ -887,10 +903,12 @@ const VendorOrdersScreen: React.FC = () => {
         <Text className="text-xl font-bold text-gray-900 mb-2" style={{ letterSpacing: -0.5 }}>
           {activeTab === 'all' ? 'No Orders Yet' : `No ${fmtStatus(activeTab)} Orders`}
         </Text>
-        
+
         <Text className="text-sm text-gray-500 text-center leading-6 mb-6">
           {activeTab === 'all'
-            ? "When customers order your products,\nthey'll appear here."
+            ? mode === 'sales'
+              ? "When customers order your products,\nthey'll appear here."
+              : "Your purchases from other vendors\nwill appear here."
             : `You don't have any ${activeTab} orders\nat the moment.`}
         </Text>
         
@@ -953,42 +971,40 @@ const VendorOrdersScreen: React.FC = () => {
   }
 
   return (
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <View className="flex-1 bg-gray-50">
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
       {renderHeader()}
       {renderTabs()}
 
-      <FlatList
-        data={filteredOrders}
-        renderItem={renderCard}
-        keyExtractor={o => o._id}
-        contentContainerStyle={{ 
-          paddingHorizontal: 20, 
-          paddingTop: 16, 
-          paddingBottom: 100,
-          flexGrow: 1 
-        }}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={['#CC3366']}
-            tintColor="#CC3366"
-          />
-        }
-        onEndReached={onLoadMore}
-        onEndReachedThreshold={0.3}
-        ListEmptyComponent={renderEmpty}
-        ListFooterComponent={
-          loadingMore ? (
-            <View className="py-8 items-center">
-              <ActivityIndicator size="small" color="#CC3366" />
-            </View>
-          ) : null
-        }
-      />
+      {mode === 'sales' ? (
+        <FlatList
+          data={filteredOrders}
+          renderItem={renderCard}
+          keyExtractor={o => o._id}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 100, flexGrow: 1 }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#CC3366']} tintColor="#CC3366" />}
+          onEndReached={onLoadMore}
+          onEndReachedThreshold={0.3}
+          ListEmptyComponent={renderEmpty}
+          ListFooterComponent={loadingMore ? <View className="py-8 items-center"><ActivityIndicator size="small" color="#CC3366" /></View> : null}
+        />
+      ) : (
+        <FlatList
+          data={filteredPurchases}
+          renderItem={renderPurchaseCard}
+          keyExtractor={o => o._id}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 100, flexGrow: 1 }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#CC3366']} tintColor="#CC3366" />}
+          onEndReached={onLoadMore}
+          onEndReachedThreshold={0.3}
+          ListEmptyComponent={renderEmpty}
+          ListFooterComponent={loadingMore ? <View className="py-8 items-center"><ActivityIndicator size="small" color="#CC3366" /></View> : null}
+        />
+      )}
 
       <SuccessToast 
         message={successMsg} 
@@ -1002,6 +1018,7 @@ const VendorOrdersScreen: React.FC = () => {
         onDismiss={() => setErrorVisible(false)} 
       />
     </View>
+    </KeyboardAvoidingView>
   );
 };
 

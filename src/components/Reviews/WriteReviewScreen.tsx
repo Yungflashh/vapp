@@ -8,6 +8,8 @@ import {
   TextInput,
   Image,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -173,7 +175,8 @@ const WriteReviewScreen = ({ route, navigation }: WriteReviewScreenProps) => {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-gray-50" edges={['top', 'bottom']}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {/* Header */}
       <View className="bg-white px-4 py-3 flex-row items-center justify-between border-b border-gray-100">
         <View className="flex-row items-center">
@@ -319,6 +322,8 @@ const WriteReviewScreen = ({ route, navigation }: WriteReviewScreenProps) => {
           </TouchableOpacity>
         </View>
       </ScrollView>
+    
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };

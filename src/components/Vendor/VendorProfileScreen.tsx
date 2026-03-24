@@ -16,6 +16,7 @@ import { RootStackParamList } from '@/navigation';
 import Icon from 'react-native-vector-icons/Ionicons';
 import MaterialIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Toast from 'react-native-toast-message';
+import VerifyBadge from '@/components/VerifyBadge';
 import {
   getVendorProfile,
   followVendor,
@@ -74,6 +75,7 @@ const VendorProfileScreen = ({ route, navigation }: VendorProfileScreenProps) =>
           totalSales: vendorData.totalSales || 0,
           productCount: productsData.length || 0,
           verified: vendorData.verificationStatus === 'verified',
+          isPremium: vendorData.isPremium || false,
           followers: vendorData.followersCount || vendorData.followers || 0,
           isFollowing: vendorData.isFollowing || false, // Get from API
         };
@@ -243,17 +245,6 @@ const VendorProfileScreen = ({ route, navigation }: VendorProfileScreenProps) =>
     }
   };
 
-  const handleCall = () => {
-    if (vendor?.phone) {
-      Linking.openURL(`tel:${vendor.phone}`);
-    } else {
-      Toast.show({
-        type: 'warning',
-        text1: 'No Phone',
-        text2: 'This vendor has not provided a phone number',
-      });
-    }
-  };
 
   const renderProductCard = (product: Product) => {
     const mainImage = product.thumbnail || product.images?.[0] || '';
@@ -330,7 +321,7 @@ const VendorProfileScreen = ({ route, navigation }: VendorProfileScreenProps) =>
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-gray-50" edges={['top', 'bottom']}>
       {/* Header */}
       <View className="bg-white px-4 py-3 flex-row items-center justify-between">
         <TouchableOpacity
@@ -347,6 +338,7 @@ const VendorProfileScreen = ({ route, navigation }: VendorProfileScreenProps) =>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 40 }}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -356,11 +348,11 @@ const VendorProfileScreen = ({ route, navigation }: VendorProfileScreenProps) =>
           />
         }
       >
-        {/* Vendor Header Card */}
-        <View className="bg-white mx-4 mt-4 rounded-2xl overflow-hidden shadow-sm">
-          <View className="flex-row items-center p-4">
+        {/* Vendor Header Card - Redesigned */}
+        <View className="bg-white mx-4 mt-4 rounded-2xl overflow-hidden shadow-sm p-4">
+          <View className="flex-row items-start">
             {/* Vendor Image */}
-            <View className="w-20 h-20 rounded-2xl bg-pink-500 overflow-hidden mr-4">
+            <View className="w-16 h-16 rounded-full bg-pink-500 overflow-hidden mr-3">
               {vendor.image ? (
                 <Image
                   source={{ uri: vendor.image }}
@@ -369,100 +361,96 @@ const VendorProfileScreen = ({ route, navigation }: VendorProfileScreenProps) =>
                 />
               ) : (
                 <View className="flex-1 items-center justify-center">
-                  <Icon name="person" size={32} color="#FFFFFF" />
+                  <Icon name="person" size={28} color="#FFFFFF" />
                 </View>
               )}
             </View>
 
             {/* Vendor Info */}
             <View className="flex-1">
-              <View className="flex-row items-center mb-1">
-                <Text className="text-lg font-bold text-gray-900 mr-2">{vendor.name}</Text>
-                {vendor.verified && (
-                  <Icon name="shield-checkmark" size={20} color="#FFDD00" />
-                )}
+              <View className="flex-row items-center justify-between mb-0.5">
+                <View className="flex-row items-center flex-1 mr-2">
+                  <Text className="text-base font-bold text-gray-900" numberOfLines={1}>{vendor.name}</Text>
+                  {vendor.verified && (
+                    <View style={{ marginLeft: 4 }}><VerifyBadge size={16} isPremium={vendor.isPremium} /></View>
+                  )}
+                </View>
+                <TouchableOpacity
+                  onPress={handleFollowToggle}
+                  className="w-9 h-9 rounded-full items-center justify-center"
+                  style={{ backgroundColor: isFollowing ? '#F3F4F6' : '#FDE8EC' }}
+                >
+                  <Icon
+                    name={isFollowing ? 'person-remove-outline' : 'person-add-outline'}
+                    size={18}
+                    color={isFollowing ? '#6B7280' : '#CC3366'}
+                  />
+                </TouchableOpacity>
               </View>
-              <Text className="text-sm text-gray-600 mb-2">
+              {vendor.location && (
+                <View className="flex-row items-center mb-1">
+                  <Icon name="location-outline" size={14} color="#9CA3AF" />
+                  <Text className="text-xs text-gray-500 ml-1">{typeof vendor.location === 'string' ? vendor.location : 'Lagos, Nigeria'}</Text>
+                </View>
+              )}
+              <Text className="text-xs text-gray-600 mb-1.5" numberOfLines={2}>
                 {vendor.description || 'Premium products and services'}
               </Text>
               <View className="flex-row items-center">
-                <Icon name="star" size={14} color="#FBBF24" />
-                <Text className="text-sm font-semibold text-gray-900 ml-1">
+                <Icon name="star" size={12} color="#FBBF24" />
+                <Text className="text-xs font-semibold text-gray-900 ml-1">
                   {vendor.rating.toFixed(1)}
                 </Text>
-                <Text className="text-sm text-gray-500 ml-1">({vendor.reviews})</Text>
-                <Text className="text-sm text-gray-500 mx-2">•</Text>
-                <Text className="text-sm text-gray-600">
-                  {vendor.followers > 0 ? `${vendor.followers.toLocaleString()} followers` : '0 followers'}
+                <Text className="text-xs text-gray-500 ml-1">({vendor.reviews})</Text>
+                <Text className="text-xs text-gray-400 mx-1.5">|</Text>
+                <Text className="text-xs text-gray-600">
+                  {(vendor.followers || 0) > 0 ? `${(vendor.followers || 0).toLocaleString()} followers` : '0 followers'}
                 </Text>
               </View>
             </View>
-
-            {/* Follow Button */}
-            <TouchableOpacity
-              className={`px-4 py-2 rounded-lg ${
-                isFollowing ? 'bg-gray-200' : 'bg-pink-500'
-              }`}
-              onPress={handleFollowToggle}
-            >
-              <Text
-                className={`font-semibold ${
-                  isFollowing ? 'text-gray-700' : 'text-white'
-                }`}
-              >
-                {isFollowing ? 'Unfollow' : 'Follow'}
-              </Text>
-            </TouchableOpacity>
           </View>
         </View>
 
         {/* Stats Section */}
-        <View className="bg-white mx-4 mt-4 rounded-2xl p-4">
+        <View className="bg-white mx-4 mt-3 rounded-2xl p-4">
           <View className="flex-row justify-around">
             <View className="items-center">
-              <Text className="text-2xl font-bold text-pink-500">
+              <Text className="text-xl font-bold text-pink-500">
                 {vendor.productCount || 0}
               </Text>
-              <Text className="text-sm text-gray-600 mt-1">Products</Text>
+              <Text className="text-xs text-gray-600 mt-1">Products</Text>
             </View>
             <View className="w-px bg-gray-200" />
             <View className="items-center">
-              <Text className="text-2xl font-bold text-pink-500">
+              <Text className="text-xl font-bold text-pink-500">
                 {vendor.totalSales || 0}
               </Text>
-              <Text className="text-sm text-gray-600 mt-1">Sold</Text>
+              <Text className="text-xs text-gray-600 mt-1">Sold</Text>
             </View>
             <View className="w-px bg-gray-200" />
             <View className="items-center">
-              <Text className="text-2xl font-bold text-pink-500">
+              <Text className="text-xl font-bold text-pink-500">
                 {vendor.responseRate || 98}%
               </Text>
-              <Text className="text-sm text-gray-600 mt-1">Response</Text>
+              <Text className="text-xs text-gray-600 mt-1">Response</Text>
             </View>
           </View>
         </View>
 
         {/* Action Buttons */}
-        <View className="px-4 mt-4 flex-row gap-3">
+        <View className="px-4 mt-3">
           <TouchableOpacity
-            className="flex-1 bg-pink-500 py-4 rounded-2xl flex-row items-center justify-center"
+            className="bg-pink-500 py-3.5 rounded-2xl flex-row items-center justify-center"
             onPress={handleChatNow}
             activeOpacity={0.8}
           >
             <MaterialIcon name="message-text" size={20} color="#FFFFFF" />
             <Text className="text-white font-semibold text-base ml-2">Chat Now</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            className="w-16 h-16 bg-white rounded-2xl items-center justify-center border border-gray-200"
-            onPress={handleCall}
-            activeOpacity={0.8}
-          >
-            <Icon name="call" size={24} color="#CC3366" />
-          </TouchableOpacity>
         </View>
 
         {/* Products Section */}
-        <View className="px-4 mt-6 mb-6">
+        <View className="px-4 mt-5 mb-6">
           <View className="flex-row items-center mb-4">
             <MaterialIcon name="package-variant" size={24} color="#CC3366" />
             <Text className="text-lg font-bold text-gray-900 ml-2">

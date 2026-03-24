@@ -16,6 +16,8 @@ import {
   Alert,
   Modal,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -141,12 +143,20 @@ const VendorEditProfileScreen = () => {
       const uploadResponse = await uploadVendorImage(imageUri, 'logo');
       
       if (uploadResponse.success) {
-        setProfileImage(uploadResponse.data.url);
-        
+        const newUrl = uploadResponse.data.url;
+        setProfileImage(newUrl);
+
+        // Also immediately save the logo to the vendor profile
+        try {
+          await updateVendorProfile({ businessLogo: newUrl });
+        } catch (saveErr) {
+          console.error('Failed to auto-save logo:', saveErr);
+        }
+
         Toast.show({
           type: 'success',
           text1: 'Success',
-          text2: 'Profile image uploaded',
+          text2: 'Profile image updated',
         });
       }
     } catch (error: any) {
@@ -232,17 +242,21 @@ const VendorEditProfileScreen = () => {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#CC3366" />
         </View>
-      </SafeAreaView>
+      
+      </KeyboardAvoidingView>
+    </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       {/* Header */}
@@ -448,6 +462,8 @@ const VendorEditProfileScreen = () => {
       </Modal>
 
       <Toast />
+    
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };

@@ -6,7 +6,8 @@ import {
   ScrollView, 
   Image, 
   ActivityIndicator,
-  RefreshControl 
+  RefreshControl,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -93,6 +94,8 @@ const CategoriesScreen = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     fetchCategories();
@@ -308,15 +311,40 @@ const fetchCategories = async () => {
         <View className="flex-row items-center gap-2">
           <TouchableOpacity
             className="w-10 h-10 items-center justify-center"
-            onPress={() => navigation.navigate('Home' as never)}
+            onPress={() => setShowSearch(!showSearch)}
           >
-            <Icon name="search-outline" size={22} color="#111827" />
+            <Icon name={showSearch ? 'close' : 'search-outline'} size={22} color="#111827" />
           </TouchableOpacity>
-          <TouchableOpacity className="w-10 h-10 items-center justify-center">
-            <Icon name="filter-outline" size={22} color="#111827" />
+          <TouchableOpacity
+            className="w-10 h-10 items-center justify-center"
+            onPress={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+          >
+            <Icon name={viewMode === 'grid' ? 'list-outline' : 'grid-outline'} size={22} color="#111827" />
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Search Bar */}
+      {showSearch && (
+        <View className="bg-white px-4 py-2 border-b border-gray-100">
+          <View className="flex-row items-center bg-gray-100 rounded-xl px-4 py-2">
+            <Icon name="search" size={18} color="#9CA3AF" />
+            <TextInput
+              className="flex-1 ml-2 text-sm text-gray-900"
+              placeholder="Search categories..."
+              placeholderTextColor="#9CA3AF"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoFocus
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <Icon name="close-circle" size={18} color="#9CA3AF" />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      )}
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -328,7 +356,7 @@ const fetchCategories = async () => {
             tintColor="#CC3366"
           />
         }
-        contentContainerStyle={{ padding: 16 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 80 }}
       >
         {/* Section Header with View Toggle */}
         <View className="flex-row justify-between items-center mb-4">
@@ -408,14 +436,18 @@ const fetchCategories = async () => {
         {/* Categories Grid View */}
         {!isLoading && !error && categories.length > 0 && viewMode === 'grid' && (
           <View className="flex-row flex-wrap justify-between">
-            {categories.map((category) => renderGridItem(category))}
+            {categories
+              .filter(c => !searchQuery || c.name.toLowerCase().includes(searchQuery.toLowerCase()))
+              .map((category) => renderGridItem(category))}
           </View>
         )}
 
         {/* Categories List View */}
         {!isLoading && !error && categories.length > 0 && viewMode === 'list' && (
           <View>
-            {categories.map((category) => renderListItem(category))}
+            {categories
+              .filter(c => !searchQuery || c.name.toLowerCase().includes(searchQuery.toLowerCase()))
+              .map((category) => renderListItem(category))}
           </View>
         )}
       </ScrollView>

@@ -9,6 +9,8 @@ import {
   RefreshControl,
   ActivityIndicator,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -19,6 +21,7 @@ import { getOrders, Order } from '@/services/order.service';
 import { getCart } from '@/services/cart.service';
 import { useFocusEffect } from '@react-navigation/native';
 import { useNotifications } from '@/context/NotificationContext';
+import { useAuth } from '@/context/AuthContext';
 
 type OrdersScreenProps = NativeStackScreenProps<RootStackParamList, 'Orders'>;
 
@@ -26,6 +29,7 @@ type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'complet
 
 const OrdersScreen = ({ navigation }: OrdersScreenProps) => {
   const { unreadCount: notificationCount } = useNotifications();
+  const { user } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | 'all'>('all');
@@ -232,6 +236,14 @@ const OrdersScreen = ({ navigation }: OrdersScreenProps) => {
       Shop: {order.vendorShipments[0].vendorName}
     </Text>
   )}
+  {/* Show "My Order" badge if current user is a vendor who placed this order */}
+  {user?.role === 'vendor' && (
+    typeof order.user === 'string' ? order.user === user?.id : order.user?._id === user?.id
+  ) && (
+    <View className="mt-1.5 self-start px-2 py-0.5 rounded-full" style={{ backgroundColor: '#F3E8FF' }}>
+      <Text className="text-[10px] font-bold" style={{ color: '#7C3AED' }}>My Order</Text>
+    </View>
+  )}
 </View>
 
           {/* More Options */}
@@ -265,17 +277,21 @@ const OrdersScreen = ({ navigation }: OrdersScreenProps) => {
 
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-gray-50" edges={['top', 'bottom']}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#CC3366" />
           <Text className="text-gray-500 mt-4">Loading orders...</Text>
         </View>
-      </SafeAreaView>
+      
+      </KeyboardAvoidingView>
+    </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-gray-50" edges={['top', 'bottom']}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {/* Header */}
       <View className="bg-white px-4 py-3 flex-row items-center justify-between border-b border-gray-100">
         <View className="flex-row items-center">
@@ -316,13 +332,13 @@ const OrdersScreen = ({ navigation }: OrdersScreenProps) => {
         </View>
       </View>
 
-      {/* Search Bar */}
-      <View className="bg-white px-4 py-3 border-b border-gray-100">
-        <View className="flex-row items-center bg-gray-100 rounded-xl px-4 py-2.5">
-          <Icon name="search" size={20} color="#9CA3AF" />
+      {/* Search Bar + Status Tabs */}
+      <View className="bg-white px-4 pt-2 pb-1 border-b border-gray-100">
+        <View className="flex-row items-center bg-gray-100 rounded-xl px-4 py-2 mb-2">
+          <Icon name="search" size={18} color="#9CA3AF" />
           <TextInput
             className="flex-1 ml-2 text-sm text-gray-900"
-            placeholder="Search products..."
+            placeholder="Search orders..."
             placeholderTextColor="#9CA3AF"
             value={searchQuery}
             onChangeText={handleSearch}
@@ -331,7 +347,7 @@ const OrdersScreen = ({ navigation }: OrdersScreenProps) => {
       </View>
 
       {/* Status Tabs */}
-      <View className="bg-white px-4 py-3 border-b border-gray-100">
+      <View className="bg-white px-4 py-4 mt-2 border-b border-gray-100">
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -341,7 +357,7 @@ const OrdersScreen = ({ navigation }: OrdersScreenProps) => {
             <TouchableOpacity
               key={tab.value}
               onPress={() => handleStatusChange(tab.value)}
-              className={`px-5 py-2 rounded-full ${
+              className={`px-5 py-2.5 rounded-full ${
                 selectedStatus === tab.value
                   ? 'bg-pink-500'
                   : 'bg-gray-100'
@@ -401,6 +417,8 @@ const OrdersScreen = ({ navigation }: OrdersScreenProps) => {
           )}
         </View>
       </ScrollView>
+    
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };

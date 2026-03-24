@@ -38,6 +38,11 @@ const getNotificationIcon = (type: string) => {
       return { name: 'pricetag', color: '#F59E0B', bg: '#FEF3C7' };
     case 'review':
       return { name: 'star', color: '#F59E0B', bg: '#FEF3C7' };
+    case 'chat':
+    case 'message':
+      return { name: 'chatbubble-ellipses', color: '#6366F1', bg: '#E0E7FF' };
+    case 'challenge':
+      return { name: 'flag', color: '#EC4899', bg: '#FCE7F3' };
     case 'reward':
     case 'points':
       return { name: 'trophy', color: '#8B5CF6', bg: '#EDE9FE' };
@@ -139,10 +144,26 @@ const NotificationsScreen = ({ navigation }: NotificationsScreenProps) => {
       }
     }
 
-    // Navigate based on notification data
+    // Navigate based on notification type / data
+    if (notification.type === 'challenge') {
+      navigation.navigate('Challenges');
+      return;
+    }
+
     if (notification.data) {
-      const { orderId, productId, vendorId } = notification.data;
-      if (orderId) {
+      const { orderId, productId, vendorId, conversationId, senderId, disputeId } = notification.data;
+
+      if (conversationId || (notification.type === 'chat' && senderId)) {
+        // Chat/message notification - navigate to Chat screen
+        navigation.navigate('Chat', {
+          conversationId: conversationId || undefined,
+          receiverId: senderId || '',
+          receiverName: notification.title?.replace('New message from ', '') || 'User',
+          receiverAvatar: undefined,
+        });
+      } else if (disputeId) {
+        navigation.navigate('DisputeDetails', { disputeId });
+      } else if (orderId) {
         navigation.navigate('OrderDetails', { orderId });
       } else if (productId) {
         navigation.navigate('ProductDetails', { productId });
@@ -236,7 +257,7 @@ const NotificationsScreen = ({ navigation }: NotificationsScreenProps) => {
   const unreadNotifications = notifications.filter(n => !n.read);
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
       {/* Header */}
       <View className="bg-white px-4 py-3 flex-row items-center justify-between border-b border-gray-100">
         <View className="flex-row items-center">
@@ -258,11 +279,6 @@ const NotificationsScreen = ({ navigation }: NotificationsScreenProps) => {
           {unreadNotifications.length > 0 && (
             <TouchableOpacity onPress={handleMarkAllRead}>
               <Icon name="checkmark-done" size={22} color="#CC3366" />
-            </TouchableOpacity>
-          )}
-          {notifications.length > 0 && (
-            <TouchableOpacity onPress={handleClearAll}>
-              <Icon name="trash-outline" size={20} color="#9CA3AF" />
             </TouchableOpacity>
           )}
           <TouchableOpacity onPress={() => navigation.navigate('NotificationSettings')}>

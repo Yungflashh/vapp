@@ -223,7 +223,7 @@ const ChallengesScreen = ({ navigation }: ChallengesScreenProps) => {
   // ==================== LOADING ====================
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#CC3366" />
           <Text className="text-gray-500 mt-4">Loading challenges...</Text>
@@ -233,7 +233,7 @@ const ChallengesScreen = ({ navigation }: ChallengesScreenProps) => {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-gray-50" edges={['top', 'bottom']}>
       {/* Header */}
       <View className="bg-white px-4 py-3 flex-row items-center justify-between border-b border-gray-100">
         <View className="flex-row items-center">
@@ -246,7 +246,14 @@ const ChallengesScreen = ({ navigation }: ChallengesScreenProps) => {
           <Text className="text-xl font-bold ml-2">Challenges</Text>
         </View>
 
-        <View className="flex-row items-center">
+        <View className="flex-row items-center" style={{ gap: 8 }}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Leaderboard' as any)}
+            className="bg-pink-100 px-3 py-1.5 rounded-full flex-row items-center"
+          >
+            <Icon name="podium-outline" size={14} color="#CC3366" />
+            <Text className="text-pink-600 text-xs font-bold ml-1">Leaderboard</Text>
+          </TouchableOpacity>
           <View className="bg-yellow-100 px-3 py-1.5 rounded-full flex-row items-center">
             <Icon name="trophy" size={14} color="#F59E0B" />
             <Text className="text-yellow-700 text-xs font-bold ml-1">
@@ -296,6 +303,7 @@ const ChallengesScreen = ({ navigation }: ChallengesScreenProps) => {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingVertical: 16, paddingBottom: 40 }}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -305,7 +313,6 @@ const ChallengesScreen = ({ navigation }: ChallengesScreenProps) => {
           />
         }
         className="flex-1"
-        contentContainerStyle={{ paddingVertical: 16 }}
       >
         {/* ==================== ACTIVE CHALLENGES TAB ==================== */}
         {activeTab === 'active' && (

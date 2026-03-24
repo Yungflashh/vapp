@@ -1,5 +1,5 @@
 // screens/OrderDetailsScreen.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,13 +10,18 @@ import {
   Modal,
   TextInput,
   Linking,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 import { RootStackParamList } from '@/navigation';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Toast from 'react-native-toast-message';
-import { getOrderById, trackOrder, cancelOrder, Order } from '@/services/order.service';
+import { getOrderById, trackOrder, cancelOrder, completeOrder, Order } from '@/services/order.service';
+import api from '@/services/api.config';
 
 type OrderDetailsScreenProps = NativeStackScreenProps<RootStackParamList, 'OrderDetails'>;
 
@@ -25,16 +30,26 @@ const DISPUTE_WINDOW_DAYS = 7;
 const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
   const { orderId } = route.params;
   const [order, setOrder] = useState<Order | null>(null);
+  const [supportUserId, setSupportUserId] = useState<string>('');
   const [tracking, setTracking] = useState<any>(null);
   const [trackingUrl, setTrackingUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [isCancelling, setIsCancelling] = useState(false);
+  const [isCompleting, setIsCompleting] = useState(false);
 
   useEffect(() => {
-    fetchOrderDetails();
-  }, [orderId]);
+    api.get('/auth/support-user').then((res) => {
+      if (res.data.success) setSupportUserId(res.data.data.user.id);
+    }).catch(() => {});
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchOrderDetails();
+    }, [orderId])
+  );
 
   const fetchOrderDetails = async () => {
     try {
@@ -111,6 +126,41 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
     } finally {
       setIsCancelling(false);
     }
+  };
+
+  const handleCompleteOrder = () => {
+    Alert.alert(
+      'Complete Order',
+      'Are you sure you want to confirm that you received this order completely in good condition? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Yes, Complete',
+          onPress: async () => {
+            try {
+              setIsCompleting(true);
+              const response = await completeOrder(orderId);
+              if (response.success) {
+                Toast.show({
+                  type: 'success',
+                  text1: 'Success',
+                  text2: 'Order completed successfully!',
+                });
+                await fetchOrderDetails();
+              }
+            } catch (error: any) {
+              Toast.show({
+                type: 'error',
+                text1: 'Error',
+                text2: error.response?.data?.message || 'Failed to complete order',
+              });
+            } finally {
+              setIsCompleting(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const openTrackingUrl = () => {
@@ -209,18 +259,22 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
 
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-gray-50" edges={['top', 'bottom']}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#CC3366" />
           <Text className="text-gray-500 mt-4">Loading order details...</Text>
         </View>
-      </SafeAreaView>
+      
+      </KeyboardAvoidingView>
+    </SafeAreaView>
     );
   }
 
   if (!order) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-gray-50" edges={['top', 'bottom']}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View className="flex-1 items-center justify-center">
           <Icon name="alert-circle-outline" size={64} color="#EF4444" />
           <Text className="text-gray-900 font-bold text-lg mt-4">Order Not Found</Text>
@@ -231,7 +285,9 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
             <Text className="text-white font-semibold">Go Back</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      
+      </KeyboardAvoidingView>
+    </SafeAreaView>
     );
   }
 
@@ -242,7 +298,8 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
   const disputeDeadline = getDisputeDeadline();
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-gray-50" edges={['top', 'bottom']}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {/* Header */}
       <View className="bg-white px-4 py-3 flex-row items-center justify-between border-b border-gray-100">
         <View className="flex-row items-center">
@@ -503,121 +560,204 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
                     : '#F59E0B',
               }}
             >
-              {order.paymentStatus.charAt(0).toUpperCase() + order.paymentStatus.slice(1)}
+              {order.paymentStatus === 'completed' ? 'Paid' : order.paymentStatus.charAt(0).toUpperCase() + order.paymentStatus.slice(1)}
             </Text>
           </View>
         </View>
 
         {/* Action Buttons */}
         <View className="px-4 py-6">
-          {/* Download Digital Products Button */}
-          {order.deliveryType === 'digital' && order.paymentStatus === 'completed' && (
+          {/* Complete Order Button - for customer to confirm delivery (only before completed) */}
+          {order.status === 'in_transit' && (
             <TouchableOpacity
-              onPress={() => navigation.navigate('MyDigitalProducts' as any)}
-              className="bg-purple-500 py-4 rounded-xl mb-3"
+              onPress={handleCompleteOrder}
+              disabled={isCompleting}
+              className="mb-3 rounded-2xl overflow-hidden"
+              activeOpacity={0.8}
+              style={{
+                backgroundColor: '#10B981',
+                shadowColor: '#10B981',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 8,
+              }}
             >
-              <View className="flex-row items-center justify-center">
-                <Icon name="cloud-download" size={20} color="#FFFFFF" />
-                <Text className="text-white font-bold ml-2">Download Products</Text>
+              <View className="flex-row items-center justify-center py-4">
+                {isCompleting ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Icon name="checkmark-done-circle" size={22} color="#FFFFFF" />
+                    <Text className="text-white font-bold text-base ml-2">Complete Order</Text>
+                  </>
+                )}
               </View>
             </TouchableOpacity>
           )}
 
-          {/* Track Order Button - Legacy */}
-          {!trackingUrl &&
-            order.deliveryType !== 'digital' &&
-            ['confirmed', 'shipped', 'in_transit', 'processing'].includes(order.status) && (
+          {/* Row 1: Primary actions */}
+          <View className="flex-row gap-3 mb-3">
+            {/* Track Order */}
+            {!trackingUrl &&
+              order.deliveryType !== 'digital' &&
+              ['confirmed', 'shipped', 'in_transit', 'processing'].includes(order.status) && (
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('TrackOrder', { orderId: order._id })}
+                  className="flex-1 bg-pink-500 py-3.5 rounded-xl"
+                >
+                  <View className="flex-row items-center justify-center">
+                    <Icon name="location" size={18} color="#FFFFFF" />
+                    <Text className="text-white font-bold text-sm ml-1.5">Track</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+
+            {/* Download Digital Products */}
+            {order.deliveryType === 'digital' && order.paymentStatus === 'completed' && (
               <TouchableOpacity
-                onPress={() => navigation.navigate('TrackOrder', { orderId: order._id })}
-                className="bg-pink-500 py-4 rounded-xl mb-3"
+                onPress={() => navigation.navigate('MyDigitalProducts' as any)}
+                className="flex-1 bg-purple-500 py-3.5 rounded-xl"
               >
                 <View className="flex-row items-center justify-center">
-                  <Icon name="location" size={20} color="#FFFFFF" />
-                  <Text className="text-white font-bold ml-2">Track Order</Text>
+                  <Icon name="cloud-download" size={18} color="#FFFFFF" />
+                  <Text className="text-white font-bold text-sm ml-1.5">Download</Text>
                 </View>
               </TouchableOpacity>
             )}
 
-          {/* Cancel Order Button */}
-          {canCancel && (
-            <TouchableOpacity
-              onPress={() => setShowCancelModal(true)}
-              className="bg-red-500 py-4 rounded-xl mb-3"
-            >
-              <Text className="text-white font-bold text-center">Cancel Order</Text>
-            </TouchableOpacity>
-          )}
-
-          {/* Write Review Button */}
-          {order.status === 'delivered' && order.paymentStatus === 'completed' && (
+            {/* Chat with Vendor */}
             <TouchableOpacity
               onPress={() => {
-                navigation.navigate('WriteReview' as any, {
-                  orderId: order._id,
-                  items: order.items.map((item: any) => ({
-                    product: item.product,
-                    productName: item.productName,
-                    productImage: item.productImage,
-                  })),
-                });
-              }}
-              className="bg-amber-500 py-4 rounded-xl mb-3"
-            >
-              <View className="flex-row items-center justify-center">
-                <Icon name="star" size={20} color="#FFFFFF" />
-                <Text className="text-white font-bold ml-2">Write a Review</Text>
-              </View>
-            </TouchableOpacity>
-          )}
-
-          {/* ✅ NEW: Dispute Order Button */}
-          {canDispute && (
-            <TouchableOpacity
-              onPress={() => {
-                // Extract vendorId properly — could be populated object or string
                 const firstVendor = order.items[0]?.vendor;
                 const vendorId = typeof firstVendor === 'object'
                   ? (firstVendor as any)?._id
                   : firstVendor;
-
-                navigation.navigate('FileDispute' as any, {
-                  orderId: order._id,
-                  orderNumber: order.orderNumber,
-                  items: order.items.map((item: any) => ({
-                    product: typeof item.product === 'object' ? item.product._id : item.product,
-                    productName: item.productName,
-                    productImage: item.productImage,
-                    quantity: item.quantity,
-                    price: item.price,
-                    vendor: typeof item.vendor === 'object' ? (item.vendor as any)?._id : item.vendor,
-                  })),
-                  vendorId,
+                const vendorName = typeof firstVendor === 'object'
+                  ? (firstVendor as any)?.businessName || (firstVendor as any)?.name || 'Vendor'
+                  : 'Vendor';
+                const orderDetails = `Hi, I have a question about my Order #${order.orderNumber}.\n\nItems: ${order.items.map((i: any) => i.productName).join(', ')}\nTotal: ₦${order.total?.toLocaleString()}\nStatus: ${order.status}`;
+                navigation.navigate('Chat', {
+                  receiverId: vendorId,
+                  receiverName: vendorName,
+                  initialMessage: orderDetails,
                 });
               }}
-              className="py-4 rounded-xl mb-3 border-2 border-red-400"
-              style={{ backgroundColor: '#FEF2F2' }}
+              className="flex-1 bg-pink-50 py-3.5 rounded-xl border border-pink-200"
               activeOpacity={0.7}
             >
               <View className="flex-row items-center justify-center">
-                <Icon name="shield-half" size={20} color="#EF4444" />
-                <Text className="text-red-600 font-bold ml-2">Dispute Order</Text>
+                <Icon name="chatbubble-ellipses" size={18} color="#CC3366" />
+                <Text className="text-pink-600 font-bold text-sm ml-1.5">Chat</Text>
               </View>
-              {disputeDeadline && (
-                <Text className="text-xs text-red-400 text-center mt-1">
-                  {disputeDeadline} to file a dispute
-                </Text>
-              )}
             </TouchableOpacity>
-          )}
+          </View>
 
-          <TouchableOpacity
-            onPress={() => {
-              // Could navigate to help/support
-            }}
-            className="bg-gray-100 py-4 rounded-xl"
-          >
-            <Text className="text-gray-900 font-bold text-center">Need Help?</Text>
-          </TouchableOpacity>
+          {/* Row 2: Secondary actions */}
+          <View className="flex-row gap-3 mb-3">
+            {/* Write Review */}
+            {order.status === 'delivered' && order.paymentStatus === 'completed' && (
+              <TouchableOpacity
+                onPress={() => {
+                  navigation.navigate('WriteReview' as any, {
+                    orderId: order._id,
+                    items: order.items.map((item: any) => ({
+                      product: item.product,
+                      productName: item.productName,
+                      productImage: item.productImage,
+                    })),
+                  });
+                }}
+                className="flex-1 bg-amber-500 py-3.5 rounded-xl"
+              >
+                <View className="flex-row items-center justify-center">
+                  <Icon name="star" size={18} color="#FFFFFF" />
+                  <Text className="text-white font-bold text-sm ml-1.5">Review</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+
+            {/* Cancel Order */}
+            {canCancel && (
+              <TouchableOpacity
+                onPress={() => setShowCancelModal(true)}
+                className="flex-1 bg-red-500 py-3.5 rounded-xl"
+              >
+                <View className="flex-row items-center justify-center">
+                  <Icon name="close-circle" size={18} color="#FFFFFF" />
+                  <Text className="text-white font-bold text-sm ml-1.5">Cancel</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+
+            {/* Dispute Order */}
+            {canDispute && (
+              <TouchableOpacity
+                onPress={() => {
+                  const firstVendor = order.items[0]?.vendor;
+                  const vendorId = typeof firstVendor === 'object'
+                    ? (firstVendor as any)?._id
+                    : firstVendor;
+                  navigation.navigate('FileDispute' as any, {
+                    orderId: order._id,
+                    orderNumber: order.orderNumber,
+                    items: order.items.map((item: any) => ({
+                      product: typeof item.product === 'object' ? item.product._id : item.product,
+                      productName: item.productName,
+                      productImage: item.productImage,
+                      quantity: item.quantity,
+                      price: item.price,
+                      vendor: typeof item.vendor === 'object' ? (item.vendor as any)?._id : item.vendor,
+                    })),
+                    vendorId,
+                  });
+                }}
+                className="flex-1 py-3.5 rounded-xl border-2 border-red-400"
+                style={{ backgroundColor: '#FEF2F2' }}
+                activeOpacity={0.7}
+              >
+                <View className="flex-row items-center justify-center">
+                  <Icon name="shield-half" size={18} color="#EF4444" />
+                  <Text className="text-red-600 font-bold text-sm ml-1.5">Dispute</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+
+            {/* Need Help */}
+            <TouchableOpacity
+              onPress={() => {
+                Alert.alert(
+                  'Need Help?',
+                  'How would you like to reach us?',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Chat with Support',
+                      onPress: () => navigation.navigate('Chat', {
+                        receiverId: supportUserId,
+                        receiverName: 'VendorSpot Support',
+                        initialMessage: `Hi, I need help with my Order #${order?.orderNumber || ''}.\n\nItems: ${order?.items.map((i: any) => i.productName).join(', ')}\nTotal: ₦${order?.total?.toLocaleString()}\nStatus: ${order?.status}`,
+                      }),
+                    },
+                    {
+                      text: 'Email Us',
+                      onPress: () => Linking.openURL('mailto:support@vendorspot.com?subject=Help with Order ' + (order?.orderNumber || '')),
+                    },
+                    {
+                      text: 'Call Us',
+                      onPress: () => Linking.openURL('tel:+2349000000000'),
+                    },
+                  ]
+                );
+              }}
+              className="flex-1 bg-gray-100 py-3.5 rounded-xl"
+            >
+              <View className="flex-row items-center justify-center">
+                <Icon name="help-circle-outline" size={18} color="#374151" />
+                <Text className="text-gray-900 font-bold text-sm ml-1.5">Help</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
 
@@ -677,6 +817,8 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
           </View>
         </View>
       </Modal>
+    
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };

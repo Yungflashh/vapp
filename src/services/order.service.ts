@@ -373,6 +373,25 @@ export const getVendorOrderById = async (orderId: string): Promise<{ success: bo
 /**
  * Simulate webhook for vendor order status update (Development only)
  */
+/**
+ * Complete order (customer confirms delivery)
+ */
+export const completeOrder = async (orderId: string): Promise<{ success: boolean; message: string; data: { order: Order } }> => {
+  try {
+    console.log('📦 Completing order:', orderId);
+
+    const response = await api.put(`/orders/${orderId}/complete`);
+
+    console.log('✅ Order completed');
+
+    return response.data;
+  } catch (error) {
+    console.error('❌ Complete order error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};
+
 export const simulateWebhook = async (orderId: string, statusCode: string) => {
   try {
     console.log('⚙️ Simulating webhook for order:', orderId, 'status:', statusCode);

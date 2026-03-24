@@ -104,11 +104,11 @@ const PaymentSetupScreen = ({ navigation }: PaymentSetupScreenProps) => {
         text2: 'Payment information saved successfully!',
       });
 
-      // Small delay to show toast, then go to dashboard
+      // Small delay to show toast, then navigate to KYC verification
       setTimeout(() => {
         (navigation as any).reset({
           index: 0,
-          routes: [{ name: 'VendorMain' }],
+          routes: [{ name: 'VendorKYCVerification', params: { isSetupFlow: true } }],
         });
       }, 1000);
     } catch (error: any) {
@@ -149,7 +149,7 @@ const PaymentSetupScreen = ({ navigation }: PaymentSetupScreenProps) => {
             Payment Setup
           </Text>
           <Text className="text-2xl font-bold text-pink-500 text-center mb-2">
-            Last Step!
+            Almost There!
           </Text>
           <Text className="text-sm text-gray-500 text-center mb-6">
             Add your payment information to receive funds
@@ -296,9 +296,9 @@ const PaymentSetupScreen = ({ navigation }: PaymentSetupScreenProps) => {
               onPress={() => {
                 setShowSkipModal(false);
                 (navigation as any).reset({
-                  index: 0,
-                  routes: [{ name: 'VendorMain' }],
-                });
+          index: 0,
+          routes: [{ name: 'VendorKYCVerification', params: { isSetupFlow: true } }],
+        });
               }}
             >
               <Text className="text-white text-base font-semibold text-center">Skip for Now</Text>

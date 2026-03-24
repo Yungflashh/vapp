@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
-// import VerifiedIcon from '@mui/icons-material/Verified';
+import VerifyBadge from '@/components/VerifyBadge';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '@/context/AuthContext';
@@ -25,6 +25,7 @@ import * as ImagePicker from 'expo-image-picker';
 import {
   getMyVendorProfile,
   uploadVendorImage,
+  updateVendorProfile,
 } from '@/services/vendor.service';
 import Toast from 'react-native-toast-message';
 
@@ -107,14 +108,27 @@ const VendorProfileScreen = () => {
       setUploading(true);
       
       const uploadResponse = await uploadVendorImage(imageUri, type);
-      
+
       if (uploadResponse.success) {
+        const newUrl = uploadResponse.data.url;
+
+        // Save the uploaded URL to the vendor profile
+        const updateData: any = {};
+        if (type === 'logo') updateData.businessLogo = newUrl;
+        else updateData.businessBanner = newUrl;
+
+        try {
+          await updateVendorProfile(updateData);
+        } catch (saveErr) {
+          console.error('Failed to save image to profile:', saveErr);
+        }
+
         Toast.show({
           type: 'success',
           text1: 'Success',
           text2: `${type === 'logo' ? 'Logo' : 'Banner'} updated successfully`,
         });
-        
+
         fetchProfile();
       }
     } catch (error: any) {
@@ -343,7 +357,7 @@ const VendorProfileScreen = () => {
                   {/* Verified Badge beside name */}
                   {profile?.verificationStatus === 'verified' && (
                     <View className="ml-1.5">
-                      <Icon name="shield-checkmark" size={20} color="#FFDD00" />
+                      <VerifyBadge size={20} isPremium={profile?.isPremium} />
                     </View>
                   )}
                 </View>

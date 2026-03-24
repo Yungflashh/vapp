@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, TouchableOpacity, Text } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import MaterialIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSocket } from '@/context/SocketContext';
@@ -10,11 +11,12 @@ interface CustomTabBarProps extends BottomTabBarProps {
 }
 
 const CustomTabBar = ({ state, descriptors, navigation, isVendor = false }: CustomTabBarProps) => {
-  const { unreadMessageCount } = useSocket();
+  const { unreadMessageCount, activeOrderCount } = useSocket();
+  const insets = useSafeAreaInsets();
 
   const getTabIcon = (routeName: string, isFocused: boolean) => {
     const color = isFocused ? '#CC3366' : '#9CA3AF';
-    const size = 26;
+    const size = 22;
 
     // Vendor-specific icons
     if (isVendor) {
@@ -22,7 +24,7 @@ const CustomTabBar = ({ state, descriptors, navigation, isVendor = false }: Cust
         case 'Home':
           return <Icon name="home" size={size} color={color} />;
         case 'Dashboard':
-          return <MaterialIcon name="view-dashboard-outline" size={size} color={color} />;
+          return <MaterialIcon name="chart-box-outline" size={size} color={color} />;
         case 'Products':
           return <MaterialIcon name="package-variant" size={size} color={color} />;
         case 'VendorOrders':
@@ -40,8 +42,8 @@ const CustomTabBar = ({ state, descriptors, navigation, isVendor = false }: Cust
     switch (routeName) {
       case 'Home':
         return <Icon name="home" size={size} color={color} />;
-      case 'Categories':
-        return <MaterialIcon name="view-grid-outline" size={size} color={color} />;
+      case 'Orders':
+        return <Icon name="receipt-outline" size={size} color={color} />;
       case 'Wishlist':
         return <Icon name="heart-outline" size={size} color={color} />;
       case 'Messages':
@@ -78,8 +80,8 @@ const CustomTabBar = ({ state, descriptors, navigation, isVendor = false }: Cust
     switch (routeName) {
       case 'Home':
         return 'Home';
-      case 'Categories':
-        return 'Categories';
+      case 'Orders':
+        return 'Orders';
       case 'Wishlist':
         return 'Wishlist';
       case 'Messages':
@@ -93,7 +95,7 @@ const CustomTabBar = ({ state, descriptors, navigation, isVendor = false }: Cust
 
   return (
     <View className="bg-white border-t border-gray-200">
-      <View className="flex-row px-2 pt-3 pb-2">
+      <View className="flex-row px-2 pt-2 pb-1">
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
           const isFocused = state.index === index;
@@ -126,22 +128,32 @@ const CustomTabBar = ({ state, descriptors, navigation, isVendor = false }: Cust
               testID={options.tabBarTestID}
               onPress={onPress}
               onLongPress={onLongPress}
-              className="flex-1 items-center justify-center py-2"
+              style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 4 }}
             >
-              <View className="relative">
+              <View style={{ position: 'relative' }}>
                 {getTabIcon(route.name, isFocused)}
                 {route.name === 'Messages' && unreadMessageCount > 0 && (
-                  <View className="absolute -top-1 -right-2 bg-pink-500 rounded-full min-w-[16px] h-4 items-center justify-center px-1">
-                    <Text className="text-[10px] text-white font-bold">
+                  <View style={{ position: 'absolute', top: -4, right: -8, backgroundColor: '#EC4899', borderRadius: 8, minWidth: 16, height: 16, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }}>
+                    <Text style={{ fontSize: 9, color: '#FFFFFF', fontWeight: '700' }}>
                       {unreadMessageCount > 9 ? '9+' : unreadMessageCount}
+                    </Text>
+                  </View>
+                )}
+                {(route.name === 'Orders' || route.name === 'VendorOrders') && activeOrderCount > 0 && (
+                  <View style={{ position: 'absolute', top: -4, right: -8, backgroundColor: '#CC3366', borderRadius: 8, minWidth: 16, height: 16, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }}>
+                    <Text style={{ fontSize: 9, color: '#FFFFFF', fontWeight: '700' }}>
+                      {activeOrderCount > 9 ? '9+' : activeOrderCount}
                     </Text>
                   </View>
                 )}
               </View>
               <Text
-                className={`text-xs mt-1 ${
-                  isFocused ? 'text-pink-500 font-semibold' : 'text-gray-500'
-                }`}
+                style={{
+                  fontSize: 11,
+                  marginTop: 2,
+                  color: isFocused ? '#CC3366' : '#9CA3AF',
+                  fontWeight: isFocused ? '600' : '400',
+                }}
               >
                 {getTabLabel(route.name)}
               </Text>
@@ -149,8 +161,8 @@ const CustomTabBar = ({ state, descriptors, navigation, isVendor = false }: Cust
           );
         })}
       </View>
-      {/* Spacer to cover Android nav buttons area */}
-      <View className="h-10 bg-white" />
+      {/* Dynamic spacer for Android nav buttons / iOS home indicator */}
+      <View style={{ height: Math.max(insets.bottom, 10), backgroundColor: 'white' }} />
     </View>
   );
 };

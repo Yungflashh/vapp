@@ -9,6 +9,8 @@ import {
   RefreshControl,
   Modal,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -16,6 +18,7 @@ import { RootStackParamList } from '@/navigation';
 import Icon from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import Toast from 'react-native-toast-message';
+import TierBadge from '@/components/TierBadge';
 import { getUserPoints, getAvailableRewards, redeemPoints } from '@/services/reward.service';
 
 type RewardsScreenProps = NativeStackScreenProps<RootStackParamList, 'Rewards'>;
@@ -130,22 +133,35 @@ const RewardsScreen = ({ navigation }: RewardsScreenProps) => {
   const getTierColor = (tier: string) => {
     switch (tier) {
       case 'Bronze':
-        return '#CD7F32';
+        return '#8C2BE7';
       case 'Silver':
-        return '#C0C0C0';
+        return '#B3B3B3';
       case 'Gold':
-        return '#FFD700';
+        return '#CCA94F';
       case 'Platinum':
-        return '#E5E4E2';
+        return '#D7195B';
       case 'Diamond':
-        return '#B9F2FF';
+        return '#3B82F6';
       default:
-        return '#CD7F32';
+        return '#8C2BE7';
     }
   };
 
   const getTierIcon = (tier: string) => {
-    return 'star';
+    switch (tier) {
+      case 'Bronze':
+        return 'shield-outline';
+      case 'Silver':
+        return 'shield-half-outline';
+      case 'Gold':
+        return 'star';
+      case 'Platinum':
+        return 'diamond-outline';
+      case 'Diamond':
+        return 'trophy';
+      default:
+        return 'shield-outline';
+    }
   };
 
   const getTierPoints = (tier: string) => {
@@ -206,17 +222,21 @@ const RewardsScreen = ({ navigation }: RewardsScreenProps) => {
 
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-white" edges={['top', 'bottom']}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#CC3366" />
           <Text className="text-gray-500 mt-4">Loading rewards...</Text>
         </View>
-      </SafeAreaView>
+      
+      </KeyboardAvoidingView>
+    </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-gray-50" edges={['top', 'bottom']}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {/* Header */}
       <View className="bg-white px-4 py-3 flex-row items-center justify-between border-b border-gray-100">
         <View className="flex-row items-center">
@@ -264,8 +284,8 @@ const RewardsScreen = ({ navigation }: RewardsScreenProps) => {
                 </TouchableOpacity>
               </View>
 
-              <View className="w-16 h-16 bg-white/20 rounded-2xl items-center justify-center">
-                <Icon name="star" size={32} color="#FFFFFF" />
+              <View className="w-16 h-16 rounded-2xl items-center justify-center overflow-hidden">
+                <TierBadge tier={userPoints?.tier || 'Bronze'} size={64} />
               </View>
             </View>
           </View>
@@ -281,18 +301,11 @@ const RewardsScreen = ({ navigation }: RewardsScreenProps) => {
               return (
                 <View key={tier} className="items-center" style={{ width: '22%' }}>
                   <View
-                    className={`w-16 h-16 rounded-full items-center justify-center mb-2 ${
+                    className={`w-16 h-16 rounded-full items-center justify-center mb-2 overflow-hidden ${
                       isActive ? '' : 'opacity-40'
                     }`}
-                    style={{
-                      backgroundColor: isActive ? tierColor : '#E5E7EB',
-                    }}
                   >
-                    <Icon
-                      name={getTierIcon(tier)}
-                      size={28}
-                      color={isActive ? '#FFFFFF' : '#9CA3AF'}
-                    />
+                    <TierBadge tier={tier} size={64} />
                   </View>
                   <Text
                     className={`text-xs font-semibold mb-1 ${
@@ -406,13 +419,16 @@ const RewardsScreen = ({ navigation }: RewardsScreenProps) => {
               disabled={!reward.available}
             >
               <View className="flex-row items-center justify-between">
+                <View className="w-10 h-10 rounded-full bg-pink-100 items-center justify-center mr-3">
+                  <MaterialCommunityIcons name="hand-coin-outline" size={22} color="#CC3366" />
+                </View>
                 <View className="flex-1">
                   <Text className="text-base font-bold text-gray-900 mb-1">
                     {reward.name}
                   </Text>
                   <Text className="text-xs text-gray-600">{reward.description}</Text>
                 </View>
-                <View className="items-end">
+                <View className="items-end ml-3">
                   <Text className="text-lg font-bold text-pink-600">
                     {reward.pointsCost}
                   </Text>
@@ -487,6 +503,8 @@ const RewardsScreen = ({ navigation }: RewardsScreenProps) => {
           </View>
         </View>
       </Modal>
+    
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };

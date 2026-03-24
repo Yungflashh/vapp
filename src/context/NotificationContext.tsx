@@ -5,6 +5,7 @@ import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './AuthContext';
+import { useSocket } from './SocketContext';
 import {
   getUnreadCount,
   registerFcmToken,
@@ -31,6 +32,7 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isGuest } = useAuth();
+  const { onNotificationReceived } = useSocket();
   const [unreadCount, setUnreadCount] = useState(0);
   const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
   const notificationListener = useRef<ReturnType<typeof Notifications.addNotificationReceivedListener> | null>(null);
@@ -103,7 +105,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     try {
       const response = await getUnreadCount();
       if (response?.success && response?.data) {
-        setUnreadCount(response.data.count || 0);
+        setUnreadCount(response.data.unreadCount || response.data.count || 0);
       }
     } catch (error) {
       // Silently fail - don't block the app for notification count
@@ -150,8 +152,16 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       console.log('Notification tapped with data:', data);
     });
 
+    // Poll for unread count every 30 seconds as a fallback
+    const pollInterval = setInterval(() => {
+      if (isMounted) {
+        refreshUnreadCount();
+      }
+    }, 30000);
+
     return () => {
       isMounted = false;
+      clearInterval(pollInterval);
       if (notificationListener.current) {
         notificationListener.current.remove();
       }
@@ -161,6 +171,22 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
+
+  // Listen for real-time notification events via socket
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const unsubscribe = onNotificationReceived((data: any) => {
+      if (data?.unreadCount !== undefined) {
+        setUnreadCount(data.unreadCount);
+      } else {
+        // Fallback: just increment
+        setUnreadCount((prev) => prev + 1);
+      }
+    });
+
+    return unsubscribe;
+  }, [isAuthenticated, onNotificationReceived]);
 
   // Refresh unread count when app comes to foreground
   useEffect(() => {

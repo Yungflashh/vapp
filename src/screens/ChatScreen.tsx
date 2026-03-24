@@ -10,7 +10,7 @@ import {
   Platform,
   Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/navigation';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -43,10 +43,24 @@ const formatDateSeparator = (dateString: string) => {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
+// Mask phone numbers in messages
+const maskPhoneNumbers = (text: string): string => {
+  // Match various phone formats: +234xxx, 0xxx, 080xx, etc.
+  return text.replace(/(\+?\d{1,4}[-.\s]?)?(\(?\d{2,4}\)?[-.\s]?)?\d{3,4}[-.\s]?\d{3,4}/g, (match) => {
+    // Only mask if it looks like a phone number (7+ digits)
+    const digits = match.replace(/\D/g, '');
+    if (digits.length >= 7) {
+      return match.slice(0, 4) + '****' + match.slice(-2);
+    }
+    return match;
+  });
+};
+
 const ChatScreen = ({ navigation, route }: ChatScreenProps) => {
-  const { conversationId, receiverId, receiverName, receiverAvatar } = route.params;
+  const { conversationId, receiverId, receiverName, receiverAvatar, initialMessage } = route.params;
   const { user } = useAuth();
   const { socket, isConnected, isUserOnline, refreshUnreadMessageCount } = useSocket();
+  const insets = useSafeAreaInsets();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
@@ -54,10 +68,12 @@ const ChatScreen = ({ navigation, route }: ChatScreenProps) => {
   const [isSending, setIsSending] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [activeConversationId, setActiveConversationId] = useState(conversationId);
+  const [initialMessageSent, setInitialMessageSent] = useState(false);
 
   const flatListRef = useRef<FlatList>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isOnline = isUserOnline(receiverId);
+  // Support chat always shows as online
+  const isOnline = receiverName === 'VendorSpot Support' ? true : isUserOnline(receiverId);
 
   // Fetch messages
   const fetchMessages = useCallback(async () => {
@@ -88,6 +104,33 @@ const ChatScreen = ({ navigation, route }: ChatScreenProps) => {
   useEffect(() => {
     fetchMessages();
   }, [fetchMessages]);
+
+  // Send initial message (from order chat)
+  useEffect(() => {
+    if (initialMessage && !initialMessageSent && !isLoading) {
+      setInitialMessageSent(true);
+      (async () => {
+        try {
+          const response = await sendMessageApi(receiverId, initialMessage, 'text');
+          if (response.success && response.data) {
+            const newMsg = response.data.message;
+            setMessages((prev) => {
+              if (prev.some((m) => m._id === newMsg._id)) return prev;
+              return [...prev, newMsg];
+            });
+            if (!activeConversationId && response.data.conversationId) {
+              setActiveConversationId(response.data.conversationId);
+              if (socket) {
+                socket.emit('join_conversation', { conversationId: response.data.conversationId });
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Failed to send initial message:', error);
+        }
+      })();
+    }
+  }, [initialMessage, initialMessageSent, isLoading]);
 
   // Join conversation room via socket
   useEffect(() => {
@@ -123,7 +166,7 @@ const ChatScreen = ({ navigation, route }: ChatScreenProps) => {
         }
 
         // Mark as read since we're in the conversation
-        markConversationAsRead(activeConversationId).catch(() => {});
+        if (activeConversationId) markConversationAsRead(activeConversationId).catch(() => {});
         refreshUnreadMessageCount();
       }
     };
@@ -201,7 +244,7 @@ const ChatScreen = ({ navigation, route }: ChatScreenProps) => {
 
   // Send message via REST API (reliable) + notify via socket for real-time
   const handleSend = async () => {
-    const text = inputText.trim();
+    const text = maskPhoneNumbers(inputText.trim());
     if (!text || isSending) return;
 
     setIsSending(true);
@@ -283,7 +326,7 @@ const ChatScreen = ({ navigation, route }: ChatScreenProps) => {
 
             {item.message ? (
               <Text className={`text-sm ${isMine ? 'text-white' : 'text-gray-900'}`}>
-                {item.message}
+                {maskPhoneNumbers(item.message)}
               </Text>
             ) : null}
 
@@ -317,30 +360,41 @@ const ChatScreen = ({ navigation, route }: ChatScreenProps) => {
           <Icon name="arrow-back" size={22} color="#111827" />
         </TouchableOpacity>
 
-        {/* Avatar */}
-        <View className="relative mr-3">
-          {receiverAvatar ? (
-            <Image source={{ uri: receiverAvatar }} className="w-10 h-10 rounded-full" />
-          ) : (
-            <View className="w-10 h-10 rounded-full bg-pink-100 items-center justify-center">
-              <Text className="text-sm font-bold text-pink-500">
-                {receiverName?.charAt(0) || '?'}
-              </Text>
-            </View>
-          )}
-          {isOnline && (
-            <View className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white" />
-          )}
-        </View>
+        {/* Avatar + Name (tappable for vendor profiles) */}
+        <TouchableOpacity
+          className="flex-row items-center flex-1"
+          onPress={() => {
+            if (receiverName !== 'VendorSpot Support') {
+              navigation.navigate('VendorProfile', { vendorId: receiverId });
+            }
+          }}
+          disabled={receiverName === 'VendorSpot Support'}
+          activeOpacity={receiverName === 'VendorSpot Support' ? 1 : 0.7}
+        >
+          <View className="relative mr-3">
+            {receiverAvatar ? (
+              <Image source={{ uri: receiverAvatar }} className="w-10 h-10 rounded-full" />
+            ) : (
+              <View className="w-10 h-10 rounded-full bg-pink-100 items-center justify-center">
+                <Text className="text-sm font-bold text-pink-500">
+                  {receiverName?.charAt(0) || '?'}
+                </Text>
+              </View>
+            )}
+            {isOnline && (
+              <View className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white" />
+            )}
+          </View>
 
-        <View className="flex-1">
-          <Text className="text-base font-bold text-gray-900" numberOfLines={1}>
-            {receiverName}
-          </Text>
-          <Text className="text-xs text-gray-500">
-            {isTyping ? 'typing...' : isOnline ? 'Online' : 'Offline'}
-          </Text>
-        </View>
+          <View className="flex-1">
+            <Text className="text-base font-bold text-gray-900" numberOfLines={1}>
+              {receiverName}
+            </Text>
+            <Text className="text-xs text-gray-500">
+              {isTyping ? 'typing...' : isOnline ? 'Online' : 'Offline'}
+            </Text>
+          </View>
+        </TouchableOpacity>
 
         {/* Connection indicator */}
         {!isConnected && (
@@ -350,9 +404,9 @@ const ChatScreen = ({ navigation, route }: ChatScreenProps) => {
 
       {/* Messages */}
       <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={0}
+        style={{ flex: 1 }}
+        behavior="padding"
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         {isLoading ? (
           <View className="flex-1 items-center justify-center">
@@ -387,7 +441,7 @@ const ChatScreen = ({ navigation, route }: ChatScreenProps) => {
         )}
 
         {/* Input */}
-        <View className="flex-row items-end px-3 py-2 border-t border-gray-100 bg-white">
+        <View className="flex-row items-end px-3 py-2 border-t border-gray-100 bg-white" style={{ paddingBottom: Math.max(insets.bottom, 8) }}>
           <View className="flex-1 flex-row items-end bg-gray-100 rounded-2xl px-4 py-2 mr-2 min-h-[44px] max-h-[120px]">
             <TextInput
               className="flex-1 text-sm text-gray-900 py-0"

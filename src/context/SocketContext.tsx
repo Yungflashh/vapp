@@ -4,17 +4,21 @@ import { io, Socket } from 'socket.io-client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './AuthContext';
 import { getUnreadMessageCount } from '@/services/message.service';
+import { getOrders } from '@/services/order.service';
 
-// Extract base URL (remove /api/v1 suffix) for socket connection
-const SOCKET_URL = 'http://10.208.25.66:5000';
+// const SOCKET_URL = 'http://192.168.54.66:5000';
+const SOCKET_URL = 'https://vapp-be.onrender.com';
 
 interface SocketContextType {
   socket: Socket | null;
   isConnected: boolean;
   onlineUsers: string[];
   unreadMessageCount: number;
+  activeOrderCount: number;
   refreshUnreadMessageCount: () => Promise<void>;
+  refreshActiveOrderCount: () => Promise<void>;
   isUserOnline: (userId: string) => boolean;
+  onNotificationReceived: (callback: (data: any) => void) => () => void;
 }
 
 const SocketContext = createContext<SocketContextType | undefined>(undefined);
@@ -26,6 +30,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Use array instead of Set so React detects state changes reliably
   const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+  const [activeOrderCount, setActiveOrderCount] = useState(0);
   const socketRef = useRef<Socket | null>(null);
   const appState = useRef(AppState.currentState);
 
@@ -40,6 +45,29 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     } catch (error) {
       // Silently fail - don't crash the app for unread count
+    }
+  }, []);
+
+  const refreshActiveOrderCount = useCallback(async () => {
+    try {
+      const token = await AsyncStorage.getItem('authToken');
+      if (!token) {
+        setActiveOrderCount(0);
+        return;
+      }
+
+      // Fetch pending and confirmed orders
+      const [pendingRes, confirmedRes] = await Promise.all([
+        getOrders(1, 1, 'pending').catch(() => null),
+        getOrders(1, 1, 'confirmed').catch(() => null),
+      ]);
+
+      // Use meta.total which is the count of ALL matching orders, not just the page
+      const pendingTotal = pendingRes?.meta?.total ?? 0;
+      const confirmedTotal = confirmedRes?.meta?.total ?? 0;
+      setActiveOrderCount(pendingTotal + confirmedTotal);
+    } catch (error) {
+      setActiveOrderCount(0);
     }
   }, []);
 
@@ -149,6 +177,18 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           }
         });
 
+        // Also listen for receive_message as fallback for message count
+        socket.on('receive_message', () => {
+          if (isMounted) {
+            setUnreadMessageCount((prev) => prev + 1);
+          }
+        });
+
+        // Listen for real-time notification events from backend
+        socket.on('new_notification', (data: any) => {
+          console.log('[Socket] New notification received:', data?.notification?.title);
+        });
+
         socketRef.current = socket;
         if (isMounted) {
           setSocketState(socket);
@@ -160,6 +200,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     connectSocket();
     refreshUnreadMessageCount();
+    refreshActiveOrderCount();
 
     return () => {
       isMounted = false;
@@ -170,6 +211,19 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
   }, [isAuthenticated]); // Only depend on isAuthenticated
 
+  // Allow other contexts to subscribe to notification events
+  const onNotificationReceived = useCallback((callback: (data: any) => void) => {
+    const socket = socketRef.current;
+    if (socket) {
+      socket.on('new_notification', callback);
+    }
+    return () => {
+      if (socket) {
+        socket.off('new_notification', callback);
+      }
+    };
+  }, []);
+
   // Reconnect when app comes to foreground
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
@@ -178,6 +232,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           socketRef.current.connect();
         }
         refreshUnreadMessageCount();
+        refreshActiveOrderCount();
       }
       appState.current = nextAppState;
     });
@@ -192,8 +247,11 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isConnected,
         onlineUsers,
         unreadMessageCount,
+        activeOrderCount,
         refreshUnreadMessageCount,
+        refreshActiveOrderCount,
         isUserOnline,
+        onNotificationReceived,
       }}
     >
       {children}
