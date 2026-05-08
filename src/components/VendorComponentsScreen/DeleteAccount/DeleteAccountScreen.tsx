@@ -10,7 +10,6 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
-  Alert,
   ActivityIndicator,
   TextInput,
   KeyboardAvoidingView,
@@ -21,6 +20,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Toast from 'react-native-toast-message';
+import AppModal from '@/components/AppModal';
 import {
   requestAccountDeletion,
   getDeletionRequestStatus,
@@ -91,6 +91,8 @@ const DeleteAccountScreen = () => {
   const [selectedReason, setSelectedReason] = useState<string | null>(null);
   const [additionalDetails, setAdditionalDetails] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [existingRequest, setExistingRequest] = useState<any>(null);
 
@@ -113,41 +115,21 @@ const DeleteAccountScreen = () => {
     }
   };
 
-  const handleCancelRequest = async () => {
-    Alert.alert(
-      'Cancel Request',
-      'Are you sure you want to cancel your deletion request?',
-      [
-        { text: 'No', style: 'cancel' },
-        {
-          text: 'Yes, Cancel',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setLoading(true);
-              await cancelDeletionRequest();
-              
-              Toast.show({
-                type: 'success',
-                text1: 'Request Cancelled',
-                text2: 'Your deletion request has been cancelled',
-              });
-              
-              setExistingRequest(null);
-              navigation.goBack();
-            } catch (error: any) {
-              Toast.show({
-                type: 'error',
-                text1: 'Error',
-                text2: error.response?.data?.message || 'Failed to cancel request',
-              });
-            } finally {
-              setLoading(false);
-            }
-          },
-        },
-      ]
-    );
+  const handleCancelRequest = () => setShowCancelModal(true);
+
+  const confirmCancelRequest = async () => {
+    setShowCancelModal(false);
+    try {
+      setLoading(true);
+      await cancelDeletionRequest();
+      Toast.show({ type: 'success', text1: 'Request Cancelled', text2: 'Your deletion request has been cancelled' });
+      setExistingRequest(null);
+      navigation.goBack();
+    } catch (error: any) {
+      Toast.show({ type: 'error', text1: 'Error', text2: error.response?.data?.message || 'Failed to cancel request' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmitDeletion = async () => {
@@ -160,43 +142,21 @@ const DeleteAccountScreen = () => {
       return;
     }
 
-    Alert.alert(
-      'Delete Account',
-      'Are you absolutely sure? This action requires admin approval and cannot be undone once processed.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Yes, Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setLoading(true);
-              
-              await requestAccountDeletion({
-                reason: selectedReason,
-                additionalDetails: additionalDetails.trim() || undefined,
-              });
-              
-              Toast.show({
-                type: 'success',
-                text1: 'Request Submitted',
-                text2: 'Your account deletion request has been submitted',
-              });
-              
-              navigation.goBack();
-            } catch (error: any) {
-              Toast.show({
-                type: 'error',
-                text1: 'Error',
-                text2: error.response?.data?.message || 'Failed to submit request',
-              });
-            } finally {
-              setLoading(false);
-            }
-          },
-        },
-      ]
-    );
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteAccount = async () => {
+    setShowDeleteModal(false);
+    try {
+      setLoading(true);
+      await requestAccountDeletion({ reason: selectedReason, additionalDetails: additionalDetails.trim() || undefined });
+      Toast.show({ type: 'success', text1: 'Request Submitted', text2: 'Your account deletion request has been submitted' });
+      navigation.goBack();
+    } catch (error: any) {
+      Toast.show({ type: 'error', text1: 'Error', text2: error.response?.data?.message || 'Failed to submit request' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -614,7 +574,32 @@ const DeleteAccountScreen = () => {
       </ScrollView>
 
       <Toast />
-    
+
+      <AppModal
+        visible={showCancelModal}
+        title="Cancel Request"
+        message="Are you sure you want to cancel your deletion request?"
+        icon="close-circle-outline"
+        iconColor="#F59E0B"
+        onClose={() => setShowCancelModal(false)}
+        buttons={[
+          { text: 'No', style: 'cancel', onPress: () => setShowCancelModal(false) },
+          { text: 'Yes, Cancel', style: 'destructive', onPress: confirmCancelRequest },
+        ]}
+      />
+
+      <AppModal
+        visible={showDeleteModal}
+        title="Delete Account"
+        message="Are you absolutely sure? This action requires admin approval and cannot be undone once processed."
+        icon="trash"
+        iconColor="#EF4444"
+        onClose={() => setShowDeleteModal(false)}
+        buttons={[
+          { text: 'Cancel', style: 'cancel', onPress: () => setShowDeleteModal(false) },
+          { text: 'Yes, Delete', style: 'destructive', onPress: confirmDeleteAccount },
+        ]}
+      />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

@@ -1,6 +1,6 @@
 // screens/SettingsScreen.tsx
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Alert, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Linking } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -90,7 +90,15 @@ const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
       iconColor: '#6B7280',
       title: 'App Settings',
       description: 'Language, privacy & more',
-      onPress: () => Alert.alert('Coming Soon', 'Language, privacy and other app settings will be available in the next update.'),
+      onPress: () => Toast.show({ type: 'info', text1: 'Coming Soon', text2: 'Language, privacy and other app settings will be available in the next update.' }),
+    },
+    {
+      icon: 'trash',
+      iconBg: '#FEE2E2',
+      iconColor: '#EF4444',
+      title: 'Delete Account',
+      description: 'Permanently delete your account',
+      onPress: () => navigation.navigate('DeleteAccount'),
     },
   ];
 
@@ -109,6 +117,7 @@ const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
         navigation.navigate('Chat', {
           receiverId: supportUserId,
           receiverName: 'VendorSpot Support',
+          isOrderChat: true,
         });
       },
     },
@@ -117,16 +126,16 @@ const SettingsScreen = ({ navigation }: SettingsScreenProps) => {
       iconBg: '#DBEAFE',
       iconColor: '#3B82F6',
       title: 'Email Us',
-      description: 'support@vendorspot.com',
-      onPress: () => Linking.openURL('mailto:support@vendorspot.com?subject=Help Request'),
+      description: 'support@vendorspotng.com',
+      onPress: () => Linking.openURL('mailto:support@vendorspotng.com?subject=Help Request'),
     },
     {
       icon: 'call',
       iconBg: '#D1FAE5',
       iconColor: '#10B981',
       title: 'Call Us',
-      description: '+234 900 000 0000',
-      onPress: () => Linking.openURL('tel:+2349000000000'),
+      description: '+234 704 588 2161',
+      onPress: () => Linking.openURL('tel:+2347045882161'),
     },
   ];
 

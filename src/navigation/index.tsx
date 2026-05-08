@@ -1,6 +1,4 @@
-import { useEffect, useState } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { View, ActivityIndicator } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import DetailsScreen from '@/screens/DetailsScreen';
 import BottomTabNavigator from './BottomTabNavigator';
@@ -24,8 +22,7 @@ import VendorSetupScreen from '@/screens/auth/VendorSetupScreen';
 import PaymentSetupScreen from '@/screens/auth/PaymentSetupScreen';
 import RegistrationSuccessScreen from '@/screens/auth/RegistrationSuccessScreen';
 import AddProductScreen from '@/components/VendorComponentsScreen/Product/AddProductScreen';
-import VendorProductDetailScreen from '@/components/VendorComponentsScreen/Product/VendorProductDetailScreen'; 
-import { getMyVendorProfile } from '@/services/vendor.service';
+import VendorProductDetailScreen from '@/components/VendorComponentsScreen/Product/VendorProductDetailScreen';
 import VendorEditProfileScreen from '@/components/VendorComponentsScreen/Profile/VendorEditProfileScreen';
 import VendorStoreSetupScreen from '@/components/VendorComponentsScreen/Profile/VendorStoreSetupScreen';
 import VendorKYCVerificationScreen from '@/components/VendorComponentsScreen/Profile/VendorKYCVerificationScreen';
@@ -47,8 +44,11 @@ import ChatScreen from '@/screens/ChatScreen';
 import CategoryProductsScreen from '@/screens/CategoryProductsScreen';
 import GuestBottomTabNavigator from './GuestBottomTabNavigator';
 import VendorEarningsScreen from '@/screens/vendor/VendorEarningsScreen';
+import VendorDashboardScreen from '@/screens/vendor/VendorDashboardScreen';
+import VendorProductsScreen from '@/screens/vendor/VendorProductsScreen';
 import LegalScreen from '@/screens/LegalScreen';
 import LeaderboardScreen from '@/screens/LeaderboardScreen';
+import AIChatScreen from '@/screens/AIChatScreen';
 
 export type RootStackParamList = {
   Main: undefined;
@@ -72,6 +72,7 @@ export type RootStackParamList = {
   TrackOrder: { orderId: string };
   MyDigitalProducts: undefined;
   AddProduct: undefined;
+  EditProduct: { productId: string };
   VendorProductDetail: { productId: string };
   VendorEditProfile: undefined;
   VendorStoreSetup: undefined;
@@ -102,6 +103,7 @@ export type RootStackParamList = {
      receiverName: string;
      receiverAvatar?: string;
      initialMessage?: string;
+     isOrderChat?: boolean;
    };
      PaymentWebView: {
     paymentUrl: string;
@@ -113,83 +115,20 @@ export type RootStackParamList = {
   Leaderboard: { challengeId?: string } | undefined;
   CategoryProducts: { categoryId: string; categoryName: string };
   VendorEarnings: undefined;
+  VendorDashboard: undefined;
+  VendorProducts: undefined;
   Legal: { tab?: 'privacy' | 'terms' | 'returns' };
+  AIChat: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 function AppNavigator() {
   const { user } = useAuth();
-  const [isVendor, setIsVendor] = useState(false);
-  const [hasVendorProfile, setHasVendorProfile] = useState(false);
-  const [isChecking, setIsChecking] = useState(true);
-
-  useEffect(() => {
-    checkVendorStatus();
-  }, [user]);
-
-  const checkVendorStatus = async () => {
-    try {
-      setIsChecking(true);
-      
-      // Check if user is a vendor
-      if (user?.role === 'vendor') {
-        setIsVendor(true);
-        
-        // Check if vendor has completed profile setup
-        try {
-          const response = await getMyVendorProfile();
-          console.log('Vendor profile response:', JSON.stringify(response.data, null, 2));
-
-          
-          if (response.data.vendorProfile) {
-              const profile = response.data.vendorProfile;
-            
-            // Check if vendor has completed all required fields
-            const hasBusinessInfo = !!(
-              profile.businessName &&
-              profile.businessDescription &&
-              profile.businessAddress?.street &&
-              profile.businessAddress?.city &&
-              profile.businessAddress?.state &&
-              profile.businessPhone &&
-              profile.businessEmail
-            );
-            
-            const hasPayoutDetails = !!(
-              profile.payoutDetails?.bankName &&
-              profile.payoutDetails?.accountNumber &&
-              profile.payoutDetails?.accountName &&
-              profile.payoutDetails?.bankCode
-            );
-            
-            setHasVendorProfile(hasBusinessInfo && hasPayoutDetails);
-          } else {
-            setHasVendorProfile(false);
-          }
-        } catch (error: any) {
-          // If 404 or profile not found, vendor hasn't set up yet
-          console.log('Vendor profile not found:', error);
-          setHasVendorProfile(false);
-        }
-      } else {
-        setIsVendor(false);
-        setHasVendorProfile(false);
-      }
-    } catch (error) {
-      console.error('Error checking vendor status:', error);
-    } finally {
-      setIsChecking(false);
-    }
-  };
-
-  if (isChecking) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
-        <ActivityIndicator size="large" color="#CC3366" />
-      </View>
-    );
-  }
+  // user.role is stable after login — derive isVendor synchronously, no async check needed.
+  // The old async getMyVendorProfile() approach caused checkVendorStatus to re-run on every
+  // user object change, risking isChecking toggling back to true and dropping the Stack context.
+  const isVendor = user?.role === 'vendor';
 
   return (
     <Stack.Navigator>
@@ -220,13 +159,18 @@ function AppNavigator() {
         component={ProductDetailsScreen}
         options={{ headerShown: false }}
       />
-      <Stack.Screen 
-        name="Cart" 
+      <Stack.Screen
+        name="Cart"
         component={CartScreen}
         options={{ headerShown: false }}
       />
-      <Stack.Screen 
-        name="Checkout" 
+      <Stack.Screen
+        name="AIChat"
+        component={AIChatScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Checkout"
         component={CheckoutScreen}
         options={{ headerShown: false }}
       />
@@ -297,14 +241,20 @@ function AppNavigator() {
       />
 
       {/* ✅ VENDOR PRODUCT SCREENS */}
-      <Stack.Screen 
-        name="AddProduct" 
+      <Stack.Screen
+        name="AddProduct"
         component={AddProductScreen}
         options={{ headerShown: false }}
       />
-      
-      <Stack.Screen 
-        name="VendorProductDetail" 
+
+      <Stack.Screen
+        name="EditProduct"
+        component={AddProductScreen}
+        options={{ headerShown: false }}
+      />
+
+      <Stack.Screen
+        name="VendorProductDetail"
         component={VendorProductDetailScreen}
         options={{ headerShown: false }}
       />
@@ -415,6 +365,16 @@ function AppNavigator() {
 <Stack.Screen
   name="VendorEarnings"
   component={VendorEarningsScreen}
+  options={{ headerShown: false }}
+/>
+<Stack.Screen
+  name="VendorDashboard"
+  component={VendorDashboardScreen}
+  options={{ headerShown: false }}
+/>
+<Stack.Screen
+  name="VendorProducts"
+  component={VendorProductsScreen}
   options={{ headerShown: false }}
 />
 <Stack.Screen

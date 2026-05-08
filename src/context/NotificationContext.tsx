@@ -6,6 +6,7 @@ import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './AuthContext';
 import { useSocket } from './SocketContext';
+import { navigateFromPush } from '@/utils/notificationNavigation';
 import {
   getUnreadCount,
   registerFcmToken,
@@ -31,7 +32,7 @@ interface NotificationContextType {
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isGuest } = useAuth();
+  const { isAuthenticated, isGuest, user } = useAuth();
   const { onNotificationReceived } = useSocket();
   const [unreadCount, setUnreadCount] = useState(0);
   const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
@@ -112,6 +113,31 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   }, [isAuthenticated]);
 
+  const isVendorRef = useRef(user?.role === 'vendor');
+  useEffect(() => { isVendorRef.current = user?.role === 'vendor'; }, [user?.role]);
+
+  // Navigate to the right screen from a push notification, waiting for the navigator if needed
+  const handleNotificationNavigation = useCallback((data: any) => {
+    if (!data) return;
+    const { navigationRef } = require('@/navigation/navigationRef');
+    if (navigationRef.isReady()) {
+      navigateFromPush(data, isVendorRef.current);
+      return;
+    }
+    // Poll until navigator is ready (max 3s)
+    let attempts = 0;
+    const poll = setInterval(() => {
+      attempts++;
+      if (navigationRef.isReady()) {
+        clearInterval(poll);
+        navigateFromPush(data, isVendorRef.current);
+      } else if (attempts >= 30) {
+        clearInterval(poll);
+        if (__DEV__) console.warn('[NotificationContext] Navigator never became ready for push navigation');
+      }
+    }, 100);
+  }, []);
+
   // Initialize push notifications when authenticated
   useEffect(() => {
     if (!isAuthenticated) {
@@ -137,6 +163,15 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     init();
 
+    // Check if app was opened from a notification tap (cold start)
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (response && isMounted) {
+        const data = response.notification.request.content.data;
+        if (__DEV__) console.log('App opened from notification:', data);
+        handleNotificationNavigation(data);
+      }
+    });
+
     // Listen for incoming notifications (foreground)
     notificationListener.current = Notifications.addNotificationReceivedListener(() => {
       // Refresh unread count when a new notification arrives
@@ -145,11 +180,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       }
     });
 
-    // Listen for notification taps
+    // Listen for notification taps and navigate accordingly
     responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
-      // You can handle navigation based on notification data here
       const data = response.notification.request.content.data;
       console.log('Notification tapped with data:', data);
+      handleNotificationNavigation(data);
     });
 
     // Poll for unread count every 30 seconds as a fallback

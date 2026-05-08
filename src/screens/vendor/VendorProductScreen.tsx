@@ -8,7 +8,7 @@ import {
   Image,
   ActivityIndicator,
   RefreshControl,
-  Alert,
+  Modal,
   StatusBar,
   KeyboardAvoidingView,
   Platform,
@@ -56,6 +56,8 @@ const VendorProductsScreen = () => {
   const [hasMore, setHasMore] = useState(true);
   const [totalPages, setTotalPages] = useState(1);
   const ITEMS_PER_PAGE = 20;
+  const [stockModal, setStockModal] = useState<{ visible: boolean; productId: string; currentStock: number }>({ visible: false, productId: '', currentStock: 0 });
+  const [stockInputValue, setStockInputValue] = useState('');
 
   useEffect(() => {
     fetchProducts(1, false);
@@ -185,45 +187,24 @@ console.log('My products response:', JSON.stringify(response, null, 2));
   };
 
   const handleUpdateStock = (productId: string, currentStock: number) => {
-    Alert.prompt(
-      'Update Stock',
-      `Current stock: ${currentStock}`,
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Update',
-          onPress: async (newStock) => {
-            if (newStock && !isNaN(Number(newStock))) {
-              try {
-                await updateProduct(productId, {
-                  quantity: Number(newStock),
-                });
+    setStockInputValue(String(currentStock));
+    setStockModal({ visible: true, productId, currentStock });
+  };
 
-                Toast.show({
-                  type: 'success',
-                  text1: 'Stock Updated',
-                  text2: `Stock updated to ${newStock}`,
-                });
-
-                fetchProducts(1, false);
-              } catch (error: any) {
-                Toast.show({
-                  type: 'error',
-                  text1: 'Error',
-                  text2: error.response?.data?.message || 'Failed to update stock',
-                });
-              }
-            }
-          },
-        },
-      ],
-      'plain-text',
-      String(currentStock),
-      'number-pad'
-    );
+  const confirmUpdateStock = async () => {
+    const newStock = Number(stockInputValue);
+    if (!stockInputValue || isNaN(newStock)) {
+      Toast.show({ type: 'error', text1: 'Invalid', text2: 'Please enter a valid stock number' });
+      return;
+    }
+    setStockModal({ visible: false, productId: '', currentStock: 0 });
+    try {
+      await updateProduct(stockModal.productId, { quantity: newStock });
+      Toast.show({ type: 'success', text1: 'Stock Updated', text2: `Stock updated to ${newStock}` });
+      fetchProducts(1, false);
+    } catch (error: any) {
+      Toast.show({ type: 'error', text1: 'Error', text2: error.response?.data?.message || 'Failed to update stock' });
+    }
   };
 
   const renderStatCard = (
@@ -595,7 +576,46 @@ console.log('My products response:', JSON.stringify(response, null, 2));
       </ScrollView>
 
       <Toast />
-    
+
+      <Modal
+        animationType="fade"
+        transparent
+        visible={stockModal.visible}
+        onRequestClose={() => setStockModal({ visible: false, productId: '', currentStock: 0 })}
+      >
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
+            <View style={{ backgroundColor: '#FFFFFF', borderRadius: 16, padding: 24, width: '100%' }}>
+              <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111827', marginBottom: 4 }}>Update Stock</Text>
+              <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 16 }}>Current stock: {stockModal.currentStock}</Text>
+              <TextInput
+                style={{ backgroundColor: '#F9FAFB', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, fontSize: 16, color: '#111827', borderWidth: 1, borderColor: '#E5E7EB', marginBottom: 16 }}
+                value={stockInputValue}
+                onChangeText={setStockInputValue}
+                keyboardType="number-pad"
+                placeholder="Enter new stock quantity"
+                placeholderTextColor="#9CA3AF"
+                autoFocus
+              />
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <TouchableOpacity
+                  onPress={() => setStockModal({ visible: false, productId: '', currentStock: 0 })}
+                  style={{ flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: '#D1D5DB', alignItems: 'center' }}
+                >
+                  <Text style={{ color: '#374151', fontWeight: '600' }}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={confirmUpdateStock}
+                  style={{ flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: '#CC3366', alignItems: 'center' }}
+                >
+                  <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>Update</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

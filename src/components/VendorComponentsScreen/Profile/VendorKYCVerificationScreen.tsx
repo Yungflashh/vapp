@@ -11,7 +11,6 @@ import {
   TouchableOpacity,
   Image,
   StatusBar,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -23,6 +22,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getMyVendorProfile, uploadKYCDocument, submitKYCDocuments } from '@/services/vendor.service';
 import Toast from 'react-native-toast-message';
+import AppModal from '@/components/AppModal';
 
 interface KYCDocument {
   type: string;
@@ -76,6 +76,7 @@ const VendorKYCVerificationScreen = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState<string | null>(null);
+  const [docSourceModal, setDocSourceModal] = useState<{ visible: boolean; documentType: string }>({ visible: false, documentType: '' });
 
   const [verificationStatus, setVerificationStatus] = useState<'pending' | 'verified' | 'rejected'>('pending');
   const [uploadedDocuments, setUploadedDocuments] = useState<KYCDocument[]>([]);
@@ -133,33 +134,8 @@ const VendorKYCVerificationScreen = () => {
     }
   };
 
-  const handlePickDocument = async (documentType: string) => {
-    try {
-      Alert.alert(
-        'Select Document Source',
-        'Choose how you want to upload your document',
-        [
-          {
-            text: 'Camera',
-            onPress: () => pickFromCamera(documentType),
-          },
-          {
-            text: 'Gallery',
-            onPress: () => pickFromGallery(documentType),
-          },
-          {
-            text: 'Files',
-            onPress: () => pickFromFiles(documentType),
-          },
-          {
-            text: 'Cancel',
-            style: 'cancel',
-          },
-        ]
-      );
-    } catch (error) {
-      console.error('Document pick error:', error);
-    }
+  const handlePickDocument = (documentType: string) => {
+    setDocSourceModal({ visible: true, documentType });
   };
 
   const pickFromCamera = async (documentType: string) => {
@@ -167,7 +143,7 @@ const VendorKYCVerificationScreen = () => {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       
       if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Please grant camera permissions');
+        Toast.show({ type: 'error', text1: 'Permission Required', text2: 'Please grant camera permissions' });
         return;
       }
 
@@ -194,7 +170,7 @@ const VendorKYCVerificationScreen = () => {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       
       if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Please grant gallery permissions');
+        Toast.show({ type: 'error', text1: 'Permission Required', text2: 'Please grant gallery permissions' });
         return;
       }
 
@@ -698,6 +674,21 @@ const VendorKYCVerificationScreen = () => {
       )}
 
       <Toast />
+
+      <AppModal
+        visible={docSourceModal.visible}
+        title="Select Document Source"
+        message="Choose how you want to upload your document"
+        icon="document-outline"
+        iconColor="#CC3366"
+        onClose={() => setDocSourceModal({ visible: false, documentType: '' })}
+        buttons={[
+          { text: 'Camera', onPress: () => { setDocSourceModal({ visible: false, documentType: '' }); pickFromCamera(docSourceModal.documentType); } },
+          { text: 'Gallery', onPress: () => { setDocSourceModal({ visible: false, documentType: '' }); pickFromGallery(docSourceModal.documentType); } },
+          { text: 'Files', onPress: () => { setDocSourceModal({ visible: false, documentType: '' }); pickFromFiles(docSourceModal.documentType); } },
+          { text: 'Cancel', style: 'cancel', onPress: () => setDocSourceModal({ visible: false, documentType: '' }) },
+        ]}
+      />
     </SafeAreaView>
   );
 };

@@ -48,6 +48,7 @@ export interface Vendor {
   isFollowing?: boolean;
   phone?: string;
   responseRate?: number;
+  isActive?: boolean;
 }
 
 export interface VendorsResponse {
@@ -160,7 +161,7 @@ export const updateVendorProfile = async (data: {
     facebook?: string;
     instagram?: string;
     twitter?: string;
-    linkedin?: string;
+    tiktok?: string;
   };
 }) => {
   try {

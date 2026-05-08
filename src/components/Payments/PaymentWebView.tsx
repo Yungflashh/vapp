@@ -8,7 +8,6 @@ import {
   Text,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -17,7 +16,9 @@ import { WebView } from 'react-native-webview';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Toast from 'react-native-toast-message';
 import { RootStackParamList } from '@/navigation';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { confirmPayment } from '@/services/order.service';
+import AppModal from '@/components/AppModal';
 import { clearCart } from '@/services/cart.service';
 
 // Add this to your RootStackParamList:
@@ -38,6 +39,7 @@ const PaymentWebViewScreen = () => {
   
   const [isLoading, setIsLoading] = useState(true);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
   const webViewRef = useRef<WebView>(null);
 
   /**
@@ -117,6 +119,7 @@ const PaymentWebViewScreen = () => {
           console.log('⚠️ Cart clear failed (backend may have already cleared it):', cartErr);
         }
 
+        AsyncStorage.removeItem('pendingAffiliateCode').catch(() => {});
         Toast.show({
           type: 'success',
           text1: 'Payment Successful!',
@@ -171,27 +174,7 @@ const PaymentWebViewScreen = () => {
     navigation.goBack();
   };
 
-  const handleClose = () => {
-    Alert.alert(
-      'Cancel Payment?',
-      'Are you sure? No order will be created and your cart will remain unchanged.',
-      [
-        { text: 'Continue Payment', style: 'cancel' },
-        {
-          text: 'Cancel',
-          style: 'destructive',
-          onPress: () => {
-            Toast.show({
-              type: 'info',
-              text1: 'Payment Cancelled',
-              text2: 'No order was created. Your cart is unchanged.',
-            });
-            navigation.goBack();
-          },
-        },
-      ]
-    );
-  };
+  const handleClose = () => setShowCancelModal(true);
 
   // Loading/verifying overlay
   if (isVerifying) {
@@ -284,6 +267,27 @@ const PaymentWebViewScreen = () => {
           </Text>
         </View>
       </View>
+
+      <AppModal
+        visible={showCancelModal}
+        title="Cancel Payment?"
+        message="Are you sure? No order will be created and your cart will remain unchanged."
+        icon="close-circle-outline"
+        iconColor="#EF4444"
+        onClose={() => setShowCancelModal(false)}
+        buttons={[
+          { text: 'Continue Payment', style: 'cancel', onPress: () => setShowCancelModal(false) },
+          {
+            text: 'Cancel Payment',
+            style: 'destructive',
+            onPress: () => {
+              setShowCancelModal(false);
+              Toast.show({ type: 'info', text1: 'Payment Cancelled', text2: 'No order was created. Your cart is unchanged.' });
+              navigation.goBack();
+            },
+          },
+        ]}
+      />
     </SafeAreaView>
   );
 };

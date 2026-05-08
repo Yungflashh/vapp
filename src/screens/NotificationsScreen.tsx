@@ -13,6 +13,8 @@ import { RootStackParamList } from '@/navigation';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Toast from 'react-native-toast-message';
 import { useNotifications } from '@/context/NotificationContext';
+import { useAuth } from '@/context/AuthContext';
+import { navigateFromNotification } from '@/utils/notificationNavigation';
 import {
   getNotifications,
   markAsRead,
@@ -72,6 +74,8 @@ const formatTime = (dateString: string) => {
 
 const NotificationsScreen = ({ navigation }: NotificationsScreenProps) => {
   const { refreshUnreadCount } = useNotifications();
+  const { user } = useAuth();
+  const isVendor = user?.role === 'vendor';
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -144,32 +148,8 @@ const NotificationsScreen = ({ navigation }: NotificationsScreenProps) => {
       }
     }
 
-    // Navigate based on notification type / data
-    if (notification.type === 'challenge') {
-      navigation.navigate('Challenges');
-      return;
-    }
-
     if (notification.data) {
-      const { orderId, productId, vendorId, conversationId, senderId, disputeId } = notification.data;
-
-      if (conversationId || (notification.type === 'chat' && senderId)) {
-        // Chat/message notification - navigate to Chat screen
-        navigation.navigate('Chat', {
-          conversationId: conversationId || undefined,
-          receiverId: senderId || '',
-          receiverName: notification.title?.replace('New message from ', '') || 'User',
-          receiverAvatar: undefined,
-        });
-      } else if (disputeId) {
-        navigation.navigate('DisputeDetails', { disputeId });
-      } else if (orderId) {
-        navigation.navigate('OrderDetails', { orderId });
-      } else if (productId) {
-        navigation.navigate('ProductDetails', { productId });
-      } else if (vendorId) {
-        navigation.navigate('VendorProfile', { vendorId });
-      }
+      navigateFromNotification(notification.data, notification.type, notification.title, isVendor, navigation);
     }
   };
 

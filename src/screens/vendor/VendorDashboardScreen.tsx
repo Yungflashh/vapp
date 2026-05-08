@@ -12,7 +12,6 @@ import {
   RefreshControl,
   TouchableOpacity,
   Image,
-  Alert,
   ActivityIndicator,
   Dimensions,
   StatusBar,
@@ -22,12 +21,13 @@ import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { BarChart, LineChart } from 'react-native-chart-kit';
 import { getVendorDashboard } from '@/services/vendor.service';
-import { getWallet } from '@/services/wallet.service';
+import { getWalletSummary } from '@/services/wallet.service';
 import { LinearGradient } from 'expo-linear-gradient';
 import TierBadge from '@/components/TierBadge';
 import { useNotifications } from '@/context/NotificationContext';
 import { useAuth } from '@/context/AuthContext';
 import WelcomeTour from '@/components/WelcomeTour';
+import Toast from 'react-native-toast-message';
 
 const { width } = Dimensions.get('window');
 const CHART_WIDTH = width - 92;
@@ -552,16 +552,17 @@ const VendorDashboardScreen: React.FC = () => {
     try {
       const [response, walletRes] = await Promise.all([
         getVendorDashboard(),
-        getWallet().catch(() => null),
+        getWalletSummary().catch(() => null),
       ]);
       if (response.success) {
         const data = response.data;
-        // Merge wallet data into overview if available
-        if (walletRes?.success && walletRes.data?.wallet) {
-          const w = walletRes.data.wallet;
-          console.log('💰 Dashboard wallet:', JSON.stringify(w, null, 2));
-          data.overview.todaySales = w.balance ?? data.overview.todaySales;
-          (data.overview as any).totalWithdrawn = w.totalWithdrawn ?? 0;
+        // Merge wallet summary into overview for accurate financial stats
+        if (walletRes?.success && walletRes.data?.summary) {
+          const s = walletRes.data.summary;
+          data.overview.totalRevenue = s.totalEarned ?? data.overview.totalRevenue;
+          data.overview.todaySales = s.balance ?? data.overview.todaySales;
+          (data.overview as any).totalWithdrawn = s.totalWithdrawn ?? 0;
+          (data.overview as any).pendingBalance = s.pendingBalance ?? 0;
         }
         setDashboard(data);
       } else {
@@ -569,7 +570,7 @@ const VendorDashboardScreen: React.FC = () => {
       }
     } catch (error) {
       console.error('Error fetching dashboard:', error);
-      Alert.alert('Error', 'Failed to load dashboard data. Please try again.');
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to load dashboard data. Please try again.' });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -604,7 +605,7 @@ const VendorDashboardScreen: React.FC = () => {
   const statsData = [
     {
       icon: 'cash-outline',
-      label: 'Total Revenue',
+      label: 'Total Earned',
       value: formatCurrency(dashboard.overview.totalRevenue),
       change: dashboard.overview.revenueChange,
       iconColor: '#10B981',
@@ -690,7 +691,7 @@ const VendorDashboardScreen: React.FC = () => {
           <Text className="text-base font-bold text-gray-900 mb-3">Quick Actions</Text>
           <View className="flex-row flex-wrap justify-between">
             {[
-              { icon: 'add-circle-outline', label: 'Add Product', route: 'AddProduct', color: '#CC3366' },
+              { icon: 'cube-outline', label: 'My Products', route: 'VendorProducts', color: '#CC3366' },
               { icon: 'clipboard-outline', label: 'Orders', route: 'VendorOrders', color: '#3B82F6' },
               { icon: 'shield-outline', label: 'Disputes', route: 'DisputeCenter', color: '#EF4444' },
               { icon: 'wallet-outline', label: 'Withdraw', route: 'VendorEarnings', color: '#F59E0B' },
@@ -777,6 +778,31 @@ const VendorDashboardScreen: React.FC = () => {
         {/* Bottom Spacing */}
         <View className="h-24" />
       </ScrollView>
+
+      {/* VendorSpot AI Button */}
+      <TouchableOpacity
+        onPress={() => navigation.navigate('AIChat' as never)}
+        activeOpacity={0.85}
+        style={{
+          position: 'absolute',
+          bottom: 20,
+          right: 16,
+          width: 56,
+          height: 56,
+          borderRadius: 28,
+          backgroundColor: '#CC3366',
+          alignItems: 'center',
+          justifyContent: 'center',
+          shadowColor: '#CC3366',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.35,
+          shadowRadius: 8,
+          elevation: 10,
+          zIndex: 50,
+        }}
+      >
+        <Icon name="sparkles" size={26} color="#FFFFFF" />
+      </TouchableOpacity>
 
       {/* Welcome Tour for vendors */}
       <WelcomeTour

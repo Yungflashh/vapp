@@ -42,6 +42,9 @@ export interface Product {
   };
   requiresLicense?: boolean;
   licenseType?: string;
+  colors?: string[];
+  sizes?: string[];
+  status?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -431,6 +434,22 @@ export const deleteProduct = async (productId: string) => {
     return response.data;
   } catch (error) {
     console.error('❌ Delete product error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};
+
+export const generateProductContent = async (data: {
+  type: 'title' | 'description';
+  category?: string;
+  keywords?: string;
+  currentTitle?: string;
+  currentDescription?: string;
+}): Promise<{ success: boolean; data: { content: string } }> => {
+  try {
+    const response = await api.post('/products/generate-content', data);
+    return response.data;
+  } catch (error) {
     handleApiError(error);
     throw error;
   }

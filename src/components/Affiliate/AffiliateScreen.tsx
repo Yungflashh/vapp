@@ -11,7 +11,7 @@ import {
   Dimensions,
   Modal,
   TextInput,
-  Alert,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -20,6 +20,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import Toast from 'react-native-toast-message';
 import * as Clipboard from 'expo-clipboard';
+import { useAuth } from '@/context/AuthContext';
 import { getCurrentUser } from '@/services/auth.service';
 import {
   activateAffiliate,
@@ -32,7 +33,73 @@ import api from '@/services/api.config';
 
 type AffiliateScreenProps = NativeStackScreenProps<RootStackParamList, 'Affiliate'>;
 
+// Defined outside component so React never sees it as a new type on re-render
+const SimpleBarChart = ({ earningsData }: { earningsData: AffiliateEarnings | null }) => {
+  let displayData = earningsData?.earningsByDate || [];
+  let isPlaceholder = false;
+
+  if (displayData.length === 0) {
+    isPlaceholder = true;
+    const today = new Date();
+    displayData = Array.from({ length: 7 }, (_, i) => {
+      const date = new Date(today);
+      date.setDate(date.getDate() - (6 - i));
+      return { date: date.toISOString(), orders: 0, earnings: 0 };
+    });
+  }
+
+  const data = displayData.slice(-7);
+  const maxEarnings = Math.max(...data.map((d) => d.earnings), 1);
+  const screenWidth = Dimensions.get('window').width - 64;
+  const barWidth = (screenWidth - 48) / 7;
+
+  return (
+    <View className="py-4">
+      {isPlaceholder && (
+        <View className="mb-3 px-3 py-2 bg-blue-50 rounded-lg">
+          <Text className="text-xs text-blue-600 text-center">
+            Start earning to see your commission chart here! 📈
+          </Text>
+        </View>
+      )}
+
+      <View className="flex-row items-end justify-between h-40">
+        {data.map((item, index) => {
+          const height = maxEarnings > 0 ? (item.earnings / maxEarnings) * 140 : 20;
+          const date = new Date(item.date);
+          const day = date.toLocaleDateString('en-US', { weekday: 'short' });
+          const isHighlighted = isPlaceholder
+            ? day === 'Wed'
+            : item.earnings === maxEarnings && item.earnings > 0;
+
+          return (
+            <View key={index} className="items-center flex-1">
+              <View
+                className={`rounded-t-lg ${isHighlighted && !isPlaceholder ? 'bg-pink-500' : 'bg-pink-200'}`}
+                style={{ width: barWidth - 8, height: Math.max(height, 4), opacity: isPlaceholder ? 0.3 : 1 }}
+              />
+            </View>
+          );
+        })}
+      </View>
+
+      <View className="flex-row justify-between mt-3">
+        {data.map((item, index) => {
+          const date = new Date(item.date);
+          const day = date.toLocaleDateString('en-US', { weekday: 'short' });
+          return (
+            <Text key={index} className="text-xs text-gray-500 flex-1 text-center">
+              {day}
+            </Text>
+          );
+        })}
+      </View>
+    </View>
+  );
+};
+
 const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
+  const { user: authUser } = useAuth();
   const [dashboard, setDashboard] = useState<AffiliateDashboard | null>(null);
   const [earningsData, setEarningsData] = useState<AffiliateEarnings | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<'7days' | '30days' | '90days'>('30days');
@@ -42,7 +109,7 @@ const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
   const [isActivating, setIsActivating] = useState(false);
   const [isAffiliate, setIsAffiliate] = useState(false);
   const [userName, setUserName] = useState('User');
-  const [activeTab, setActiveTab] = useState<'overview' | 'history'>('overview');
+  const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [isWithdrawing, setIsWithdrawing] = useState(false);
@@ -60,6 +127,17 @@ const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
       if (result.success) {
         const user = result.data.user;
         setUserName(`${user.firstName} ${user.lastName}`);
+
+        if (user.role === 'vendor') {
+          try {
+            const vendorRes = await api.get('/vendor/profile');
+            setUserAvatar(vendorRes.data?.data?.businessLogo || user.avatar || authUser?.avatar || null);
+          } catch {
+            setUserAvatar(user.avatar || authUser?.avatar || null);
+          }
+        } else {
+          setUserAvatar(user.avatar || authUser?.avatar || null);
+        }
 
         if (user.isAffiliate) {
           setIsAffiliate(true);
@@ -133,7 +211,7 @@ const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
   const handleCopyLink = async () => {
     if (!dashboard?.summary.affiliateCode) return;
 
-    const affiliateUrl = `https://vendorspot.com/affiliatename/${dashboard.summary.affiliateCode}`;
+    const affiliateUrl = `https://vendorspotng.com/affiliate/${dashboard.summary.affiliateCode}`;
     await Clipboard.setStringAsync(affiliateUrl);
 
     Toast.show({
@@ -146,20 +224,22 @@ const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
   const handleShareLink = async () => {
     if (!dashboard?.summary.affiliateCode) return;
 
-    const affiliateUrl = `https://vendorspot.com/affiliatename/${dashboard.summary.affiliateCode}`;
+    const affiliateUrl = `https://vendorspotng.com/affiliate/${dashboard.summary.affiliateCode}`;
 
     try {
       await Share.share({
-        message: `Join VendorSpot using my affiliate link: ${affiliateUrl}`,
-        url: affiliateUrl,
+        title: 'Sell on VendorSpot Nigeria',
+        message: `Hey! 👋 Want to start selling online? VendorSpot is Nigeria's trusted marketplace for vendors.\n\nJoin with my link and start selling today:\n${affiliateUrl}`,
       });
     } catch (error) {
       console.error('Error sharing:', error);
     }
   };
 
-  const handleCopyAffiliateLink = async (code: string) => {
-    const url = `https://vendorspot.com/products?ref=${code}`;
+  const handleCopyAffiliateLink = async (code: string, productSlug?: string) => {
+    const url = productSlug
+      ? `https://vendorspotng.com/products/${productSlug}?ref=${code}`
+      : `https://vendorspotng.com/affiliate/${code}`;
     await Clipboard.setStringAsync(url);
 
     Toast.show({
@@ -169,14 +249,16 @@ const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
     });
   };
 
-  const handleShareAffiliateLink = async (code: string, productName?: string) => {
-    const url = `https://vendorspot.com/products?ref=${code}`;
+  const handleShareAffiliateLink = async (code: string, productName?: string, productSlug?: string) => {
+    const url = productSlug
+      ? `https://vendorspotng.com/products/${productSlug}?ref=${code}`
+      : `https://vendorspotng.com/affiliate/${code}`;
     const message = productName
-      ? `Check out ${productName} on VendorSpot: ${url}`
-      : `Shop on VendorSpot using my link: ${url}`;
+      ? `Check out "${productName}" on VendorSpot Nigeria! 🛒\n\nShop verified vendors, great prices, and fast delivery.\n\n👉 ${url}`
+      : `Hey! 👋 I've been shopping on VendorSpot — Nigeria's trusted marketplace with verified vendors and great deals.\n\nUse my link to sign up and start shopping:\n${url}`;
 
     try {
-      await Share.share({ message, url });
+      await Share.share({ title: 'VendorSpot Nigeria', message });
     } catch (error) {
       console.error('Error sharing:', error);
     }
@@ -218,81 +300,6 @@ const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
     } finally {
       setIsWithdrawing(false);
     }
-  };
-
-  // Bar chart component
-  const SimpleBarChart = () => {
-    let displayData = earningsData?.earningsByDate || [];
-    let isPlaceholder = false;
-
-    if (displayData.length === 0) {
-      isPlaceholder = true;
-      const today = new Date();
-      displayData = Array.from({ length: 7 }, (_, i) => {
-        const date = new Date(today);
-        date.setDate(date.getDate() - (6 - i));
-        return {
-          date: date.toISOString(),
-          orders: 0,
-          earnings: 0,
-        };
-      });
-    }
-
-    const data = displayData.slice(-7);
-    const maxEarnings = Math.max(...data.map((d) => d.earnings), 1);
-    const screenWidth = Dimensions.get('window').width - 64;
-    const barWidth = (screenWidth - 48) / 7;
-
-    return (
-      <View className="py-4">
-        {isPlaceholder && (
-          <View className="mb-3 px-3 py-2 bg-blue-50 rounded-lg">
-            <Text className="text-xs text-blue-600 text-center">
-              Start earning to see your commission chart here! 📈
-            </Text>
-          </View>
-        )}
-
-        <View className="flex-row items-end justify-between h-40">
-          {data.map((item, index) => {
-            const height = maxEarnings > 0 ? (item.earnings / maxEarnings) * 140 : 20;
-            const date = new Date(item.date);
-            const day = date.toLocaleDateString('en-US', { weekday: 'short' });
-
-            const isHighlighted = isPlaceholder
-              ? day === 'Wed'
-              : item.earnings === maxEarnings && item.earnings > 0;
-
-            return (
-              <View key={index} className="items-center flex-1">
-                <View
-                  className={`rounded-t-lg ${isHighlighted && !isPlaceholder ? 'bg-pink-500' : 'bg-pink-200'}`}
-                  style={{
-                    width: barWidth - 8,
-                    height: Math.max(height, 4),
-                    opacity: isPlaceholder ? 0.3 : 1,
-                  }}
-                />
-              </View>
-            );
-          })}
-        </View>
-
-        <View className="flex-row justify-between mt-3">
-          {data.map((item, index) => {
-            const date = new Date(item.date);
-            const day = date.toLocaleDateString('en-US', { weekday: 'short' });
-
-            return (
-              <Text key={index} className="text-xs text-gray-500 flex-1 text-center">
-                {day}
-              </Text>
-            );
-          })}
-        </View>
-      </View>
-    );
   };
 
   // ==================== ACTIVATION SCREEN ====================
@@ -435,8 +442,18 @@ const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
         {/* User Info */}
         <View className="bg-white px-4 py-4 border-b border-gray-100">
           <View className="flex-row items-center mb-2">
-            <View className="w-12 h-12 bg-pink-500 rounded-full items-center justify-center mr-3">
-              <Icon name="person" size={24} color="#FFFFFF" />
+            <View className="w-12 h-12 rounded-full overflow-hidden mr-3">
+              {userAvatar ? (
+                <Image
+                  source={{ uri: userAvatar }}
+                  style={{ width: '100%', height: '100%' }}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View className="w-full h-full bg-pink-500 items-center justify-center">
+                  <Icon name="person" size={24} color="#FFFFFF" />
+                </View>
+              )}
             </View>
             <View className="flex-1">
               <View className="flex-row items-center">
@@ -491,10 +508,13 @@ const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
                     <Icon name="time-outline" size={20} color="#F59E0B" />
                   </View>
                 </View>
-                <Text className="text-xs text-gray-500 mb-1">Pending Commission</Text>
+                <Text className="text-xs text-gray-500 mb-1">Pending</Text>
                 <Text className="text-xl font-bold text-gray-900">
                   ₦{(dashboard?.summary.pendingBalance || 0).toLocaleString()}
                 </Text>
+                {(dashboard?.summary.pendingBalance || 0) > 0 && (
+                  <Text className="text-xs text-orange-500 mt-1">Clears on delivery</Text>
+                )}
               </View>
             </View>
 
@@ -530,41 +550,16 @@ const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
               elevation: 8,
             }}
           >
-            <View className="flex-row items-center justify-center py-4 px-6">
-              <MaterialCommunityIcons name="bank-transfer-out" size={22} color="#FFFFFF" />
-              <Text className="text-white font-bold text-base ml-2">Withdraw Earnings</Text>
-              <View className="bg-white/20 rounded-full px-3 py-1 ml-3">
-                <Text className="text-white text-xs font-bold">
-                  ₦{(dashboard?.summary.availableBalance || 0).toLocaleString()}
-                </Text>
+            <View className="flex-row items-center justify-between py-4 px-6">
+              <Text className="text-white font-bold text-base">Withdraw Earnings</Text>
+              <View className="flex-row items-center">
+                <MaterialCommunityIcons name="arrow-right" size={20} color="#FFFFFF" />
+                <MaterialCommunityIcons name="bank" size={22} color="#FFFFFF" style={{ marginLeft: 6 }} />
               </View>
             </View>
           </TouchableOpacity>
         </View>
 
-        {/* Tab Switcher */}
-        <View className="px-4 pb-4">
-          <View className="flex-row bg-gray-100 rounded-xl p-1">
-            <TouchableOpacity
-              onPress={() => setActiveTab('overview')}
-              className={`flex-1 py-2.5 rounded-lg ${activeTab === 'overview' ? 'bg-white shadow-sm' : ''}`}
-            >
-              <Text className={`text-center text-sm font-semibold ${activeTab === 'overview' ? 'text-pink-600' : 'text-gray-500'}`}>
-                Overview
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setActiveTab('history')}
-              className={`flex-1 py-2.5 rounded-lg ${activeTab === 'history' ? 'bg-white shadow-sm' : ''}`}
-            >
-              <Text className={`text-center text-sm font-semibold ${activeTab === 'history' ? 'text-pink-600' : 'text-gray-500'}`}>
-                Commission History
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {activeTab === 'overview' ? (
         <>
         {/* Invite a Vendor */}
         <View className="px-4 pb-4">
@@ -574,7 +569,7 @@ const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
             <Text className="text-xs text-gray-500 mb-2">Your Unique Link</Text>
             <View className="bg-gray-50 rounded-xl p-3 mb-3">
               <Text className="text-sm text-gray-700" numberOfLines={1}>
-                vendorspot.com/affiliatename/{dashboard?.summary.affiliateCode || 'signup'}
+                vendorspotng.com/affiliate/{dashboard?.summary.affiliateCode || 'signup'}
               </Text>
             </View>
 
@@ -645,15 +640,25 @@ const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
                     >
                       {/* Link Header */}
                       <View className="flex-row items-center mb-3">
-                        <View
-                          className={`w-10 h-10 rounded-xl items-center justify-center mr-3 ${
-                            isProductLink ? 'bg-pink-100' : 'bg-purple-100'
-                          }`}
-                        >
-                          {isProductLink ? (
-                            <Icon name="pricetag-outline" size={18} color="#CC3366" />
+                        <View className="w-12 h-12 rounded-xl overflow-hidden mr-3">
+                          {isProductLink && link.product?.images?.[0] ? (
+                            <Image
+                              source={{ uri: link.product.images[0] }}
+                              style={{ width: '100%', height: '100%' }}
+                              resizeMode="cover"
+                            />
                           ) : (
-                            <Icon name="globe-outline" size={18} color="#8B5CF6" />
+                            <View
+                              className={`w-full h-full items-center justify-center ${
+                                isProductLink ? 'bg-pink-100' : 'bg-purple-100'
+                              }`}
+                            >
+                              {isProductLink ? (
+                                <Icon name="pricetag-outline" size={20} color="#CC3366" />
+                              ) : (
+                                <Icon name="globe-outline" size={20} color="#8B5CF6" />
+                              )}
+                            </View>
                           )}
                         </View>
                         <View className="flex-1">
@@ -711,7 +716,7 @@ const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
                       {/* Link Actions */}
                       <View className="flex-row gap-2">
                         <TouchableOpacity
-                          onPress={() => handleCopyAffiliateLink(link.code)}
+                          onPress={() => handleCopyAffiliateLink(link.code, isProductLink ? link.product?.slug : undefined)}
                           className="flex-1 bg-gray-100 py-2.5 rounded-lg flex-row items-center justify-center"
                         >
                           <MaterialCommunityIcons
@@ -728,7 +733,8 @@ const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
                           onPress={() =>
                             handleShareAffiliateLink(
                               link.code,
-                              isProductLink ? link.product?.name : undefined
+                              isProductLink ? link.product?.name : undefined,
+                              isProductLink ? link.product?.slug : undefined
                             )
                           }
                           className="flex-1 bg-pink-500 py-2.5 rounded-lg flex-row items-center justify-center"
@@ -817,11 +823,10 @@ const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
               </View>
 
               {dashboard.recentConversions.slice(0, 5).map((conversion: any, index: number) => {
-                const date = new Date(conversion.createdAt);
-                const formattedDate = date.toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                });
+                const date = conversion.createdAt ? new Date(conversion.createdAt) : null;
+                const formattedDate = date && !isNaN(date.getTime())
+                  ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                  : '—';
 
                 return (
                   <View
@@ -894,189 +899,10 @@ const AffiliateScreen = ({ navigation }: AffiliateScreenProps) => {
               </View>
             </View>
 
-            <SimpleBarChart />
+            <SimpleBarChart earningsData={earningsData} />
           </View>
         </View>
         </>
-        ) : (
-        <>
-        {/* Commission History Tab */}
-        <View className="px-4 pb-4">
-          <View className="bg-white rounded-2xl p-4 shadow-sm">
-            <View className="flex-row items-center justify-between mb-4">
-              <View className="flex-row items-center">
-                <Icon name="receipt-outline" size={20} color="#CC3366" />
-                <Text className="text-base font-bold text-gray-900 ml-2">Commission History</Text>
-              </View>
-              <View className="bg-pink-100 px-3 py-1 rounded-full">
-                <Text className="text-pink-600 text-xs font-bold">
-                  {dashboard?.recentConversions?.length || 0} transactions
-                </Text>
-              </View>
-            </View>
-
-            {(!dashboard?.recentConversions || dashboard.recentConversions.length === 0) ? (
-              <View className="items-center py-8">
-                <View className="w-16 h-16 bg-gray-100 rounded-full items-center justify-center mb-3">
-                  <Icon name="receipt-outline" size={28} color="#9CA3AF" />
-                </View>
-                <Text className="text-sm font-semibold text-gray-700 mb-1">No commissions yet</Text>
-                <Text className="text-xs text-gray-500 text-center px-4">
-                  Share your affiliate links to start earning commissions on every sale!
-                </Text>
-              </View>
-            ) : (
-              <View>
-                {dashboard.recentConversions.map((conversion: any, index: number) => {
-                  const date = new Date(conversion.createdAt);
-                  const formattedDate = date.toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                  });
-                  const formattedTime = date.toLocaleTimeString('en-US', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  });
-
-                  const status = conversion.paymentStatus || conversion.status || 'completed';
-                  const statusColor = status === 'completed' ? '#10B981'
-                    : status === 'pending' ? '#F59E0B'
-                    : status === 'failed' ? '#EF4444' : '#6B7280';
-                  const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
-
-                  return (
-                    <View
-                      key={conversion._id || index}
-                      className={`py-4 ${
-                        index < dashboard.recentConversions.length - 1
-                          ? 'border-b border-gray-100'
-                          : ''
-                      }`}
-                    >
-                      <View className="flex-row items-start">
-                        <View
-                          className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                          style={{ backgroundColor: `${statusColor}15` }}
-                        >
-                          <Icon
-                            name={status === 'completed' ? 'checkmark-circle' : status === 'pending' ? 'time' : 'close-circle'}
-                            size={20}
-                            color={statusColor}
-                          />
-                        </View>
-                        <View className="flex-1">
-                          <Text className="text-sm font-semibold text-gray-900">
-                            Order #{conversion.orderNumber}
-                          </Text>
-                          {conversion.items && conversion.items.length > 0 && (
-                            <Text className="text-xs text-gray-500 mt-0.5" numberOfLines={1}>
-                              {conversion.items.map((i: any) => i.productName).join(', ')}
-                            </Text>
-                          )}
-                          <View className="flex-row items-center mt-1">
-                            <Text className="text-xs text-gray-400">{formattedDate} at {formattedTime}</Text>
-                            <View className="w-1 h-1 bg-gray-300 rounded-full mx-2" />
-                            <Text className="text-xs font-semibold" style={{ color: statusColor }}>
-                              {statusLabel}
-                            </Text>
-                          </View>
-                        </View>
-                        <View className="items-end">
-                          <Text className="text-sm font-bold text-green-600">
-                            +₦{(conversion.affiliateCommission || 0).toLocaleString()}
-                          </Text>
-                          <Text className="text-xs text-gray-400 mt-0.5">
-                            from ₦{(conversion.total || 0).toLocaleString()}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
-          </View>
-        </View>
-
-        {/* Top Performing Products in History Tab */}
-        <View className="px-4 pb-6">
-          <View className="bg-white rounded-2xl p-4 shadow-sm">
-            <View className="flex-row items-center mb-4">
-              <Icon name="trophy-outline" size={20} color="#F59E0B" />
-              <Text className="text-base font-bold text-gray-900 ml-2">Top Performing Products</Text>
-            </View>
-
-            {(!dashboard?.topPerformingLinks || dashboard.topPerformingLinks.length === 0) ? (
-              <View className="items-center py-6">
-                <View className="w-16 h-16 bg-gray-100 rounded-full items-center justify-center mb-3">
-                  <Icon name="trophy-outline" size={28} color="#9CA3AF" />
-                </View>
-                <Text className="text-sm font-semibold text-gray-700 mb-1">No data yet</Text>
-                <Text className="text-xs text-gray-500 text-center px-4">
-                  Generate affiliate links for products to track their performance.
-                </Text>
-              </View>
-            ) : (
-              <View>
-                {dashboard.topPerformingLinks.map((link: any, index: number) => {
-                  const productName = link.product?.name || 'General Link';
-                  const conversionRate = link.clicks > 0
-                    ? ((link.conversions / link.clicks) * 100).toFixed(1)
-                    : '0.0';
-
-                  return (
-                    <View
-                      key={link._id || index}
-                      className={`py-3 ${
-                        index < dashboard.topPerformingLinks.length - 1
-                          ? 'border-b border-gray-100'
-                          : ''
-                      }`}
-                    >
-                      <View className="flex-row items-center mb-2">
-                        <View
-                          className={`w-8 h-8 rounded-full items-center justify-center mr-3 ${
-                            index === 0 ? 'bg-yellow-100' : index === 1 ? 'bg-gray-200' : 'bg-orange-100'
-                          }`}
-                        >
-                          <Text
-                            className={`text-xs font-bold ${
-                              index === 0 ? 'text-yellow-600' : index === 1 ? 'text-gray-600' : 'text-orange-600'
-                            }`}
-                          >
-                            #{index + 1}
-                          </Text>
-                        </View>
-                        <View className="flex-1">
-                          <Text className="text-sm font-semibold text-gray-900" numberOfLines={1}>
-                            {productName}
-                          </Text>
-                        </View>
-                        <Text className="text-sm font-bold text-green-600">
-                          ₦{(link.totalEarned || 0).toLocaleString()}
-                        </Text>
-                      </View>
-                      <View className="flex-row ml-11">
-                        <Text className="text-xs text-gray-500 mr-3">
-                          {link.clicks || 0} clicks
-                        </Text>
-                        <Text className="text-xs text-gray-500 mr-3">
-                          {link.conversions || 0} sales
-                        </Text>
-                        <Text className="text-xs text-pink-600 font-semibold">
-                          {conversionRate}% rate
-                        </Text>
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
-          </View>
-        </View>
-        </>
-        )}
       </ScrollView>
 
       {/* Withdraw Modal */}

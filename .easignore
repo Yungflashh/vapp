@@ -4,6 +4,9 @@ node_modules/
 # Git
 .git/
 
+# Native builds (EAS generates these)
+android/
+
 # Expo
 .expo/
 dist/

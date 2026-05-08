@@ -22,6 +22,7 @@ import {
   markConversationAsRead,
   Message,
 } from '@/services/message.service';
+import { checkActiveOrderWith } from '@/services/order.service';
 
 type ChatScreenProps = NativeStackScreenProps<RootStackParamList, 'Chat'>;
 
@@ -57,7 +58,7 @@ const maskPhoneNumbers = (text: string): string => {
 };
 
 const ChatScreen = ({ navigation, route }: ChatScreenProps) => {
-  const { conversationId, receiverId, receiverName, receiverAvatar, initialMessage } = route.params;
+  const { conversationId, receiverId, receiverName, receiverAvatar, initialMessage, isOrderChat } = route.params;
   const { user } = useAuth();
   const { socket, isConnected, isUserOnline, refreshUnreadMessageCount } = useSocket();
   const insets = useSafeAreaInsets();
@@ -69,6 +70,11 @@ const ChatScreen = ({ navigation, route }: ChatScreenProps) => {
   const [isTyping, setIsTyping] = useState(false);
   const [activeConversationId, setActiveConversationId] = useState(conversationId);
   const [initialMessageSent, setInitialMessageSent] = useState(false);
+  // If not an order chat and has an initial message, it's a question-only chat
+  const [questionSent, setQuestionSent] = useState(false);
+  const [chatLocked, setChatLocked] = useState(false);
+  const isQuestionOnly = !isOrderChat && !!initialMessage;
+  const isVendorUser = user?.role === 'vendor';
 
   const flatListRef = useRef<FlatList>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -105,7 +111,23 @@ const ChatScreen = ({ navigation, route }: ChatScreenProps) => {
     fetchMessages();
   }, [fetchMessages]);
 
-  // Send initial message (from order chat)
+  // Check if there is an active order between this user and the other party — if not, lock the chat
+  useEffect(() => {
+    // Skip check when already in an order context or it's a question-only chat
+    if (isOrderChat || isQuestionOnly) return;
+    (async () => {
+      try {
+        const res = await checkActiveOrderWith(receiverId);
+        if (!res.data.hasActiveOrder) {
+          setChatLocked(true);
+        }
+      } catch {
+        // If the check fails, don't lock — assume active
+      }
+    })();
+  }, [receiverId, isQuestionOnly]);
+
+  // Send initial message (from order chat or question)
   useEffect(() => {
     if (initialMessage && !initialMessageSent && !isLoading) {
       setInitialMessageSent(true);
@@ -123,6 +145,10 @@ const ChatScreen = ({ navigation, route }: ChatScreenProps) => {
               if (socket) {
                 socket.emit('join_conversation', { conversationId: response.data.conversationId });
               }
+            }
+            // Mark question as sent for question-only chats
+            if (isQuestionOnly) {
+              setQuestionSent(true);
             }
           }
         } catch (error) {
@@ -441,37 +467,50 @@ const ChatScreen = ({ navigation, route }: ChatScreenProps) => {
         )}
 
         {/* Input */}
-        <View className="flex-row items-end px-3 py-2 border-t border-gray-100 bg-white" style={{ paddingBottom: Math.max(insets.bottom, 8) }}>
-          <View className="flex-1 flex-row items-end bg-gray-100 rounded-2xl px-4 py-2 mr-2 min-h-[44px] max-h-[120px]">
-            <TextInput
-              className="flex-1 text-sm text-gray-900 py-0"
-              placeholder="Type a message..."
-              placeholderTextColor="#9CA3AF"
-              value={inputText}
-              onChangeText={handleTextChange}
-              multiline
-              maxLength={2000}
-            />
+        {(isQuestionOnly && questionSent) || chatLocked ? (
+          <View className="px-4 py-4 border-t border-gray-100 bg-gray-50" style={{ paddingBottom: Math.max(insets.bottom, 8) }}>
+            <View className="flex-row items-center justify-center">
+              <Icon name="lock-closed" size={16} color="#9CA3AF" />
+              <Text className="text-sm text-gray-400 ml-2 flex-1 text-center">
+                {chatLocked
+                  ? (isVendorUser ? 'Chat is closed. No active orders with this customer.' : 'Chat is only available with an active order.')
+                  : 'Your question has been sent. Full chat is available after placing an order.'}
+              </Text>
+            </View>
           </View>
-
-          <TouchableOpacity
-            className={`w-11 h-11 rounded-full items-center justify-center ${
-              inputText.trim() ? 'bg-pink-500' : 'bg-gray-200'
-            }`}
-            onPress={handleSend}
-            disabled={!inputText.trim() || isSending}
-          >
-            {isSending ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <Icon
-                name="send"
-                size={18}
-                color={inputText.trim() ? '#FFFFFF' : '#9CA3AF'}
+        ) : (
+          <View className="flex-row items-end px-3 py-2 border-t border-gray-100 bg-white" style={{ paddingBottom: Math.max(insets.bottom, 8) }}>
+            <View className="flex-1 flex-row items-end bg-gray-100 rounded-2xl px-4 py-2 mr-2 min-h-[44px] max-h-[120px]">
+              <TextInput
+                className="flex-1 text-sm text-gray-900 py-0"
+                placeholder="Type a message..."
+                placeholderTextColor="#9CA3AF"
+                value={inputText}
+                onChangeText={handleTextChange}
+                multiline
+                maxLength={2000}
               />
-            )}
-          </TouchableOpacity>
-        </View>
+            </View>
+
+            <TouchableOpacity
+              className={`w-11 h-11 rounded-full items-center justify-center ${
+                inputText.trim() ? 'bg-pink-500' : 'bg-gray-200'
+              }`}
+              onPress={handleSend}
+              disabled={!inputText.trim() || isSending}
+            >
+              {isSending ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Icon
+                  name="send"
+                  size={18}
+                  color={inputText.trim() ? '#FFFFFF' : '#9CA3AF'}
+                />
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

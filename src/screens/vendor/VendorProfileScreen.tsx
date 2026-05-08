@@ -11,7 +11,6 @@ import {
   TouchableOpacity,
   Image,
   StatusBar,
-  Alert,
   Share,
   ActivityIndicator,
 } from 'react-native';
@@ -27,7 +26,9 @@ import {
   uploadVendorImage,
   updateVendorProfile,
 } from '@/services/vendor.service';
+import { getWalletSummary } from '@/services/wallet.service';
 import Toast from 'react-native-toast-message';
+import AppModal from '@/components/AppModal';
 
 interface VendorProfile {
   businessName: string;
@@ -56,9 +57,13 @@ const VendorProfileScreen = () => {
   const [profile, setProfile] = useState<VendorProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [vCredits, setVCredits] = useState(0);
 
   useEffect(() => {
     fetchProfile();
+    fetchWallet();
   }, []);
 
   const fetchProfile = async () => {
@@ -74,12 +79,24 @@ const VendorProfileScreen = () => {
     }
   };
 
+  const fetchWallet = async () => {
+    try {
+      const res = await getWalletSummary();
+      if (res.success && res.data?.summary) {
+        setWalletBalance(res.data.summary.balance ?? 0);
+        setVCredits(res.data.summary.vCredits ?? 0);
+      }
+    } catch (error) {
+      // wallet not critical for this screen
+    }
+  };
+
   const handleImagePick = async (type: 'logo' | 'banner') => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
+
       if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Please grant camera roll permissions');
+        Toast.show({ type: 'error', text1: 'Permission Required', text2: 'Please grant camera roll permissions' });
         return;
       }
 
@@ -153,30 +170,16 @@ const VendorProfileScreen = () => {
     }
   };
 
-  const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await authLogout();
-              Toast.show({
-                type: 'success',
-                text1: 'Logged Out',
-                text2: 'You have been successfully logged out',
-              });
-            } catch (error) {
-              console.error('Logout error:', error);
-            }
-          },
-        },
-      ]
-    );
+  const handleLogout = () => setShowLogoutModal(true);
+
+  const confirmLogout = async () => {
+    setShowLogoutModal(false);
+    try {
+      await authLogout();
+      Toast.show({ type: 'success', text1: 'Logged Out', text2: 'You have been successfully logged out' });
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   const menuItems = [
@@ -398,6 +401,35 @@ const VendorProfileScreen = () => {
           </View>
         </View>
 
+        {/* Wallet & VCredits Card */}
+        <View className="mx-6 mb-4 flex-row" style={{ gap: 12 }}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('VendorEarnings' as never)}
+            className="flex-1 bg-white rounded-2xl p-4"
+            style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}
+          >
+            <View className="w-10 h-10 rounded-xl bg-green-100 items-center justify-center mb-2">
+              <Icon name="wallet-outline" size={20} color="#10B981" />
+            </View>
+            <Text className="text-xs text-gray-500 mb-0.5">Available Balance</Text>
+            <Text className="text-base font-bold text-gray-900">
+              ₦{walletBalance.toLocaleString('en-NG', { minimumFractionDigits: 0 })}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => navigation.navigate('VendorEarnings' as never)}
+            className="flex-1 bg-white rounded-2xl p-4"
+            style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}
+          >
+            <View className="w-10 h-10 rounded-xl items-center justify-center mb-2" style={{ backgroundColor: '#EDE9FE' }}>
+              <Icon name="flash" size={20} color="#7C3AED" />
+            </View>
+            <Text className="text-xs text-gray-500 mb-0.5">VCredits</Text>
+            <Text className="text-base font-bold text-gray-900">{vCredits.toLocaleString()}</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Menu Items */}
         <View className="px-6 pb-24">
           {menuItems.map((item) => (
@@ -438,6 +470,19 @@ const VendorProfileScreen = () => {
       </ScrollView>
 
       <Toast />
+
+      <AppModal
+        visible={showLogoutModal}
+        title="Logout"
+        message="Are you sure you want to logout?"
+        icon="log-out-outline"
+        iconColor="#EF4444"
+        onClose={() => setShowLogoutModal(false)}
+        buttons={[
+          { text: 'Cancel', style: 'cancel', onPress: () => setShowLogoutModal(false) },
+          { text: 'Logout', style: 'destructive', onPress: confirmLogout },
+        ]}
+      />
     </SafeAreaView>
   );
 };

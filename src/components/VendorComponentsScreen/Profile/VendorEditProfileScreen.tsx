@@ -13,7 +13,6 @@ import {
   TextInput,
   StatusBar,
   ActivityIndicator,
-  Alert,
   Modal,
   FlatList,
   KeyboardAvoidingView,
@@ -112,7 +111,7 @@ const VendorEditProfileScreen = () => {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       
       if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Please grant camera roll permissions');
+        Toast.show({ type: 'error', text1: 'Permission Required', text2: 'Please grant camera roll permissions' });
         return;
       }
 

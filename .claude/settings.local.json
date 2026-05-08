@@ -24,7 +24,22 @@
       "Bash(cd:*)",
       "Bash(find C:/Users/YungFlash/Downloads/vendorspot-admin/src -name *vendor* -o -name *Vendor*)",
       "Bash(find C:UsersYungFlashDesktopvspotAppvspotAppsrc -name *AuthContext* -o -name *auth.context*)",
-      "Bash(find C:UsersYungFlashDownloadsvendorspot-backendsrcmodels -type f -name *.ts)"
+      "Bash(find C:UsersYungFlashDownloadsvendorspot-backendsrcmodels -type f -name *.ts)",
+      "Bash(find C:UsersYungFlashDesktopvspotAppvspotApp -type f -name *ddProduct*)",
+      "Bash(find /c/Users/YungFlash/Downloads/vendorspot-backend/src -name *.ts)",
+      "Bash(npm uninstall:*)",
+      "Bash(find C:UsersYungFlashDownloadsvendorspot-backendsrcroutes -type f -name *.ts)",
+      "Bash(powershell -Command \"Get-ChildItem -Directory | ForEach-Object { $size = \\(Get-ChildItem $_FullName -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum\\).Sum; [PSCustomObject]@{Name=$_Name; SizeMB=[math]::Round\\($size/1MB,1\\)} } | Sort-Object SizeMB -Descending | Format-Table -AutoSize\")",
+      "Bash(xargs -I{} du -sm {})",
+      "Bash(npm run:*)",
+      "Bash(gh pr *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\YungFlash\\\\Desktop\\\\vspotApp\\\\vspotApp\" -Recurse -Directory -Name)",
+      "Bash(Select-Object -First 20)",
+      "Bash(Select-String -Path \"C:\\\\Users\\\\YungFlash\\\\Desktop\\\\vspotApp\\\\vspotApp\\\\src\\\\screens\\\\tabScreen\\\\HomeScreen.tsx\" -Pattern \"u20A6\")",
+      "Bash(Select-Object LineNumber, Line)",
+      "Read(//c/Users/YungFlash/Downloads/vendorspot-admin/**)",
+      "Bash(dir \"C:\\\\Users\\\\YungFlash\\\\Downloads\\\\vendorspot-admin\")",
+      "Bash(dir \"C:\\\\Users\\\\YungFlash\\\\Downloads\\\\vendorspot-admin\\\\src\")"
     ]
   }
 }

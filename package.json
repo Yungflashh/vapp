@@ -1,6 +1,6 @@
 {
   "name": "my-expo-app",
-  "version": "1.0.0",
+  "version": "2.1.1",
   "scripts": {
     "android": "expo run:android",
     "ios": "expo run:ios",
@@ -34,6 +34,7 @@
     "expo-location": "^19.0.8",
     "expo-notifications": "~0.32.16",
     "expo-status-bar": "~3.0.8",
+    "expo-updates": "~29.0.17",
     "expo-web-browser": "~15.0.10",
     "nativewind": "latest",
     "react": "19.1.0",

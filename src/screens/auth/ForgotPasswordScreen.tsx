@@ -197,7 +197,7 @@ const ForgotPasswordScreen = ({ navigation }: ForgotPasswordScreenProps) => {
           <View className="items-center mt-4">
             <Text className="text-xs text-gray-400 text-center leading-[18px]">
               Having trouble? Contact our support team at{' '}
-              <Text className="text-pink-500">support@vendorspot.com</Text>
+              <Text className="text-pink-500">support@vendorspotng.com</Text>
             </Text>
           </View>
         </View>

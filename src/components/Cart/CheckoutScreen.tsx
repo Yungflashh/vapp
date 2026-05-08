@@ -3,6 +3,7 @@
 // Changes marked with "✅ FIX"
 
 import React, { useState, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
   Text,
@@ -10,7 +11,6 @@ import {
   ScrollView,
   TextInput,
   ActivityIndicator,
-  Alert,
   Modal,
   Image,
   KeyboardAvoidingView,
@@ -21,6 +21,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Toast from 'react-native-toast-message';
+import AppModal from '@/components/AppModal';
 import * as Location from 'expo-location';
 import { RootStackParamList } from '@/navigation';
 import {
@@ -97,6 +98,7 @@ const CheckoutScreen = () => {
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [vCreditsBalance, setVCreditsBalance] = useState(0);
   const [vCreditsInput, setVCreditsInput] = useState('');
+  const [deleteAddressModal, setDeleteAddressModal] = useState<{ visible: boolean; addressId: string }>({ visible: false, addressId: '' });
 
   // Address form states
   const [addressForm, setAddressForm] = useState<CreateAddressRequest>({
@@ -501,41 +503,33 @@ const CheckoutScreen = () => {
     }
   };
 
-  const handleDeleteAddress = async (addressId: string) => {
-    Alert.alert(
-      'Delete Address',
-      'Are you sure you want to delete this address?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setIsProcessing(true);
-              const response = await deleteAddress(addressId);
-              
-              if (response.success) {
-                Toast.show({
-                  type: 'success',
-                  text1: 'Address Deleted',
-                  text2: 'Address has been removed',
-                });
-                await fetchAddresses();
-              }
-            } catch (error: any) {
-              Toast.show({
-                type: 'error',
-                text1: 'Error',
-                text2: error.response?.data?.message || 'Failed to delete address',
-              });
-            } finally {
-              setIsProcessing(false);
-            }
-          },
-        },
-      ]
-    );
+  const handleDeleteAddress = (addressId: string) => {
+    setDeleteAddressModal({ visible: true, addressId });
+  };
+
+  const confirmDeleteAddress = async () => {
+    const { addressId } = deleteAddressModal;
+    setDeleteAddressModal({ visible: false, addressId: '' });
+    try {
+      setIsProcessing(true);
+      const response = await deleteAddress(addressId);
+      if (response.success) {
+        Toast.show({
+          type: 'success',
+          text1: 'Address Deleted',
+          text2: 'Address has been removed',
+        });
+        await fetchAddresses();
+      }
+    } catch (error: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: error.response?.data?.message || 'Failed to delete address',
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleSetDefaultAddress = async (addressId: string) => {
@@ -667,6 +661,8 @@ const CheckoutScreen = () => {
         return;
       }
 
+      const pendingAffiliateCode = await AsyncStorage.getItem('pendingAffiliateCode');
+
       const checkoutData: any = {
         shippingAddress,
         paymentMethod: selectedPaymentMethod,
@@ -677,6 +673,7 @@ const CheckoutScreen = () => {
         vendorBreakdown: selectedRate.vendorBreakdown,
         vCreditsAmount: isGuest ? 0 : vCreditsToApply,
         ...(isGuest && { guestEmail: guestEmail.trim() }),
+        ...(pendingAffiliateCode && { affiliateCode: pendingAffiliateCode }),
       };
 
       // ✅ FLOW: Wallet or VCredits cover full amount → wallet path, otherwise card + VCredits
@@ -691,13 +688,14 @@ const CheckoutScreen = () => {
         const response = await createOrder(checkoutData);
         
         if (response.success && response.data.order) {
+          AsyncStorage.removeItem('pendingAffiliateCode').catch(() => {});
           Toast.show({
             type: 'success',
             text1: 'Order Placed Successfully',
             text2: `Order #${response.data.order.orderNumber}`,
             visibilityTime: 3000,
           });
-          
+
           navigation.reset({
             index: 1,
             routes: [
@@ -1017,55 +1015,68 @@ const CheckoutScreen = () => {
       >
         <Text className="text-lg font-bold text-gray-900 py-4">Payment Method</Text>
 
-        {/* VCredits Section — always visible if user has VCredits */}
-        {vCreditsBalance > 0 && (
+        {/* VCredits Section — always visible for logged-in users */}
+        {!isGuest && (
           <View className="bg-white rounded-2xl p-4 mb-3 border-2" style={{ borderColor: vCreditsToApply > 0 ? '#7C3AED' : '#F3F4F6' }}>
             <View className="flex-row items-center mb-3">
               <View className="w-12 h-12 rounded-xl items-center justify-center mr-3" style={{ backgroundColor: '#EDE9FE' }}>
                 <Icon name="flash" size={24} color="#7C3AED" />
               </View>
               <View className="flex-1">
-                <Text className="text-base font-semibold text-gray-900">VCredits</Text>
+                <Text className="text-base font-semibold text-gray-900">Pay with VCredits</Text>
                 <Text className="text-xs text-gray-500">
-                  Available: {vCreditsBalance.toLocaleString()} VCredits
+                  Balance: {vCreditsBalance.toLocaleString()} VCredits
                 </Text>
               </View>
+              {vCreditsBalance === 0 && (
+                <View className="bg-gray-100 px-2 py-1 rounded-lg">
+                  <Text className="text-xs text-gray-400">No credits</Text>
+                </View>
+              )}
             </View>
 
-            <Text className="text-sm text-gray-600 mb-2">Enter amount to deduct from VCredits</Text>
-            <View className="flex-row items-center gap-2">
-              <View className="flex-1 flex-row items-center bg-gray-50 rounded-xl px-4 py-3 border border-gray-200">
-                <Icon name="flash-outline" size={18} color="#7C3AED" />
-                <TextInput
-                  className="flex-1 ml-2 text-base text-gray-900"
-                  placeholder="0"
-                  placeholderTextColor="#9CA3AF"
-                  keyboardType="numeric"
-                  value={vCreditsInput}
-                  onChangeText={(text) => {
-                    const num = text.replace(/[^0-9]/g, '');
-                    setVCreditsInput(num);
-                  }}
-                />
-              </View>
-              <TouchableOpacity
-                onPress={() => setVCreditsInput(Math.min(vCreditsBalance, totalAmount).toString())}
-                className="px-4 py-3 rounded-xl"
-                style={{ backgroundColor: '#EDE9FE' }}
-              >
-                <Text className="text-sm font-bold" style={{ color: '#7C3AED' }}>Use All</Text>
-              </TouchableOpacity>
-            </View>
+            {vCreditsBalance > 0 ? (
+              <>
+                <Text className="text-sm text-gray-600 mb-2">Enter amount to deduct from VCredits</Text>
+                <View className="flex-row items-center gap-2">
+                  <View className="flex-1 flex-row items-center bg-gray-50 rounded-xl px-4 py-3 border border-gray-200">
+                    <Icon name="flash-outline" size={18} color="#7C3AED" />
+                    <TextInput
+                      className="flex-1 ml-2 text-base text-gray-900"
+                      placeholder="0"
+                      placeholderTextColor="#9CA3AF"
+                      keyboardType="numeric"
+                      value={vCreditsInput}
+                      onChangeText={(text) => {
+                        const num = text.replace(/[^0-9]/g, '');
+                        setVCreditsInput(num);
+                      }}
+                    />
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => setVCreditsInput(Math.min(vCreditsBalance, totalAmount).toString())}
+                    className="px-4 py-3 rounded-xl"
+                    style={{ backgroundColor: '#EDE9FE' }}
+                  >
+                    <Text className="text-sm font-bold" style={{ color: '#7C3AED' }}>Use All</Text>
+                  </TouchableOpacity>
+                </View>
 
-            {vCreditsToApply > 0 && (
-              <View className="rounded-xl p-3 mt-3" style={{ backgroundColor: '#F5F3FF' }}>
-                <Text className="text-sm font-medium" style={{ color: '#5B21B6' }}>
-                  {vCreditsToApply >= totalAmount
-                    ? `${vCreditsToApply.toLocaleString()} VCredits covers this order fully!`
-                    : `${vCreditsToApply.toLocaleString()} VCredits applied — pay remaining ₦${amountAfterVCredits.toLocaleString()} below.`
-                  }
-                </Text>
-              </View>
+                {vCreditsToApply > 0 && (
+                  <View className="rounded-xl p-3 mt-3" style={{ backgroundColor: '#F5F3FF' }}>
+                    <Text className="text-sm font-medium" style={{ color: '#5B21B6' }}>
+                      {vCreditsToApply >= totalAmount
+                        ? `${vCreditsToApply.toLocaleString()} VCredits covers this order fully!`
+                        : `${vCreditsToApply.toLocaleString()} VCredits applied — pay remaining ₦${amountAfterVCredits.toLocaleString()} below.`
+                      }
+                    </Text>
+                  </View>
+                )}
+              </>
+            ) : (
+              <Text className="text-xs text-gray-400">
+                You have no VCredits yet. Earn them through referrals, rewards, or promotions.
+              </Text>
             )}
           </View>
         )}
@@ -1168,6 +1179,11 @@ const CheckoutScreen = () => {
               <Text className={`font-medium ${deliveryFee === 0 ? 'text-green-600' : 'text-gray-900'}`}>
                 {deliveryFee === 0 ? 'FREE' : `₦${deliveryFee.toLocaleString()}`}
               </Text>
+            </View>
+
+            <View className="flex-row justify-between items-center mb-3">
+              <Text className="text-gray-600">Service Charge</Text>
+              <Text className="text-green-600 font-medium">Free</Text>
             </View>
 
             {discount > 0 && (
@@ -1567,6 +1583,19 @@ const CheckoutScreen = () => {
       </View>
 
       {renderAddAddressModal()}
+
+      <AppModal
+        visible={deleteAddressModal.visible}
+        title="Delete Address"
+        message="Are you sure you want to delete this address?"
+        icon="trash-outline"
+        iconColor="#EF4444"
+        onClose={() => setDeleteAddressModal({ visible: false, addressId: '' })}
+        buttons={[
+          { text: 'Cancel', style: 'cancel', onPress: () => setDeleteAddressModal({ visible: false, addressId: '' }) },
+          { text: 'Delete', style: 'destructive', onPress: confirmDeleteAddress },
+        ]}
+      />
     </SafeAreaView>
   );
 };

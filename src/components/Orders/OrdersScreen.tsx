@@ -50,7 +50,7 @@ const OrdersScreen = ({ navigation }: OrdersScreenProps) => {
     useCallback(() => {
       fetchOrders();
       fetchCartCount();
-    }, [selectedStatus, searchQuery])
+    }, [])
   );
 
   const fetchCartCount = async () => {
@@ -72,8 +72,14 @@ const OrdersScreen = ({ navigation }: OrdersScreenProps) => {
       const response = await getOrders(1, 50);
 
       if (response.success) {
-        setOrders(response.data.orders);
-        filterOrders(response.data.orders, selectedStatus, searchQuery);
+        const seen = new Set<string>();
+        const unique = (response.data.orders as Order[]).filter((o) => {
+          if (seen.has(o.orderNumber)) return false;
+          seen.add(o.orderNumber);
+          return true;
+        });
+        setOrders(unique);
+        filterOrders(unique, selectedStatus, searchQuery);
       }
     } catch (error: any) {
       console.error('❌ Fetch orders error:', error);
@@ -186,7 +192,6 @@ const OrdersScreen = ({ navigation }: OrdersScreenProps) => {
   };
 
   const renderOrderCard = (order: Order) => {
-    const firstItem = order.items[0];
     const statusColor = getStatusColor(order.status);
     const statusLabel = getStatusLabel(order.status);
 
@@ -196,80 +201,106 @@ const OrdersScreen = ({ navigation }: OrdersScreenProps) => {
         onPress={() => navigation.navigate('OrderDetails', { orderId: order._id })}
         className="bg-white rounded-2xl p-4 mb-3 shadow-sm"
       >
-        <View className="flex-row items-start">
-          {/* Product Image */}
-          <View className="w-16 h-16 bg-pink-50 rounded-xl overflow-hidden mr-3">
-            {firstItem.productImage ? (
-              <Image
-                source={{ uri: firstItem.productImage }}
-                className="w-full h-full"
-                resizeMode="cover"
-              />
-            ) : (
-              <View className="w-full h-full items-center justify-center">
-                <Icon name="image-outline" size={24} color="#CC3366" />
+        {/* Order Header */}
+        <View className="flex-row items-center justify-between mb-3">
+          <View className="flex-1">
+            <Text className="text-xs text-gray-500">Order #{order.orderNumber}</Text>
+            <Text className="text-xs text-gray-400 mt-0.5">{formatDate(order.createdAt)}</Text>
+          </View>
+          <View
+            className="px-3 py-1 rounded-full"
+            style={{ backgroundColor: `${statusColor}15` }}
+          >
+            <Text className="text-xs font-semibold" style={{ color: statusColor }}>
+              {statusLabel}
+            </Text>
+          </View>
+        </View>
+
+        {/* Items grouped by vendor */}
+        {(() => {
+          const shipments = order.vendorShipments || [];
+          if (shipments.length > 1) {
+            return shipments.map((shipment, si) => {
+              const shipmentItemIds = new Set(shipment.items);
+              const vendorItems = order.items.filter((_, idx) => shipmentItemIds.has(idx.toString()) || shipmentItemIds.size === 0 || si === 0);
+              const itemsToShow = shipments.length > 1
+                ? order.items.filter((item) => item.vendor === (typeof shipment.vendor === 'string' ? shipment.vendor : shipment.vendor?._id))
+                : order.items;
+              if (itemsToShow.length === 0) return null;
+              return (
+                <View key={si} className={si > 0 ? 'mt-3 pt-3 border-t border-gray-100' : ''}>
+                  <Text className="text-xs font-semibold text-pink-500 mb-2">
+                    From: {shipment.vendorName}
+                  </Text>
+                  {itemsToShow.map((item, index) => (
+                    <View key={index} className={`flex-row items-center ${index > 0 ? 'mt-2' : ''}`}>
+                      <View className="w-12 h-12 bg-pink-50 rounded-xl overflow-hidden mr-3">
+                        {item.productImage ? (
+                          <Image source={{ uri: item.productImage }} className="w-full h-full" resizeMode="cover" />
+                        ) : (
+                          <View className="w-full h-full items-center justify-center">
+                            <Icon name="image-outline" size={18} color="#CC3366" />
+                          </View>
+                        )}
+                      </View>
+                      <View className="flex-1">
+                        <Text className="text-sm font-semibold text-gray-900" numberOfLines={1}>{item.productName}</Text>
+                        <Text className="text-xs text-gray-500 mt-0.5">Qty: {item.quantity} · ₦{(item.price * item.quantity).toLocaleString()}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              );
+            });
+          }
+          return order.items.map((item, index) => (
+            <View key={index} className={`flex-row items-center ${index > 0 ? 'mt-3 pt-3 border-t border-gray-100' : ''}`}>
+              <View className="w-14 h-14 bg-pink-50 rounded-xl overflow-hidden mr-3">
+                {item.productImage ? (
+                  <Image source={{ uri: item.productImage }} className="w-full h-full" resizeMode="cover" />
+                ) : (
+                  <View className="w-full h-full items-center justify-center">
+                    <Icon name="image-outline" size={20} color="#CC3366" />
+                  </View>
+                )}
+              </View>
+              <View className="flex-1">
+                <View className="flex-row items-center">
+                  <Text className="text-sm font-semibold text-gray-900 flex-shrink" numberOfLines={1}>{item.productName}</Text>
+                  {(item as any).productType && (
+                    <View className="ml-2 px-1.5 py-0.5 rounded-full" style={{ backgroundColor: (item as any).productType === 'digital' ? '#EDE9FE' : '#ECFDF5' }}>
+                      <Text style={{ fontSize: 9, color: (item as any).productType === 'digital' ? '#7C3AED' : '#059669', fontWeight: '600' }}>
+                        {(item as any).productType === 'digital' ? 'Digital' : 'Physical'}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <Text className="text-xs text-gray-500 mt-0.5">Qty: {item.quantity} · ₦{(item.price * item.quantity).toLocaleString()}</Text>
+              </View>
+            </View>
+          ));
+        })()}
+
+        {/* Footer */}
+        <View className="flex-row items-center justify-between mt-3 pt-3 border-t border-gray-100">
+          <View>
+            {order.vendorShipments?.[0]?.vendorName && (
+              <Text className="text-xs text-gray-500">
+                Shop: {order.vendorShipments[0].vendorName}
+              </Text>
+            )}
+            {user?.role === 'vendor' && (
+              typeof order.user === 'string' ? order.user === user?.id : order.user?._id === user?.id
+            ) && (
+              <View className="mt-1 self-start px-2 py-0.5 rounded-full" style={{ backgroundColor: '#F3E8FF' }}>
+                <Text className="text-[10px] font-bold" style={{ color: '#7C3AED' }}>My Order</Text>
               </View>
             )}
           </View>
-
-         {/* Order Details */}
-<View className="flex-1">
-  <Text className="text-sm font-bold text-gray-900" numberOfLines={1}>
-    {firstItem.productName}
-  </Text>
-  <Text className="text-xs text-gray-500 mt-0.5">
-    Item ID: {order.orderNumber}
-  </Text>
-  <Text className="text-xs text-gray-500 mt-0.5">
-    Date: {formatDate(order.createdAt)}
-  </Text>
-  {order.vendorShipments?.[0]?.origin && (
-    <>
-      <Text className="text-xs text-gray-500 mt-0.5">Product Location:</Text>
-      <Text className="text-xs text-gray-600">
-        {order.vendorShipments[0].origin.city}, {order.vendorShipments[0].origin.state}
-      </Text>
-    </>
-  )}
-  {order.vendorShipments?.[0]?.vendorName && (
-    <Text className="text-xs text-gray-500 mt-0.5">
-      Shop: {order.vendorShipments[0].vendorName}
-    </Text>
-  )}
-  {/* Show "My Order" badge if current user is a vendor who placed this order */}
-  {user?.role === 'vendor' && (
-    typeof order.user === 'string' ? order.user === user?.id : order.user?._id === user?.id
-  ) && (
-    <View className="mt-1.5 self-start px-2 py-0.5 rounded-full" style={{ backgroundColor: '#F3E8FF' }}>
-      <Text className="text-[10px] font-bold" style={{ color: '#7C3AED' }}>My Order</Text>
-    </View>
-  )}
-</View>
-
-          {/* More Options */}
-          <TouchableOpacity className="p-2">
-            <Icon name="ellipsis-vertical" size={20} color="#6B7280" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Quantity and Price Row */}
-        <View className="flex-row items-center justify-between mt-3 pt-3 border-t border-gray-100">
-          <Text className="text-sm text-gray-700">
-            {order.items.length} {order.items.length === 1 ? 'Product' : 'Products'} · Qty: {order.items.reduce((sum, item) => sum + item.quantity, 0)}
+          <Text className="text-base font-bold text-gray-900">
+            ₦{order.total.toLocaleString()}
           </Text>
-          <View className="flex-row items-center">
-            <Text className="text-base font-bold text-gray-900 mr-3">
-              ₦{order.total.toLocaleString()}
-            </Text>
-            <View
-              className="px-3 py-1 rounded-full"
-              style={{ backgroundColor: `${statusColor}15` }}
-            >
-              <Text className="text-xs font-semibold" style={{ color: statusColor }}>
-                {statusLabel}
-              </Text>
-            </View>
-          </View>
         </View>
       </TouchableOpacity>
     );

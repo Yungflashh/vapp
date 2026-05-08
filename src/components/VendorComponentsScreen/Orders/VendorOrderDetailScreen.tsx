@@ -13,7 +13,6 @@ import {
   Image,
   ActivityIndicator,
   RefreshControl,
-  Alert,
   StatusBar,
   Linking,
 } from 'react-native';
@@ -23,6 +22,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getVendorOrderById, updateVendorOrderStatus, simulateWebhook } from '@/services/order.service';
+import Toast from 'react-native-toast-message';
+import AppModal from '@/components/AppModal';
 import { RootStackParamList } from '@/navigation/index';
 
 // ✅ TypeScript declaration for __DEV__
@@ -336,6 +337,8 @@ const VendorOrderDetailScreen: React.FC = () => {
   
   // ✅ Development mode detection
   const isSandbox = __DEV__;
+  const [confirmModal, setConfirmModal] = useState<{ visible: boolean; newStatus: string }>({ visible: false, newStatus: '' });
+  const [showWebhookSimModal, setShowWebhookSimModal] = useState(false);
 
   useEffect(() => {
     if (!orderId) {
@@ -390,47 +393,32 @@ const VendorOrderDetailScreen: React.FC = () => {
       const res = await updateVendorOrderStatus(order._id, newStatus);
       if (res.data?.success) {
         setOrder(prev => (prev ? { ...prev, status: newStatus } : prev));
-        Alert.alert('Success', `Order marked as ${fmt(newStatus)}`);
-        // Refresh to get updated tracking info
+        Toast.show({ type: 'success', text1: 'Success', text2: `Order marked as ${fmt(newStatus)}` });
         setTimeout(() => fetchOrder(true), 1000);
       }
     } catch (err: any) {
-      Alert.alert('Error', err?.response?.data?.message || 'Failed to update status');
+      Toast.show({ type: 'error', text1: 'Error', text2: err?.response?.data?.message || 'Failed to update status' });
     } finally {
       setUpdating(false);
     }
   };
 
   const confirmUpdate = (newStatus: string) => {
-    Alert.alert(
-      'Update Order Status',
-      `Are you sure you want to mark this order as "${fmt(newStatus)}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Confirm', onPress: () => handleUpdate(newStatus) },
-      ]
-    );
+    setConfirmModal({ visible: true, newStatus });
   };
 
   // ✅ Simulate Webhook (Sandbox only)
-  const simulateWebhook = async (statusCode: string) => {
+  const handleSimulateWebhook = async (statusCode: string) => {
     if (!order) return;
-
     try {
-      Alert.alert('Simulating...', 'Updating shipment status');
-      
+      Toast.show({ type: 'info', text1: 'Simulating...', text2: 'Updating shipment status' });
       const res = await simulateWebhook(order._id, statusCode);
-
       if (res.data?.success) {
-        Alert.alert('Success', 'Status updated! Refreshing order...');
-        // Wait for webhook to process
+        Toast.show({ type: 'success', text1: 'Success', text2: 'Status updated! Refreshing order...' });
         setTimeout(() => fetchOrder(true), 2000);
       }
     } catch (err: any) {
-      Alert.alert(
-        'Error',
-        err?.response?.data?.message || 'Failed to simulate webhook'
-      );
+      Toast.show({ type: 'error', text1: 'Error', text2: err?.response?.data?.message || 'Failed to simulate webhook' });
     }
   };
 
@@ -561,18 +549,20 @@ const VendorOrderDetailScreen: React.FC = () => {
 
   if (!order) return null;
 
-  const statusConfig = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending;
-  const paymentConfig = PAYMENT_CONFIG[order.paymentStatus] || PAYMENT_CONFIG.pending;
-  const nextStatus = STATUS_FLOW[order.status] || null;
-  const isCancelled = order.status === 'cancelled';
-  const isDelivered = order.status === 'delivered';
-  const currentIdx = TIMELINE_STEPS.findIndex(s => s.key === order.status);
-  const vendorTotal = order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const shipment =
     order.vendorShipment ||
     (order.vendorShipments && order.vendorShipments.length > 0
       ? order.vendorShipments[0]
       : null);
+  // For multi-vendor orders, show this vendor's own shipment status; fall back to order.status
+  const vendorStatus = shipment?.status || order.status;
+  const statusConfig = STATUS_CONFIG[vendorStatus] || STATUS_CONFIG.pending;
+  const paymentConfig = PAYMENT_CONFIG[order.paymentStatus] || PAYMENT_CONFIG.pending;
+  const nextStatus = STATUS_FLOW[vendorStatus] || null;
+  const isCancelled = vendorStatus === 'cancelled';
+  const isDelivered = vendorStatus === 'delivered';
+  const currentIdx = TIMELINE_STEPS.findIndex(s => s.key === vendorStatus);
+  const vendorTotal = order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   return (
     <View className="flex-1 bg-gray-50">
@@ -616,7 +606,7 @@ const VendorOrderDetailScreen: React.FC = () => {
             <Text
               className={`text-xs font-bold ${statusConfig.text} uppercase tracking-wide`}
             >
-              {fmt(order.status)}
+              {fmt(vendorStatus)}
             </Text>
           </View>
         </View>
@@ -774,11 +764,6 @@ const VendorOrderDetailScreen: React.FC = () => {
               <Text className="text-base font-bold text-gray-900">
                 {order.user?.firstName || ''} {order.user?.lastName || ''}
               </Text>
-              {order.user?.email && (
-                <Text className="text-sm text-gray-500 mt-1" numberOfLines={1}>
-                  {order.user.email.replace(/(.{2})(.*)(@.*)/, '$1***$3')}
-                </Text>
-              )}
             </View>
           </View>
 
@@ -786,11 +771,12 @@ const VendorOrderDetailScreen: React.FC = () => {
             onPress={() => {
               const customerId = typeof order.user === 'object' ? (order.user as any)?._id : order.user;
               const customerName = `${order.user?.firstName || ''} ${order.user?.lastName || ''}`.trim();
-              const orderDetails = `Hi, I'm reaching out regarding Order #${order.orderNumber}.\n\nItems: ${order.items.map(i => getName(i)).join(', ')}\nTotal: ${fmtPrice(order.total)}\nStatus: ${fmt(order.status)}`;
+              const orderDetails = `Hi, I'm reaching out regarding Order #${order.orderNumber}.\n\nItems: ${order.items.map(i => getName(i)).join(', ')}\nTotal: ${fmtPrice(order.total)}\nStatus: ${fmt(vendorStatus)}`;
               navigation.navigate('Chat', {
                 receiverId: customerId,
                 receiverName: customerName || 'Customer',
                 initialMessage: orderDetails,
+                isOrderChat: true,
               });
             }}
             activeOpacity={0.8}
@@ -977,32 +963,7 @@ const VendorOrderDetailScreen: React.FC = () => {
             {isSandbox && shipment.trackingNumber && (
               <View className="mt-4">
                 <TouchableOpacity
-                  onPress={() => {
-                    Alert.alert(
-                      'Simulate Status Update',
-                      'Test shipment status changes (Sandbox only)',
-                      [
-                        { text: 'Cancel', style: 'cancel' },
-                        {
-                          text: '✅ Confirmed',
-                          onPress: () => simulateWebhook('confirmed')
-                        },
-                        {
-                          text: '📦 Picked Up',
-                          onPress: () => simulateWebhook('picked_up')
-                        },
-                        {
-                          text: '🚚 In Transit',
-                          onPress: () => simulateWebhook('in_transit')
-                        },
-                        {
-                          text: '🎉 Delivered',
-                          onPress: () => simulateWebhook('completed')
-                        },
-                      ],
-                      { cancelable: true }
-                    );
-                  }}
+                  onPress={() => setShowWebhookSimModal(true)}
                   activeOpacity={0.8}
                   style={{
                     shadowColor: '#8B5CF6',
@@ -1071,36 +1032,20 @@ const VendorOrderDetailScreen: React.FC = () => {
           </View>
 
           <View className="space-y-2">
-            <InfoRow label="Subtotal" value={fmtPrice(order.subtotal)} />
-            {order.discount > 0 && (
-              <InfoRow label="Discount" value={`-${fmtPrice(order.discount)}`} />
-            )}
-            {order.shippingCost > 0 && (
-              <InfoRow label="Shipping" value={fmtPrice(order.shippingCost)} />
-            )}
-            {order.tax > 0 && <InfoRow label="Tax" value={fmtPrice(order.tax)} />}
-            {order.couponCode && (
-              <InfoRow label="Coupon Applied" value={order.couponCode} mono />
+            <InfoRow label="Your Items Subtotal" value={fmtPrice(vendorTotal)} />
+            {(shipment?.shippingCost ?? 0) > 0 && (
+              <InfoRow label="Your Shipping Cost" value={fmtPrice(shipment!.shippingCost)} />
             )}
           </View>
 
           <View className="h-px bg-gray-200 my-4" />
 
           <View className="flex-row justify-between items-center">
-            <Text className="text-lg font-bold text-gray-900">Order Total</Text>
+            <Text className="text-lg font-bold text-gray-900">Your Items Total</Text>
             <Text className="text-2xl font-bold text-pink-500" style={{ letterSpacing: -0.5 }}>
-              {fmtPrice(order.total)}
+              {fmtPrice(vendorTotal)}
             </Text>
           </View>
-
-          {vendorTotal !== order.total && (
-            <View className="flex-row justify-between items-center mt-4 pt-4 border-t border-gray-100">
-              <Text className="text-sm text-gray-600">Your Items Total</Text>
-              <Text className="text-lg font-bold text-gray-900">
-                {fmtPrice(vendorTotal)}
-              </Text>
-            </View>
-          )}
         </Section>
 
         {/* ── Customer Notes ── */}
@@ -1185,7 +1130,7 @@ const VendorOrderDetailScreen: React.FC = () => {
               </LinearGradient>
             </TouchableOpacity>
 
-            {(order.status === 'pending' || order.status === 'confirmed') && (
+            {(vendorStatus === 'pending' || vendorStatus === 'confirmed') && (
               <TouchableOpacity
                 onPress={() => confirmUpdate('cancelled')}
                 disabled={updating}
@@ -1200,6 +1145,34 @@ const VendorOrderDetailScreen: React.FC = () => {
           </View>
         </View>
       )}
+
+      <AppModal
+        visible={confirmModal.visible}
+        title="Update Order Status"
+        message={`Are you sure you want to mark this order as "${fmt(confirmModal.newStatus)}"?`}
+        icon="checkmark-circle-outline"
+        iconColor="#CC3366"
+        onClose={() => setConfirmModal({ visible: false, newStatus: '' })}
+        buttons={[
+          { text: 'Cancel', style: 'cancel', onPress: () => setConfirmModal({ visible: false, newStatus: '' }) },
+          { text: 'Confirm', style: 'default', onPress: () => { const s = confirmModal.newStatus; setConfirmModal({ visible: false, newStatus: '' }); handleUpdate(s); } },
+        ]}
+      />
+      <AppModal
+        visible={showWebhookSimModal}
+        title="Simulate Status Update"
+        message="Test shipment status changes (Sandbox only)"
+        icon="flask-outline"
+        iconColor="#8B5CF6"
+        onClose={() => setShowWebhookSimModal(false)}
+        buttons={[
+          { text: 'Confirmed', style: 'default', onPress: () => { setShowWebhookSimModal(false); handleSimulateWebhook('confirmed'); } },
+          { text: 'Picked Up', style: 'default', onPress: () => { setShowWebhookSimModal(false); handleSimulateWebhook('picked_up'); } },
+          { text: 'In Transit', style: 'default', onPress: () => { setShowWebhookSimModal(false); handleSimulateWebhook('in_transit'); } },
+          { text: 'Delivered', style: 'default', onPress: () => { setShowWebhookSimModal(false); handleSimulateWebhook('completed'); } },
+          { text: 'Cancel', style: 'cancel', onPress: () => setShowWebhookSimModal(false) },
+        ]}
+      />
     </View>
   );
 };

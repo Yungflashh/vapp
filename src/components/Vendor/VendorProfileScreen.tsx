@@ -9,6 +9,10 @@ import {
   RefreshControl,
   Share,
   Linking,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -36,6 +40,8 @@ const VendorProfileScreen = ({ route, navigation }: VendorProfileScreenProps) =>
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [showQuestionModal, setShowQuestionModal] = useState(false);
+  const [question, setQuestion] = useState('');
 
   useEffect(() => {
     fetchVendorData();
@@ -77,7 +83,8 @@ const VendorProfileScreen = ({ route, navigation }: VendorProfileScreenProps) =>
           verified: vendorData.verificationStatus === 'verified',
           isPremium: vendorData.isPremium || false,
           followers: vendorData.followersCount || vendorData.followers || 0,
-          isFollowing: vendorData.isFollowing || false, // Get from API
+          isFollowing: vendorData.isFollowing || false,
+          isActive: vendorData.isActive !== false,
         };
         
         console.log('✅ Mapped vendor isFollowing:', mappedVendor.isFollowing);
@@ -210,21 +217,21 @@ const VendorProfileScreen = ({ route, navigation }: VendorProfileScreenProps) =>
   };
 
   const handleShare = async () => {
-  if (!vendor) return;
-
-  try {
-    await Share.share({
-      message: `Check out ${vendor.name} on VendorSpot! 🛍️\n\n${vendor.description || ''}\n\nView Store: https://vendorspot.com/vendor/${vendorId}`,
-      title: vendor.name,
-      url: `https://vendorspot.com/vendor/${vendorId}`, // iOS uses this
-    });
-  } catch (error) {
-    console.error('Error sharing:', error);
-  }
-};
-
-  const handleChatNow = async () => {
     if (!vendor) return;
+    try {
+      const url = `https://vendorspot.com/shops/${vendorId}`;
+      await Share.share({
+        title: vendor.name,
+        message: `Check out ${vendor.name} on VendorSpot! 🛍️${vendor.description ? '\n' + vendor.description : ''}\n\n${url}`,
+        url,
+      });
+    } catch (error) {
+      console.error('Error sharing:', error);
+    }
+  };
+
+  const handleAskQuestion = async () => {
+    if (!vendor || !question.trim()) return;
     try {
       const response = await startConversation(vendor.id);
       if (response.success && response.data.conversation) {
@@ -234,13 +241,16 @@ const VendorProfileScreen = ({ route, navigation }: VendorProfileScreenProps) =>
           receiverId: vendor.id,
           receiverName: vendor.name,
           receiverAvatar: vendor.image,
+          initialMessage: question.trim(),
         });
+        setShowQuestionModal(false);
+        setQuestion('');
       }
     } catch (error: any) {
       Toast.show({
         type: 'error',
         text1: 'Error',
-        text2: error?.response?.data?.message || 'Failed to start conversation',
+        text2: error?.response?.data?.message || 'Failed to send question',
       });
     }
   };
@@ -374,6 +384,19 @@ const VendorProfileScreen = ({ route, navigation }: VendorProfileScreenProps) =>
                   {vendor.verified && (
                     <View style={{ marginLeft: 4 }}><VerifyBadge size={16} isPremium={vendor.isPremium} /></View>
                   )}
+                  <View
+                    style={{
+                      marginLeft: 6,
+                      paddingHorizontal: 6,
+                      paddingVertical: 2,
+                      borderRadius: 8,
+                      backgroundColor: vendor.isActive ? '#D1FAE5' : '#FEE2E2',
+                    }}
+                  >
+                    <Text style={{ fontSize: 10, fontWeight: '600', color: vendor.isActive ? '#059669' : '#DC2626' }}>
+                      {vendor.isActive ? 'Active' : 'Inactive'}
+                    </Text>
+                  </View>
                 </View>
                 <TouchableOpacity
                   onPress={handleFollowToggle}
@@ -441,11 +464,11 @@ const VendorProfileScreen = ({ route, navigation }: VendorProfileScreenProps) =>
         <View className="px-4 mt-3">
           <TouchableOpacity
             className="bg-pink-500 py-3.5 rounded-2xl flex-row items-center justify-center"
-            onPress={handleChatNow}
+            onPress={() => setShowQuestionModal(true)}
             activeOpacity={0.8}
           >
-            <MaterialIcon name="message-text" size={20} color="#FFFFFF" />
-            <Text className="text-white font-semibold text-base ml-2">Chat Now</Text>
+            <Icon name="help-circle-outline" size={20} color="#FFFFFF" />
+            <Text className="text-white font-semibold text-base ml-2">Ask a Question</Text>
           </TouchableOpacity>
         </View>
 
@@ -470,6 +493,63 @@ const VendorProfileScreen = ({ route, navigation }: VendorProfileScreenProps) =>
           )}
         </View>
       </ScrollView>
+
+      {/* Ask a Question Modal */}
+      <Modal
+        visible={showQuestionModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowQuestionModal(false)}
+      >
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={() => setShowQuestionModal(false)}
+            className="flex-1 justify-end"
+            style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+          >
+            <TouchableOpacity activeOpacity={1} onPress={() => {}}>
+              <View className="bg-white rounded-t-3xl px-4 pt-6 pb-8">
+                <View className="flex-row items-center justify-between mb-4">
+                  <Text className="text-lg font-bold text-gray-900">Ask {vendor?.name || 'Vendor'} a Question</Text>
+                  <TouchableOpacity onPress={() => setShowQuestionModal(false)}>
+                    <Icon name="close" size={24} color="#6B7280" />
+                  </TouchableOpacity>
+                </View>
+                <View className="bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2 mb-3 flex-row items-start">
+                  <Icon name="bulb-outline" size={16} color="#D97706" />
+                  <Text className="text-xs text-yellow-700 ml-2 flex-1">
+                    Go straight to the point — ask your question directly without greetings. You only get one message.
+                  </Text>
+                </View>
+                <TextInput
+                  className="bg-gray-50 rounded-xl px-4 py-3 text-base text-gray-900 min-h-[100px]"
+                  placeholder="e.g. Do you have this in size XL?"
+                  placeholderTextColor="#9CA3AF"
+                  multiline
+                  textAlignVertical="top"
+                  value={question}
+                  onChangeText={setQuestion}
+                />
+                <TouchableOpacity
+                  onPress={handleAskQuestion}
+                  disabled={!question.trim()}
+                  className={`mt-4 py-3.5 rounded-2xl items-center ${question.trim() ? 'bg-pink-500' : 'bg-gray-300'}`}
+                  activeOpacity={0.8}
+                >
+                  <Text className="text-white font-semibold text-base">Send Question</Text>
+                </TouchableOpacity>
+                <Text className="text-xs text-gray-400 text-center mt-3">
+                  Full chat is available after placing an order
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 };

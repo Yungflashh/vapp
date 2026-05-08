@@ -3,7 +3,7 @@
 // File: screens/vendor/VendorProductDetailScreen.tsx
 // ============================================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,6 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
-  Alert,
   StatusBar,
   Dimensions,
   Share,
@@ -24,7 +23,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import MaterialIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Toast from 'react-native-toast-message';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import AppModal from '@/components/AppModal';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getProductById, updateProduct, deleteProduct } from '@/services/product.service';
 import { getProductQuestions, answerQuestion, deleteQuestion, ProductQuestion } from '@/services/question.service';
@@ -47,6 +47,7 @@ interface ProductDetail {
   reviews: number;
   category: string;
   productType: string;
+  status?: string;
   createdAt: string;
   updatedAt: string;
   keyFeatures?: string[];
@@ -248,11 +249,22 @@ const VendorProductDetailScreen = () => {
   const [answeringQuestionText, setAnsweringQuestionText] = useState('');
   const [answerText, setAnswerText] = useState('');
   const [isSubmittingAnswer, setIsSubmittingAnswer] = useState(false);
+  const [deleteQuestionModal, setDeleteQuestionModal] = useState<{ visible: boolean; questionId: string }>({ visible: false, questionId: '' });
+  const [deleteProductModal, setDeleteProductModal] = useState(false);
+  const [manageModal, setManageModal] = useState(false);
+  const [showStockModal, setShowStockModal] = useState(false);
+  const [stockInputValue, setStockInputValue] = useState('');
 
   useEffect(() => {
     fetchProductDetail();
     fetchQuestionStats();
   }, [productId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchProductDetail();
+    }, [productId])
+  );
 
   useEffect(() => {
     if (activeTab === 'reviews' && reviews.length === 0) fetchReviews();
@@ -365,25 +377,21 @@ const VendorProductDetailScreen = () => {
   };
 
   const handleDeleteQuestion = (questionId: string) => {
-    Alert.alert('Remove Question', 'Are you sure you want to remove this question?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Remove',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            const response = await deleteQuestion(questionId);
-            if (response.success) {
-              Toast.show({ type: 'success', text1: 'Removed', text2: 'Question has been removed' });
-              // Re-fetch from server for accurate stats
-              await fetchQuestions(1, questionFilter);
-            }
-          } catch (err: any) {
-            Toast.show({ type: 'error', text1: 'Error', text2: err.response?.data?.message || 'Failed to remove' });
-          }
-        },
-      },
-    ]);
+    setDeleteQuestionModal({ visible: true, questionId });
+  };
+
+  const confirmDeleteQuestion = async () => {
+    const { questionId } = deleteQuestionModal;
+    setDeleteQuestionModal({ visible: false, questionId: '' });
+    try {
+      const response = await deleteQuestion(questionId);
+      if (response.success) {
+        Toast.show({ type: 'success', text1: 'Removed', text2: 'Question has been removed' });
+        await fetchQuestions(1, questionFilter);
+      }
+    } catch (err: any) {
+      Toast.show({ type: 'error', text1: 'Error', text2: err.response?.data?.message || 'Failed to remove' });
+    }
   };
 
   const handleQuestionFilterChange = (filter: 'all' | 'answered' | 'unanswered') => {
@@ -396,61 +404,56 @@ const VendorProductDetailScreen = () => {
   // PRODUCT MANAGEMENT HANDLERS
   // ============================================================
   const handleEditProduct = () => {
-    Toast.show({ type: 'info', text1: 'Edit Product', text2: 'Product editing feature coming soon' });
+    navigation.navigate('EditProduct' as any, { productId });
   };
 
   const handleUpdateStock = () => {
     if (!product) return;
-    Alert.prompt(
-      'Update Stock',
-      `Current stock: ${product.stock}`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Update',
-          onPress: async (newStock) => {
-            if (newStock && !isNaN(Number(newStock))) {
-              try {
-                await updateProduct(productId, { quantity: Number(newStock) });
-                Toast.show({ type: 'success', text1: 'Stock Updated', text2: `Stock updated to ${newStock}` });
-                fetchProductDetail();
-              } catch (error: any) {
-                Toast.show({ type: 'error', text1: 'Error', text2: error.response?.data?.message || 'Failed to update stock' });
-              }
-            }
-          },
-        },
-      ],
-      'plain-text',
-      String(product.stock),
-      'number-pad'
-    );
+    setStockInputValue(String(product.stock));
+    setShowStockModal(true);
+  };
+
+  const confirmUpdateStock = async () => {
+    const newStock = Number(stockInputValue);
+    if (!stockInputValue || isNaN(newStock)) {
+      Toast.show({ type: 'error', text1: 'Invalid', text2: 'Please enter a valid stock number' });
+      return;
+    }
+    setShowStockModal(false);
+    try {
+      await updateProduct(productId, { quantity: newStock });
+      Toast.show({ type: 'success', text1: 'Stock Updated', text2: `Stock updated to ${newStock}` });
+      fetchProductDetail();
+    } catch (error: any) {
+      Toast.show({ type: 'error', text1: 'Error', text2: error.response?.data?.message || 'Failed to update stock' });
+    }
   };
 
   const handleDeleteProduct = () => {
     if (!product) return;
-    Alert.alert('Delete Product', `Are you sure you want to delete "${product.name}"?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await deleteProduct(productId);
-            Toast.show({ type: 'success', text1: 'Product Deleted', text2: 'Product has been removed' });
-            navigation.goBack();
-          } catch (error: any) {
-            Toast.show({ type: 'error', text1: 'Error', text2: error.response?.data?.message || 'Failed to delete product' });
-          }
-        },
-      },
-    ]);
+    setDeleteProductModal(true);
+  };
+
+  const confirmDeleteProduct = async () => {
+    setDeleteProductModal(false);
+    try {
+      await deleteProduct(productId);
+      Toast.show({ type: 'success', text1: 'Product Deleted', text2: 'Product has been removed' });
+      navigation.goBack();
+    } catch (error: any) {
+      Toast.show({ type: 'error', text1: 'Error', text2: error.response?.data?.message || 'Failed to delete product' });
+    }
   };
 
   const handleShareProduct = async () => {
     if (!product) return;
     try {
-      await Share.share({ message: `Check out ${product.name} - ₦${product.price.toLocaleString()}`, title: product.name });
+      const url = `https://vendorspot.com/products/${productId}`;
+      await Share.share({
+        title: product.name,
+        message: `Check out ${product.name} on VendorSpot!\n₦${product.price.toLocaleString()}\n\n${url}`,
+        url,
+      });
     } catch (error) {
       console.error('Error sharing:', error);
     }
@@ -541,6 +544,35 @@ const VendorProductDetailScreen = () => {
 
         {/* Product Info */}
         <View className="px-6 py-4">
+          {/* Status Badge */}
+          {product.status && (
+            <View style={{ alignSelf: 'flex-start', marginBottom: 10 }}>
+              <View
+                style={{
+                  paddingHorizontal: 10,
+                  paddingVertical: 4,
+                  borderRadius: 20,
+                  backgroundColor:
+                    product.status === 'active' ? '#D1FAE5' :
+                    product.status === 'pending_approval' ? '#FEF3C7' : '#FEE2E2',
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: '600',
+                    color:
+                      product.status === 'active' ? '#059669' :
+                      product.status === 'pending_approval' ? '#D97706' : '#DC2626',
+                  }}
+                >
+                  {product.status === 'active' ? 'Active' :
+                   product.status === 'pending_approval' ? 'Pending Approval' :
+                   product.status === 'inactive' ? 'Inactive' : 'Suspended'}
+                </Text>
+              </View>
+            </View>
+          )}
           {/* Product Name */}
           <Text className="text-2xl font-bold text-gray-900 mb-3">{product.name}</Text>
 
@@ -799,13 +831,7 @@ const VendorProductDetailScreen = () => {
             <Text className="text-base font-bold text-pink-500 ml-2">Update Stock</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => {
-              Alert.alert('Product Actions', '', [
-                { text: 'Edit Product', onPress: handleEditProduct },
-                { text: 'Delete Product', onPress: handleDeleteProduct, style: 'destructive' },
-                { text: 'Cancel', style: 'cancel' },
-              ]);
-            }}
+            onPress={() => setManageModal(true)}
             className="flex-1 bg-pink-500 py-4 rounded-xl ml-2 flex-row items-center justify-center"
             style={{ shadowColor: '#CC3366', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 }}
           >
@@ -881,6 +907,83 @@ const VendorProductDetailScreen = () => {
               </View>
             </TouchableOpacity>
           </TouchableOpacity>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      <AppModal
+        visible={deleteQuestionModal.visible}
+        title="Remove Question"
+        message="Are you sure you want to remove this question?"
+        icon="trash-outline"
+        iconColor="#EF4444"
+        onClose={() => setDeleteQuestionModal({ visible: false, questionId: '' })}
+        buttons={[
+          { text: 'Cancel', style: 'cancel', onPress: () => setDeleteQuestionModal({ visible: false, questionId: '' }) },
+          { text: 'Remove', style: 'destructive', onPress: confirmDeleteQuestion },
+        ]}
+      />
+      <AppModal
+        visible={deleteProductModal}
+        title="Delete Product"
+        message={`Are you sure you want to delete "${product?.name}"?`}
+        icon="trash-outline"
+        iconColor="#EF4444"
+        onClose={() => setDeleteProductModal(false)}
+        buttons={[
+          { text: 'Cancel', style: 'cancel', onPress: () => setDeleteProductModal(false) },
+          { text: 'Delete', style: 'destructive', onPress: confirmDeleteProduct },
+        ]}
+      />
+      <AppModal
+        visible={manageModal}
+        title="Product Actions"
+        message=""
+        icon="settings-outline"
+        iconColor="#CC3366"
+        onClose={() => setManageModal(false)}
+        buttons={[
+          { text: 'Edit Product', style: 'default', onPress: () => { setManageModal(false); handleEditProduct(); } },
+          { text: 'Delete Product', style: 'destructive', onPress: () => { setManageModal(false); handleDeleteProduct(); } },
+          { text: 'Cancel', style: 'cancel', onPress: () => setManageModal(false) },
+        ]}
+      />
+
+      <Modal
+        animationType="fade"
+        transparent
+        visible={showStockModal}
+        onRequestClose={() => setShowStockModal(false)}
+      >
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
+            <View style={{ backgroundColor: '#FFFFFF', borderRadius: 16, padding: 24, width: '100%' }}>
+              <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111827', marginBottom: 4 }}>Update Stock</Text>
+              <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 16 }}>Current stock: {product?.stock}</Text>
+              <TextInput
+                style={{ backgroundColor: '#F9FAFB', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, fontSize: 16, color: '#111827', borderWidth: 1, borderColor: '#E5E7EB', marginBottom: 16 }}
+                value={stockInputValue}
+                onChangeText={setStockInputValue}
+                keyboardType="number-pad"
+                placeholder="Enter new stock quantity"
+                placeholderTextColor="#9CA3AF"
+                autoFocus
+              />
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <TouchableOpacity
+                  onPress={() => setShowStockModal(false)}
+                  style={{ flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: '#D1D5DB', alignItems: 'center' }}
+                >
+                  <Text style={{ color: '#374151', fontWeight: '600' }}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={confirmUpdateStock}
+                  style={{ flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: '#CC3366', alignItems: 'center' }}
+                >
+                  <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>Update</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
         </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>

@@ -32,8 +32,8 @@
       </intent-filter>
       <intent-filter android:autoVerify="true" data-generated="true">
         <action android:name="android.intent.action.VIEW"/>
-        <data android:scheme="https" android:host="vendorspot.com" android:pathPrefix="/vendor"/>
-        <data android:scheme="https" android:host="www.vendorspot.com" android:pathPrefix="/vendor"/>
+        <data android:scheme="https" android:host="vendorspotng.com" android:pathPrefix="/vendor"/>
+        <data android:scheme="https" android:host="www.vendorspotng.com" android:pathPrefix="/vendor"/>
         <data android:scheme="vendorspot"/>
         <category android:name="android.intent.category.BROWSABLE"/>
         <category android:name="android.intent.category.DEFAULT"/>

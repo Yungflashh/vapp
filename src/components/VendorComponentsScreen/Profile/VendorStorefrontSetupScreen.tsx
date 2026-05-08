@@ -12,7 +12,6 @@ import {
   TextInput,
   Image,
   StatusBar,
-  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -86,7 +85,7 @@ const VendorStorefrontSetupScreen = () => {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       
       if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Please grant camera roll permissions');
+        Toast.show({ type: 'error', text1: 'Permission Required', text2: 'Please grant camera roll permissions' });
         return;
       }
 
@@ -153,7 +152,7 @@ const VendorStorefrontSetupScreen = () => {
           twitter: socialMedia.twitter.trim() || undefined,
           tiktok: socialMedia.tiktok.trim() || undefined,
         },
-      } as any);
+      } as any);  // storefront field needs any cast
       
       Toast.show({
         type: 'success',

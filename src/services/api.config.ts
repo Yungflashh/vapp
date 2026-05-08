@@ -2,8 +2,8 @@ import axios, { AxiosInstance, AxiosError } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // API Base URL
-// const API_URL = 'https://vapp-be.onrender.com/api/v1';
-const API_URL = 'http://10.208.25.66:5000/api/v1';
+const API_URL = 'https://vapp-be.onrender.com/api/v1';
+// const API_URL = 'http://192.168.1.86:8000/api/v1';
 
 // Create Axios instance
 const api: AxiosInstance = axios.create({

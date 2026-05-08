@@ -8,7 +8,6 @@ import {
   Image,
   TextInput,
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -30,6 +29,7 @@ import {
 } from '@/services/cart.service';
 import { useAuth } from '@/context/AuthContext';
 import GuestEmailModal from '@/components/GuestEmailModal';
+import AppModal from '@/components/AppModal';
 import {
   getGuestCart,
   updateGuestCartItem,
@@ -51,6 +51,8 @@ const CartScreen = () => {
   const [promoCode, setPromoCode] = useState('');
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
   const [showGuestEmailModal, setShowGuestEmailModal] = useState(false);
+  const [removeModal, setRemoveModal] = useState<{ visible: boolean; itemId: string; variant?: string }>({ visible: false, itemId: '', variant: undefined });
+  const [clearModal, setClearModal] = useState(false);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -98,70 +100,53 @@ const CartScreen = () => {
     }
   };
 
-  const removeItem = async (itemId: string, variant?: string) => {
-    Alert.alert(
-      'Remove Item',
-      'Are you sure you want to remove this item from your cart?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setIsUpdating(true);
-              if (isGuest) {
-                const updated = await removeFromGuestCart(itemId, variant);
-                setGuestCartItems(updated);
-              } else {
-                await removeFromCart(itemId);
-                await fetchCart();
-              }
-              Toast.show({ type: 'success', text1: 'Item Removed' });
-            } catch (error: any) {
-              Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to remove item' });
-            } finally {
-              setIsUpdating(false);
-            }
-          },
-        },
-      ]
-    );
+  const removeItem = (itemId: string, variant?: string) => {
+    setRemoveModal({ visible: true, itemId, variant });
   };
 
-  const clearCartHandler = async () => {
+  const confirmRemoveItem = async () => {
+    const { itemId, variant } = removeModal;
+    setRemoveModal({ visible: false, itemId: '', variant: undefined });
+    try {
+      setIsUpdating(true);
+      if (isGuest) {
+        const updated = await removeFromGuestCart(itemId, variant);
+        setGuestCartItems(updated);
+      } else {
+        await removeFromCart(itemId);
+        await fetchCart();
+      }
+      Toast.show({ type: 'success', text1: 'Item Removed' });
+    } catch (error: any) {
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to remove item' });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const clearCartHandler = () => {
     const hasItems = isGuest ? guestCartItems.length > 0 : (cart && cart.items.length > 0);
     if (!hasItems) return;
+    setClearModal(true);
+  };
 
-    Alert.alert(
-      'Clear Cart',
-      'Are you sure you want to remove all items from your cart?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear All',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setIsUpdating(true);
-              
-              if (isGuest) {
-                await clearGuestCart();
-                setGuestCartItems([]);
-              } else {
-                const response = await clearCart();
-                if (response.success) await fetchCart();
-              }
-              Toast.show({ type: 'success', text1: 'Cart Cleared' });
-            } catch (error: any) {
-              Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to clear cart' });
-            } finally {
-              setIsUpdating(false);
-            }
-          },
-        },
-      ]
-    );
+  const confirmClearCart = async () => {
+    setClearModal(false);
+    try {
+      setIsUpdating(true);
+      if (isGuest) {
+        await clearGuestCart();
+        setGuestCartItems([]);
+      } else {
+        const response = await clearCart();
+        if (response.success) await fetchCart();
+      }
+      Toast.show({ type: 'success', text1: 'Cart Cleared' });
+    } catch (error: any) {
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to clear cart' });
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   const handleApplyCoupon = async () => {
@@ -649,6 +634,32 @@ const CartScreen = () => {
         onClose={() => { setShowGuestEmailModal(false); AsyncStorage.removeItem('pendingCheckout'); }}
         onSuccess={() => setShowGuestEmailModal(false)}
         onGoToSignIn={() => { setShowGuestEmailModal(false); AsyncStorage.removeItem('pendingCheckout'); exitGuestMode(); }}
+      />
+
+      <AppModal
+        visible={removeModal.visible}
+        title="Remove Item"
+        message="Are you sure you want to remove this item from your cart?"
+        icon="trash-outline"
+        iconColor="#EF4444"
+        onClose={() => setRemoveModal({ visible: false, itemId: '', variant: undefined })}
+        buttons={[
+          { text: 'Cancel', style: 'cancel', onPress: () => setRemoveModal({ visible: false, itemId: '', variant: undefined }) },
+          { text: 'Remove', style: 'destructive', onPress: confirmRemoveItem },
+        ]}
+      />
+
+      <AppModal
+        visible={clearModal}
+        title="Clear Cart"
+        message="Are you sure you want to remove all items from your cart?"
+        icon="cart-outline"
+        iconColor="#EF4444"
+        onClose={() => setClearModal(false)}
+        buttons={[
+          { text: 'Cancel', style: 'cancel', onPress: () => setClearModal(false) },
+          { text: 'Clear All', style: 'destructive', onPress: confirmClearCart },
+        ]}
       />
       </KeyboardAvoidingView>
     </SafeAreaView>

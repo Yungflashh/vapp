@@ -8,13 +8,13 @@ import {
   Image,
   RefreshControl,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/navigation';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Toast from 'react-native-toast-message';
+import AppModal from '@/components/AppModal';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getMyDisputes, getVendorDisputes, Dispute } from '@/services/dispute.service';
 import { useAuth } from '@/context/AuthContext';
@@ -45,6 +45,7 @@ const DisputeCenterScreen = ({ navigation: screenNavigation }: DisputeCenterScre
   const navigation = rootNavigation.getParent() || rootNavigation;
   const { user } = useAuth();
   const isVendor = (user as any)?.role === 'vendor';
+  const [showAboutModal, setShowAboutModal] = useState(false);
   const [disputes, setDisputes] = useState<Dispute[]>([]);
   const [stats, setStats] = useState<DisputeStats>({
     total: 0,
@@ -206,18 +207,7 @@ const DisputeCenterScreen = ({ navigation: screenNavigation }: DisputeCenterScre
         </View>
         <TouchableOpacity
           className="w-10 h-10 items-center justify-center"
-          onPress={() => {
-            Alert.alert(
-              'About Disputes',
-              'Disputes allow you to resolve issues with your orders.\n\n' +
-              '• Open a dispute within 7 days of delivery\n' +
-              '• Provide evidence (photos, messages) to support your case\n' +
-              '• Our team reviews and resolves disputes within 48 hours\n' +
-              '• Eligible cases receive full or partial refunds\n\n' +
-              'For urgent issues, contact support@vendorspotng.com',
-              [{ text: 'Got it', style: 'default' }]
-            );
-          }}
+          onPress={() => setShowAboutModal(true)}
         >
           <Icon name="help-circle-outline" size={24} color="#6B7280" />
         </TouchableOpacity>
@@ -403,6 +393,16 @@ const DisputeCenterScreen = ({ navigation: screenNavigation }: DisputeCenterScre
           )}
         </View>
       </ScrollView>
+
+      <AppModal
+        visible={showAboutModal}
+        title="About Disputes"
+        message={'Disputes allow you to resolve issues with your orders.\n\n• Open a dispute within 7 days of delivery\n• Provide evidence (photos, messages) to support your case\n• Payment will be completed within 24 hours\n• Eligible cases receive full or partial refunds\n\nFor urgent issues, contact support@vendorspotng.com'}
+        icon="shield-half"
+        iconColor="#7C3AED"
+        onClose={() => setShowAboutModal(false)}
+        buttons={[{ text: 'Got it', onPress: () => setShowAboutModal(false) }]}
+      />
     </SafeAreaView>
   );
 };

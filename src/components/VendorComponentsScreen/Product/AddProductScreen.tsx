@@ -6,7 +6,6 @@ import {
   TextInput,
   TouchableOpacity,
   Image,
-  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -17,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import MaterialIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Toast from 'react-native-toast-message';
+import AppModal from '@/components/AppModal';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAuth } from '@/context/AuthContext';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -26,6 +26,31 @@ import * as FileSystem from 'expo-file-system/legacy'; // ✅ Use legacy API
 import api from '../../../services/api.config';
 import { Address, getAddresses } from '@/services/address.service';
 import { getMyVendorProfile } from '@/services/vendor.service';
+import { generateProductContent, getProductById, updateProduct } from '@/services/product.service';
+
+const PLATFORM_COMMISSION_RATE = 8;
+const MAX_GENERATIONS = 4;
+
+const COLOR_OPTIONS = [
+  { name: 'Black', hex: '#000000' },
+  { name: 'White', hex: '#FFFFFF' },
+  { name: 'Red', hex: '#EF4444' },
+  { name: 'Blue', hex: '#3B82F6' },
+  { name: 'Green', hex: '#22C55E' },
+  { name: 'Yellow', hex: '#EAB308' },
+  { name: 'Purple', hex: '#A855F7' },
+  { name: 'Pink', hex: '#EC4899' },
+  { name: 'Orange', hex: '#F97316' },
+  { name: 'Brown', hex: '#92400E' },
+  { name: 'Gray', hex: '#6B7280' },
+  { name: 'Navy', hex: '#1E3A5F' },
+  { name: 'Beige', hex: '#D2B48C' },
+  { name: 'Maroon', hex: '#800000' },
+  { name: 'Teal', hex: '#14B8A6' },
+  { name: 'Gold', hex: '#D4AF37' },
+] as const;
+
+const LIGHT_COLOR_HEXES = new Set(['#FFFFFF', '#EAB308', '#D2B48C', '#D4AF37']);
 
 interface Category {
   _id: string;
@@ -47,6 +72,10 @@ const AddProductScreen = () => {
   const route = useRoute<any>();
   const { login } = useAuth();
   const isSetupFlow = route.params?.isSetupFlow ?? false;
+  const editProductId: string | undefined = route.params?.productId;
+  const isEditMode = !!editProductId;
+
+  const [confirmModal, setConfirmModal] = useState<{ visible: boolean; isEdit: boolean }>({ visible: false, isEdit: false });
 
   // Form state
   const [name, setName] = useState('');
@@ -66,6 +95,9 @@ const AddProductScreen = () => {
   const [images, setImages] = useState<string[]>([]);
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
+  const [selectedColors, setSelectedColors] = useState<string[]>([]);
+  const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
+  const [sizeInput, setSizeInput] = useState('');
 
   // Digital product state
   const [digitalFile, setDigitalFile] = useState<{
@@ -83,6 +115,10 @@ const AddProductScreen = () => {
 
   // UI state
   const [loading, setLoading] = useState(false);
+  const [generatingTitle, setGeneratingTitle] = useState(false);
+  const [generatingDescription, setGeneratingDescription] = useState(false);
+  const [titleGenCount, setTitleGenCount] = useState(0);
+  const [descGenCount, setDescGenCount] = useState(0);
   const [categories, setCategories] = useState<Category[]>([]);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [categorySearch, setCategorySearch] = useState('');
@@ -99,7 +135,40 @@ const AddProductScreen = () => {
     fetchCategories();
     requestPermissions();
     fetchAddresses();
+    if (isEditMode && editProductId) {
+      fetchProductForEdit(editProductId);
+    }
   }, []);
+
+  const fetchProductForEdit = async (id: string) => {
+    try {
+      setLoading(true);
+      const response = await getProductById(id);
+      const p = response.data as any;
+      setName(p.name || '');
+      setDescription(p.description || '');
+      setPrice(p.price ? p.price.toString() : '');
+      setCompareAtPrice(p.originalPrice ? p.originalPrice.toString() : '');
+      setQuantity(p.stock ? p.stock.toString() : '');
+      setWeight(p.weight ? p.weight.toString() : '');
+      setSku(p.sku || '');
+      setCategory(p.categoryId || '');
+      setCategoryName(p.category || '');
+      setProductType(p.productType === 'digital' ? 'digital' : 'physical');
+      setIsFeatured(p.isFeatured || false);
+      setIsFlashSale(p.isFlashSale || false);
+      setIsAffiliate(p.isAffiliate || false);
+      setAffiliateCommission(p.affiliateCommission ? p.affiliateCommission.toString() : '10');
+      setImages(p.images || []);
+      setTags(p.tags || []);
+      if (Array.isArray(p.colors)) setSelectedColors(p.colors);
+      if (Array.isArray(p.sizes)) setSelectedSizes(p.sizes);
+    } catch (error: any) {
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to load product details' });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchAddresses = async () => {
     try {
@@ -158,7 +227,7 @@ const AddProductScreen = () => {
   const requestPermissions = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission Required', 'Please grant camera roll permissions to upload images');
+      Toast.show({ type: 'error', text1: 'Permission Required', text2: 'Please grant camera roll permissions to upload images' });
     }
   };
 
@@ -348,17 +417,82 @@ const AddProductScreen = () => {
       errors.description = 'Description must be at least 20 characters';
     }
 
-    if (images.length === 0) {
-      errors.images = 'Please add at least one product image';
+    if (images.length < 2) {
+      errors.images = 'Please add at least 2 product images';
     }
 
-    // Digital product specific validation
-    if (productType === 'digital' && !digitalFile) {
+    // Digital product specific validation (only required when creating, not editing)
+    if (productType === 'digital' && !digitalFile && !isEditMode) {
       errors.images = 'Please upload the digital file (PDF, video, software, etc.)';
     }
 
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
+  };
+
+  const handleGenerateTitle = async () => {
+    if (!name.trim()) {
+      Toast.show({ type: 'error', text1: 'Enter a title first', text2: 'Type a basic title or keywords, then generate to improve it' });
+      return;
+    }
+    if (titleGenCount >= MAX_GENERATIONS) {
+      Toast.show({ type: 'error', text1: 'Limit Reached', text2: 'You have used all 4 title generations' });
+      return;
+    }
+    try {
+      setGeneratingTitle(true);
+      const response = await generateProductContent({
+        type: 'title',
+        category: categoryName || undefined,
+        keywords: tags.length > 0 ? tags.join(', ') : undefined,
+        currentTitle: name || undefined,
+      });
+      if (response.success && response.data.content) {
+        setName(response.data.content);
+        setTitleGenCount((prev) => prev + 1);
+      }
+    } catch (error: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Generation Failed',
+        text2: error?.response?.data?.message || 'Failed to generate title',
+      });
+    } finally {
+      setGeneratingTitle(false);
+    }
+  };
+
+  const handleGenerateDescription = async () => {
+    if (!name.trim() && !description.trim()) {
+      Toast.show({ type: 'error', text1: 'Enter a title or description first', text2: 'Provide some details so we can generate a better description' });
+      return;
+    }
+    if (descGenCount >= MAX_GENERATIONS) {
+      Toast.show({ type: 'error', text1: 'Limit Reached', text2: 'You have used all 4 description generations' });
+      return;
+    }
+    try {
+      setGeneratingDescription(true);
+      const response = await generateProductContent({
+        type: 'description',
+        category: categoryName || undefined,
+        keywords: tags.length > 0 ? tags.join(', ') : undefined,
+        currentTitle: name || undefined,
+        currentDescription: description || undefined,
+      });
+      if (response.success && response.data.content) {
+        setDescription(response.data.content);
+        setDescGenCount((prev) => prev + 1);
+      }
+    } catch (error: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Generation Failed',
+        text2: error?.response?.data?.message || 'Failed to generate description',
+      });
+    } finally {
+      setGeneratingDescription(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -371,20 +505,33 @@ const AddProductScreen = () => {
       return;
     }
 
-    Alert.alert(
-      'Create Product',
-      'Are you sure you want to create this product?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Create',
-          onPress: createProduct,
-        },
-      ]
-    );
+    setConfirmModal({ visible: true, isEdit: isEditMode });
   };
 
-  const buildProductData = (status: 'active' | 'draft' = 'active') => {
+  const editProduct = async () => {
+    try {
+      setLoading(true);
+      const productData = buildProductData();
+      await updateProduct(editProductId!, productData);
+      Toast.show({
+        type: 'success',
+        text1: 'Product Updated',
+        text2: 'Your changes have been saved successfully!',
+        visibilityTime: 3000,
+      });
+      setTimeout(() => navigation.goBack(), 1000);
+    } catch (error: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: error.response?.data?.message || 'Failed to update product',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const buildProductData = (status?: 'active' | 'draft') => {
     const productData: any = {
       name: name.trim(),
       description: description.trim(),
@@ -402,8 +549,13 @@ const AddProductScreen = () => {
       pickupAddress: pickupAddress?._id || undefined,
       images,
       tags: tags.length > 0 ? tags : undefined,
-      status,
+      colors: selectedColors.length > 0 ? selectedColors : undefined,
+      sizes: selectedSizes.length > 0 ? selectedSizes : undefined,
     };
+
+    if (!isEditMode) {
+      productData.status = status ?? 'active';
+    }
 
     if (productType === 'digital' && digitalFile?.base64) {
       productData.digitalFileBase64 = digitalFile.base64;
@@ -418,7 +570,7 @@ const AddProductScreen = () => {
     try {
       setLoading(true);
 
-      const productData = buildProductData(status);
+      const productData = buildProductData(status); // status only used in create mode
 
       console.log('📦 Creating product...');
       console.log('   - Type:', productType);
@@ -484,7 +636,7 @@ const AddProductScreen = () => {
               </TouchableOpacity>
             )}
             <Text className="text-lg font-bold text-gray-900">
-              {isSetupFlow ? 'Add Your First Product' : 'Add New Product'}
+              {isEditMode ? 'Edit Product' : isSetupFlow ? 'Add Your First Product' : 'Add New Product'}
             </Text>
           </View>
           <TouchableOpacity
@@ -495,7 +647,7 @@ const AddProductScreen = () => {
             {loading ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
-              <Text className="text-white font-semibold">Publish</Text>
+              <Text className="text-white font-semibold">{isEditMode ? 'Save' : 'Publish'}</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -512,7 +664,7 @@ const AddProductScreen = () => {
               Product Images <Text className="text-red-500">*</Text>
             </Text>
             <Text className="text-sm text-gray-500 mb-3">
-              Add up to 5 images (first image will be the main image)
+              Add at least 2 images, up to 5 (first image will be the main image)
             </Text>
 
             <View className="flex-row flex-wrap">
@@ -555,9 +707,27 @@ const AddProductScreen = () => {
 
             {/* Product Name */}
             <View className="mb-4">
-              <Text className="text-sm font-semibold text-gray-700 mb-2">
-                Product Name <Text className="text-red-500">*</Text>
-              </Text>
+              <View className="flex-row items-center justify-between mb-2">
+                <Text className="text-sm font-semibold text-gray-700">
+                  Product Name <Text className="text-red-500">*</Text>
+                </Text>
+                <TouchableOpacity
+                  onPress={handleGenerateTitle}
+                  disabled={generatingTitle || titleGenCount >= MAX_GENERATIONS}
+                  className={`flex-row items-center px-3 py-1.5 rounded-full border ${titleGenCount >= MAX_GENERATIONS ? 'bg-gray-100 border-gray-200' : 'bg-purple-50 border-purple-200'}`}
+                >
+                  {generatingTitle ? (
+                    <ActivityIndicator size="small" color="#7C3AED" />
+                  ) : (
+                    <>
+                      <Icon name="sparkles" size={14} color={titleGenCount >= MAX_GENERATIONS ? '#9CA3AF' : '#7C3AED'} />
+                      <Text className={`text-xs font-semibold ml-1 ${titleGenCount >= MAX_GENERATIONS ? 'text-gray-400' : 'text-purple-600'}`}>
+                        {titleGenCount >= MAX_GENERATIONS ? 'Limit reached' : `Generate (${MAX_GENERATIONS - titleGenCount})`}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
               <TextInput
                 className={`bg-gray-50 px-4 py-3 rounded-lg text-base text-gray-900 ${
                   formErrors.name ? 'border-2 border-red-500' : ''
@@ -650,9 +820,27 @@ const AddProductScreen = () => {
 
             {/* Description */}
             <View className="mb-4">
-              <Text className="text-sm font-semibold text-gray-700 mb-2">
-                Description <Text className="text-red-500">*</Text>
-              </Text>
+              <View className="flex-row items-center justify-between mb-2">
+                <Text className="text-sm font-semibold text-gray-700">
+                  Description <Text className="text-red-500">*</Text>
+                </Text>
+                <TouchableOpacity
+                  onPress={handleGenerateDescription}
+                  disabled={generatingDescription || descGenCount >= MAX_GENERATIONS}
+                  className={`flex-row items-center px-3 py-1.5 rounded-full border ${descGenCount >= MAX_GENERATIONS ? 'bg-gray-100 border-gray-200' : 'bg-purple-50 border-purple-200'}`}
+                >
+                  {generatingDescription ? (
+                    <ActivityIndicator size="small" color="#7C3AED" />
+                  ) : (
+                    <>
+                      <Icon name="sparkles" size={14} color={descGenCount >= MAX_GENERATIONS ? '#9CA3AF' : '#7C3AED'} />
+                      <Text className={`text-xs font-semibold ml-1 ${descGenCount >= MAX_GENERATIONS ? 'text-gray-400' : 'text-purple-600'}`}>
+                        {descGenCount >= MAX_GENERATIONS ? 'Limit reached' : `Generate (${MAX_GENERATIONS - descGenCount})`}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
               <TextInput
                 className={`bg-gray-50 px-4 py-3 rounded-lg text-base text-gray-900 ${
                   formErrors.description ? 'border-2 border-red-500' : ''
@@ -748,7 +936,7 @@ const AddProductScreen = () => {
 
             <View className="bg-blue-50 px-3 py-2 rounded-lg">
               <Text className="text-blue-700 text-xs">
-                VendorSpot charges a 5% commission on each sale. Please factor this into your pricing.
+                VendorSpot charges a {PLATFORM_COMMISSION_RATE}% commission on each sale. Please factor this into your pricing.
               </Text>
             </View>
           </View>
@@ -936,29 +1124,115 @@ const AddProductScreen = () => {
             )}
           </View>
 
+          {/* Size Options */}
+          {productType === 'physical' && (
+            <View className="bg-white rounded-2xl p-4 mb-4">
+              <Text className="text-base font-bold text-gray-900 mb-2">Available Sizes</Text>
+              <Text className="text-sm text-gray-500 mb-3">
+                Add sizes for this product (e.g. S, M, L, XL or 40, 41, 42)
+              </Text>
+              <View className="flex-row items-center mb-3">
+                <TextInput
+                  className="flex-1 bg-gray-50 px-4 py-3 rounded-lg text-base text-gray-900 mr-2"
+                  placeholder="Type a size and press Add"
+                  placeholderTextColor="#9CA3AF"
+                  value={sizeInput}
+                  onChangeText={setSizeInput}
+                  returnKeyType="done"
+                  onSubmitEditing={() => {
+                    const trimmed = sizeInput.trim();
+                    if (trimmed && !selectedSizes.includes(trimmed)) {
+                      setSelectedSizes([...selectedSizes, trimmed]);
+                    }
+                    setSizeInput('');
+                  }}
+                />
+                <TouchableOpacity
+                  onPress={() => {
+                    const trimmed = sizeInput.trim();
+                    if (trimmed && !selectedSizes.includes(trimmed)) {
+                      setSelectedSizes([...selectedSizes, trimmed]);
+                    }
+                    setSizeInput('');
+                  }}
+                  className="bg-pink-500 px-4 py-3 rounded-lg"
+                >
+                  <Text className="text-white font-semibold">Add</Text>
+                </TouchableOpacity>
+              </View>
+              {selectedSizes.length > 0 && (
+                <View className="flex-row flex-wrap">
+                  {selectedSizes.map((size) => (
+                    <TouchableOpacity
+                      key={size}
+                      onPress={() => setSelectedSizes(selectedSizes.filter(s => s !== size))}
+                      className="flex-row items-center bg-pink-50 border border-pink-200 rounded-full px-3 py-1.5 mr-2 mb-2"
+                    >
+                      <Text className="text-sm font-semibold text-pink-700 mr-1">{size}</Text>
+                      <Icon name="close-circle" size={14} color="#CC3366" />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Color Options */}
+          {productType === 'physical' && (
+            <View className="bg-white rounded-2xl p-4 mb-4">
+              <Text className="text-base font-bold text-gray-900 mb-2">Available Colors</Text>
+              <Text className="text-sm text-gray-500 mb-3">
+                Select the colors available for this product
+              </Text>
+              <View className="flex-row flex-wrap">
+                {COLOR_OPTIONS.map((color) => {
+                  const isSelected = selectedColors.includes(color.name);
+                  return (
+                    <TouchableOpacity
+                      key={color.name}
+                      onPress={() => {
+                        if (isSelected) {
+                          setSelectedColors(selectedColors.filter(c => c !== color.name));
+                        } else {
+                          setSelectedColors([...selectedColors, color.name]);
+                        }
+                      }}
+                      className="items-center mr-3 mb-3"
+                      activeOpacity={0.7}
+                    >
+                      <View
+                        style={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: 18,
+                          backgroundColor: color.hex,
+                          borderWidth: isSelected ? 3 : 1,
+                          borderColor: isSelected ? '#CC3366' : '#E5E7EB',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        {isSelected && (
+                          <Icon name="checkmark" size={18} color={LIGHT_COLOR_HEXES.has(color.hex) ? '#CC3366' : '#FFFFFF'} />
+                        )}
+                      </View>
+                      <Text className="text-xs text-gray-600 mt-1">{color.name}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              {selectedColors.length > 0 && (
+                <View className="mt-2 flex-row flex-wrap">
+                  <Text className="text-xs text-gray-500">Selected: </Text>
+                  <Text className="text-xs font-semibold text-gray-700">{selectedColors.join(', ')}</Text>
+                </View>
+              )}
+            </View>
+          )}
+
           {/* Additional Settings */}
           <View className="bg-white rounded-2xl p-4 mb-4">
             <Text className="text-base font-bold text-gray-900 mb-4">Additional Settings</Text>
-
-            {/* Featured */}
-            <TouchableOpacity
-              onPress={() => setIsFeatured(!isFeatured)}
-              className="flex-row items-center justify-between mb-4 pb-4 border-b border-gray-100"
-            >
-              <View className="flex-1">
-                <Text className="text-base font-semibold text-gray-900 mb-1">Featured Product</Text>
-                <Text className="text-sm text-gray-500">
-                  Show this product in featured sections
-                </Text>
-              </View>
-              <View
-                className={`w-12 h-6 rounded-full items-center ${
-                  isFeatured ? 'bg-pink-500 justify-end' : 'bg-gray-300 justify-start'
-                } flex-row px-1`}
-              >
-                <View className="w-5 h-5 rounded-full bg-white" />
-              </View>
-            </TouchableOpacity>
 
             {/* Flash Sale */}
             <TouchableOpacity
@@ -1094,17 +1368,27 @@ const AddProductScreen = () => {
             </View>
           )}
 
+          {/* Info Banner */}
+          <View className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4 flex-row items-start">
+            <Icon name="information-circle-outline" size={20} color="#3B82F6" />
+            <Text className="text-xs text-blue-700 ml-2 flex-1">
+              Your product will be reviewed and published once your store is verified. You can still post products while your verification is in progress.
+            </Text>
+          </View>
+
           {/* Submit Buttons */}
           <View className="flex-row gap-3 mb-6">
-            <TouchableOpacity
-              onPress={() => createProduct('draft')}
-              disabled={loading}
-              className="flex-1 py-4 rounded-lg border-2 border-gray-300 bg-white"
-            >
-              <Text className="text-gray-700 text-base font-bold text-center">
-                Save as Draft
-              </Text>
-            </TouchableOpacity>
+            {!isEditMode && (
+              <TouchableOpacity
+                onPress={() => createProduct('draft')}
+                disabled={loading}
+                className="flex-1 py-4 rounded-lg border-2 border-gray-300 bg-white"
+              >
+                <Text className="text-gray-700 text-base font-bold text-center">
+                  Save as Draft
+                </Text>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity
               onPress={handleSubmit}
@@ -1115,7 +1399,7 @@ const AddProductScreen = () => {
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
                 <Text className="text-white text-base font-bold text-center">
-                  Publish Product
+                  {isEditMode ? 'Save Changes' : 'Submit Product'}
                 </Text>
               )}
             </TouchableOpacity>
@@ -1363,6 +1647,22 @@ const AddProductScreen = () => {
       )}
 
       <Toast />
+
+      <AppModal
+        visible={confirmModal.visible}
+        title={confirmModal.isEdit ? 'Save Changes' : 'Create Product'}
+        message={confirmModal.isEdit ? 'Save your changes to this product?' : 'Are you sure you want to create this product?'}
+        icon={confirmModal.isEdit ? 'save-outline' : 'cube-outline'}
+        iconColor="#CC3366"
+        onClose={() => setConfirmModal({ visible: false, isEdit: false })}
+        buttons={[
+          { text: 'Cancel', style: 'cancel', onPress: () => setConfirmModal({ visible: false, isEdit: false }) },
+          {
+            text: confirmModal.isEdit ? 'Save' : 'Create',
+            onPress: () => { setConfirmModal({ visible: false, isEdit: false }); confirmModal.isEdit ? editProduct() : createProduct(); },
+          },
+        ]}
+      />
     </SafeAreaView>
   );
 };

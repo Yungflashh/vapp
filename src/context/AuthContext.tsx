@@ -95,17 +95,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     AsyncStorage.setItem('userData', JSON.stringify(userData));
   };
 
-  // ✅ Add this new function
   const refreshUser = async () => {
     try {
-      console.log('🔄 Refreshing user data...');
       const userData = await AsyncStorage.getItem('userData');
       if (userData) {
         const parsedUser = JSON.parse(userData);
-        console.log('✅ User data refreshed:', parsedUser);
         setUser(parsedUser);
-        // Force a re-render by updating the state
-        setUser(prevUser => ({ ...parsedUser }));
       }
     } catch (error) {
       console.error('❌ Error refreshing user:', error);

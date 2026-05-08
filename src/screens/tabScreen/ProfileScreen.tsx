@@ -365,7 +365,7 @@ const quickActions = [
                 </View>
               </View>
               <Text className="text-base font-bold" style={{ color: '#7C3AED' }}>
-                {vCreditsBalance.toLocaleString()}
+                ₦{vCreditsBalance.toLocaleString()}
               </Text>
             </View>
           </View>

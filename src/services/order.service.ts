@@ -18,6 +18,7 @@ export interface OrderItem {
   product: string;
   productName: string;
   productImage?: string;
+  productType?: 'physical' | 'digital' | 'service';
   variant?: string;
   quantity: number;
   price: number;
@@ -42,7 +43,7 @@ export interface Order {
   total: number;
   status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'in_transit' | 'delivered' | 'cancelled' | 'failed';
   paymentStatus: 'pending' | 'completed' | 'failed' | 'refunded';
-  paymentMethod: 'paystack' | 'flutterwave' | 'wallet' | 'cash_on_delivery';
+  paymentMethod: 'paystack' | 'flutterwave' | 'wallet';
   paymentReference?: string;
   shippingAddress: ShippingAddress;
   couponCode?: string;
@@ -74,7 +75,7 @@ export interface Order {
 
 export interface CreateOrderRequest {
   shippingAddress: ShippingAddress;
-  paymentMethod: 'paystack' | 'flutterwave' | 'wallet' | 'cash_on_delivery';
+  paymentMethod: 'paystack' | 'flutterwave' | 'wallet';
   deliveryType?: 'standard' | 'express' | 'same_day' | 'pickup';
   notes?: string;
   vCreditsAmount?: number;
@@ -376,6 +377,14 @@ export const getVendorOrderById = async (orderId: string): Promise<{ success: bo
 /**
  * Complete order (customer confirms delivery)
  */
+export const completeVendorShipment = async (
+  orderId: string,
+  vendorId: string
+): Promise<{ success: boolean; message: string; data: { order: Order; allDelivered: boolean } }> => {
+  const response = await api.put(`/orders/${orderId}/complete-vendor/${vendorId}`);
+  return response.data;
+};
+
 export const completeOrder = async (orderId: string): Promise<{ success: boolean; message: string; data: { order: Order } }> => {
   try {
     console.log('📦 Completing order:', orderId);
@@ -387,6 +396,16 @@ export const completeOrder = async (orderId: string): Promise<{ success: boolean
     return response.data;
   } catch (error) {
     console.error('❌ Complete order error:', error);
+    handleApiError(error);
+    throw error;
+  }
+};
+
+export const checkActiveOrderWith = async (counterpartyId: string): Promise<{ success: boolean; data: { hasActiveOrder: boolean } }> => {
+  try {
+    const response = await api.get(`/orders/check-active-with/${counterpartyId}`);
+    return response.data;
+  } catch (error) {
     handleApiError(error);
     throw error;
   }

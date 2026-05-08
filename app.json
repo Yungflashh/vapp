@@ -2,7 +2,8 @@
   "expo": {
     "name": "Vendorspot",
     "slug": "Vendorspot",
-    "version": "2.0",
+    "version": "2.1.1",
+    "_note": "version/runtimeVersion/versionCode/buildNumber are managed by app.config.js — bump via: npm version patch|minor|major",
     "web": {
       "favicon": "./src/assets/favicon.png"
     },
@@ -16,6 +17,19 @@
         {
           "icon": "./src/assets/logo.png",
           "color": "#CC3366"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Vendorspot accesses your photo library so you can upload product images when listing items for sale, set a profile picture for your account, attach KYC verification documents, and add evidence photos when filing a dispute.",
+          "cameraPermission": "Vendorspot uses your camera so you can take product photos when listing items for sale, capture a profile picture for your account, photograph KYC verification documents, and take evidence photos when filing a dispute."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Vendorspot uses your location to automatically fill in your delivery address at checkout and to help you discover nearby vendors and products on the marketplace."
         }
       ]
     ],
@@ -32,14 +46,25 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.vendorspot.app",
+      "bundleIdentifier": "com.vendorspotng.vendorspot",
+      "buildNumber": "2.1.2",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true,
+          "NSAllowsLocalNetworking": true
+        },
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSPhotoLibraryUsageDescription": "Vendorspot needs access to your photo library so you can upload product images when listing items for sale, set a profile picture for your account, attach KYC verification documents, and add evidence photos when filing a dispute.",
+        "NSCameraUsageDescription": "Vendorspot needs access to your camera so you can take product photos when listing items for sale, capture a profile picture for your account, photograph KYC verification documents, and take evidence photos when filing a dispute.",
+        "NSLocationWhenInUseUsageDescription": "Vendorspot needs access to your location to automatically fill in your delivery address at checkout and to help you discover nearby vendors and products on the marketplace."
+      },
       "associatedDomains": [
-        "applinks:vendorspot.com",
-        "applinks:www.vendorspot.com"
+        "applinks:vendorspotng.com",
+        "applinks:www.vendorspotng.com"
       ]
     },
     "android": {
-      "versionCode": 2,
+      "versionCode": 20102,
       "package": "com.vendorspot.app",
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/logo.png",
@@ -52,13 +77,33 @@
           "data": [
             {
               "scheme": "https",
-              "host": "vendorspot.com",
+              "host": "vendorspotng.com",
               "pathPrefix": "/vendor"
             },
             {
               "scheme": "https",
-              "host": "www.vendorspot.com",
+              "host": "www.vendorspotng.com",
               "pathPrefix": "/vendor"
+            },
+            {
+              "scheme": "https",
+              "host": "vendorspotng.com",
+              "pathPrefix": "/products"
+            },
+            {
+              "scheme": "https",
+              "host": "www.vendorspotng.com",
+              "pathPrefix": "/products"
+            },
+            {
+              "scheme": "https",
+              "host": "vendorspotng.com",
+              "pathPrefix": "/affiliate"
+            },
+            {
+              "scheme": "https",
+              "host": "www.vendorspotng.com",
+              "pathPrefix": "/affiliate"
             },
             {
               "scheme": "vendorspot"
@@ -69,6 +114,11 @@
             "DEFAULT"
           ]
         }
+      ],
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
       ]
     },
     "scheme": "vendorspot",
@@ -80,6 +130,9 @@
         "androidClientId": "365199861665-46cfcedrppe40yogu2vlqftvap8fo97.apps.googleusercontent.com",
         "webClientId": "365199861665-l0fippe3jlt08h6f12k7vkqnibkhqrgj.apps.googleusercontent.com"
       }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/95bbcdae-0b49-46e8-b1e4-0d9a9d1195fe"
     }
   }
 }

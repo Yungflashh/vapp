@@ -10,7 +10,6 @@ import {
   TextInput,
   ActivityIndicator,
   RefreshControl,
-  Alert,
   StatusBar,
   Animated,
   ScrollView,
@@ -666,7 +665,7 @@ const VendorOrdersScreen: React.FC = () => {
                 {order.user?.firstName || ''} {order.user?.lastName || ''}
               </Text>
               <Text className="text-xs text-gray-500 mt-0.5" numberOfLines={1}>
-                {order.user?.email}
+                {order.user?.email?.replace(/(.{2})(.*)(@.*)/, '$1***$3')}
               </Text>
             </View>
             

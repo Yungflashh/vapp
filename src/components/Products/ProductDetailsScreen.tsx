@@ -269,13 +269,13 @@ const ProductDetailsScreen = ({ route, navigation }: Props) => {
   // Refresh
   const [refreshing, setRefreshing] = useState(false);
 
-  const sizes = ['40', '41', '42', '43', '44'];
-  const colors = [
-    { name: 'Black', hex: '#000000' },
-    { name: 'White', hex: '#FFFFFF' },
-    { name: 'Blue', hex: '#0066FF' },
-    { name: 'Red', hex: '#FF0000' },
-  ];
+  const COLOR_HEX_MAP: Record<string, string> = {
+    Black: '#000000', White: '#FFFFFF', Red: '#EF4444', Blue: '#3B82F6',
+    Green: '#22C55E', Yellow: '#EAB308', Purple: '#A855F7', Pink: '#EC4899',
+    Orange: '#F97316', Brown: '#92400E', Gray: '#6B7280', Navy: '#1E3A5F',
+    Beige: '#D2B48C', Maroon: '#800000', Teal: '#14B8A6', Gold: '#D4AF37',
+  };
+  const LIGHT_HEX = new Set(['#FFFFFF', '#EAB308', '#D2B48C', '#D4AF37']);
 
   useEffect(() => {
     fetchProductDetails();
@@ -424,8 +424,14 @@ const ProductDetailsScreen = ({ route, navigation }: Props) => {
   // ============================================================
   const handleAddToCart = async () => {
     if (!product) return;
-    if (product.productType === 'physical' && !selectedSize) {
+    const hasSizes = product.sizes && product.sizes.length > 0;
+    const hasColors = product.colors && product.colors.length > 0;
+    if (product.productType === 'physical' && hasSizes && !selectedSize) {
       Toast.show({ type: 'info', text1: 'Size Required', text2: 'Please select a size' });
+      return;
+    }
+    if (product.productType === 'physical' && hasColors && !selectedColor) {
+      Toast.show({ type: 'info', text1: 'Color Required', text2: 'Please select a color' });
       return;
     }
     try {
@@ -679,13 +685,13 @@ const ProductDetailsScreen = ({ route, navigation }: Props) => {
           )}
         </View>
 
-        {/* Size Selection */}
-        {product.productType === 'physical' && (
+        {/* Size Selection — only if product has sizes */}
+        {product.productType === 'physical' && product.sizes && product.sizes.length > 0 && (
           <View className="px-4 mb-4">
             <Text className="text-gray-900 font-bold text-base mb-3">Select Size</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View className="flex-row gap-3">
-                {sizes.map((size) => (
+                {product.sizes.map((size) => (
                   <TouchableOpacity key={size} onPress={() => setSelectedSize(size)} className={`px-6 py-3 rounded-xl border-2 ${selectedSize === size ? 'bg-pink-500 border-pink-500' : 'bg-white border-gray-200'}`}>
                     <Text className={`font-semibold ${selectedSize === size ? 'text-white' : 'text-gray-900'}`}>{size}</Text>
                   </TouchableOpacity>
@@ -695,19 +701,24 @@ const ProductDetailsScreen = ({ route, navigation }: Props) => {
           </View>
         )}
 
-        {/* Color Selection */}
-        {product.productType === 'physical' && (
+        {/* Color Selection — only if product has colors */}
+        {product.productType === 'physical' && product.colors && product.colors.length > 0 && (
           <View className="px-4 mb-4">
             <Text className="text-gray-900 font-bold text-base mb-3">
               Select Color{selectedColor && <Text className="text-gray-500 font-normal"> — {selectedColor}</Text>}
             </Text>
-            <View className="flex-row gap-3">
-              {colors.map((color) => (
-                <TouchableOpacity key={color.name} onPress={() => setSelectedColor(color.name)} className="items-center">
-                  <View className={`w-12 h-12 rounded-full border-2 ${selectedColor === color.name ? 'border-pink-500' : 'border-gray-200'}`} style={{ backgroundColor: color.hex, elevation: 2 }} />
-                  {selectedColor === color.name && <View className="w-1.5 h-1.5 bg-pink-500 rounded-full mt-1" />}
-                </TouchableOpacity>
-              ))}
+            <View className="flex-row gap-3 flex-wrap">
+              {product.colors.map((colorName) => {
+                const hex = COLOR_HEX_MAP[colorName] || '#9CA3AF';
+                const isSelected = selectedColor === colorName;
+                return (
+                  <TouchableOpacity key={colorName} onPress={() => setSelectedColor(colorName)} className="items-center">
+                    <View className={`w-12 h-12 rounded-full border-2 ${isSelected ? 'border-pink-500' : 'border-gray-200'}`} style={{ backgroundColor: hex, elevation: 2 }} />
+                    {isSelected && <View className="w-1.5 h-1.5 bg-pink-500 rounded-full mt-1" />}
+                    <Text className="text-xs text-gray-600 mt-1">{colorName}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
         )}

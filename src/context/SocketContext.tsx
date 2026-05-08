@@ -4,9 +4,9 @@ import { io, Socket } from 'socket.io-client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './AuthContext';
 import { getUnreadMessageCount } from '@/services/message.service';
-import { getOrders } from '@/services/order.service';
+import { getOrders, getVendorOrders } from '@/services/order.service';
 
-// const SOCKET_URL = 'http://192.168.54.66:5000';
+// const SOCKET_URL = 'http://192.168.1.86:5000';
 const SOCKET_URL = 'https://vapp-be.onrender.com';
 
 interface SocketContextType {
@@ -24,7 +24,7 @@ interface SocketContextType {
 const SocketContext = createContext<SocketContextType | undefined>(undefined);
 
 export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [socketState, setSocketState] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   // Use array instead of Set so React detects state changes reliably
@@ -56,20 +56,14 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         return;
       }
 
-      // Fetch pending and confirmed orders
-      const [pendingRes, confirmedRes] = await Promise.all([
-        getOrders(1, 1, 'pending').catch(() => null),
-        getOrders(1, 1, 'confirmed').catch(() => null),
-      ]);
+      const fetchFn = user?.role === 'vendor' ? getVendorOrders : getOrders;
 
-      // Use meta.total which is the count of ALL matching orders, not just the page
-      const pendingTotal = pendingRes?.meta?.total ?? 0;
-      const confirmedTotal = confirmedRes?.meta?.total ?? 0;
-      setActiveOrderCount(pendingTotal + confirmedTotal);
+      const pendingRes = await fetchFn(1, 1, 'pending').catch(() => null);
+      setActiveOrderCount(pendingRes?.meta?.total ?? 0);
     } catch (error) {
       setActiveOrderCount(0);
     }
-  }, []);
+  }, [user?.role]);
 
   const isUserOnline = useCallback(
     (userId: string) => onlineUsers.includes(userId),

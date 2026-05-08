@@ -8,7 +8,6 @@ import {
   Image,
   ActivityIndicator,
   Linking,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -143,14 +142,14 @@ const MyDigitalProductsScreen = ({ navigation }: MyDigitalProductsScreenProps) =
           });
         } else {
           console.log('❌ Cannot open URL:', downloadUrl);
-          Alert.alert('Error', 'Unable to open download link');
+          Toast.show({ type: 'error', text1: 'Error', text2: 'Unable to open download link' });
         }
       } else {
         console.log('❌ Invalid response - no download URL');
         console.log('Response data:', response.data);
-        Alert.alert('Error', 'Download URL not available');
+        Toast.show({ type: 'error', text1: 'Error', text2: 'Download URL not available' });
       }
-      
+
       console.log('========== DOWNLOAD COMPLETE ==========\n');
     } catch (error: any) {
       console.error('\n❌ ========== DOWNLOAD ERROR ==========');
@@ -159,11 +158,8 @@ const MyDigitalProductsScreen = ({ navigation }: MyDigitalProductsScreenProps) =
       console.error('Error status:', error.response?.status);
       console.error('Full error:', error);
       console.error('========== END DOWNLOAD ERROR ==========\n');
-      
-      Alert.alert(
-        'Download Failed',
-        error.response?.data?.message || 'Failed to download product. Please try again.'
-      );
+
+      Toast.show({ type: 'error', text1: 'Download Failed', text2: error.response?.data?.message || 'Failed to download product. Please try again.' });
     } finally {
       setDownloadingId(null);
       console.log('✅ Download process finished\n');

@@ -12,7 +12,6 @@ import {
   Linking,
   KeyboardAvoidingView,
   Platform,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -20,7 +19,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { RootStackParamList } from '@/navigation';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Toast from 'react-native-toast-message';
-import { getOrderById, trackOrder, cancelOrder, completeOrder, Order } from '@/services/order.service';
+import AppModal from '@/components/AppModal';
+import { getOrderById, trackOrder, cancelOrder, completeOrder, completeVendorShipment, Order } from '@/services/order.service';
 import api from '@/services/api.config';
 
 type OrderDetailsScreenProps = NativeStackScreenProps<RootStackParamList, 'OrderDetails'>;
@@ -38,6 +38,11 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
   const [cancelReason, setCancelReason] = useState('');
   const [isCancelling, setIsCancelling] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
+  const [completingVendorId, setCompletingVendorId] = useState<string | null>(null);
+  const [completeOrderModal, setCompleteOrderModal] = useState(false);
+  const [reviewModal, setReviewModal] = useState<{ visible: boolean; items: any[] }>({ visible: false, items: [] });
+  const [vendorShipmentModal, setVendorShipmentModal] = useState<{ visible: boolean; vendorId: string; vendorName: string }>({ visible: false, vendorId: '', vendorName: '' });
+  const [helpModal, setHelpModal] = useState(false);
 
   useEffect(() => {
     api.get('/auth/support-user').then((res) => {
@@ -129,38 +134,77 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
   };
 
   const handleCompleteOrder = () => {
-    Alert.alert(
-      'Complete Order',
-      'Are you sure you want to confirm that you received this order completely in good condition? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Yes, Complete',
-          onPress: async () => {
-            try {
-              setIsCompleting(true);
-              const response = await completeOrder(orderId);
-              if (response.success) {
-                Toast.show({
-                  type: 'success',
-                  text1: 'Success',
-                  text2: 'Order completed successfully!',
-                });
-                await fetchOrderDetails();
-              }
-            } catch (error: any) {
-              Toast.show({
-                type: 'error',
-                text1: 'Error',
-                text2: error.response?.data?.message || 'Failed to complete order',
-              });
-            } finally {
-              setIsCompleting(false);
-            }
-          },
-        },
-      ]
-    );
+    setCompleteOrderModal(true);
+  };
+
+  const confirmCompleteOrder = async () => {
+    setCompleteOrderModal(false);
+    try {
+      setIsCompleting(true);
+      const response = await completeOrder(orderId);
+      if (response.success) {
+        await fetchOrderDetails();
+        setTimeout(() => {
+          setReviewModal({
+            visible: true,
+            items: response.data?.order?.items?.map((item: any) => ({
+              product: item.product,
+              productName: item.productName,
+              productImage: item.productImage,
+            })) || [],
+          });
+        }, 500);
+      }
+    } catch (error: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: error.response?.data?.message || 'Failed to complete order',
+      });
+    } finally {
+      setIsCompleting(false);
+    }
+  };
+
+  const getVendorId = (vendor: any): string =>
+    typeof vendor === 'object' ? vendor?._id ?? vendor : vendor;
+
+  const handleCompleteVendorShipment = (vendorId: string, vendorName: string) => {
+    setVendorShipmentModal({ visible: true, vendorId, vendorName });
+  };
+
+  const confirmCompleteVendorShipment = async () => {
+    const { vendorId, vendorName } = vendorShipmentModal;
+    setVendorShipmentModal({ visible: false, vendorId: '', vendorName: '' });
+    try {
+      setCompletingVendorId(vendorId);
+      const response = await completeVendorShipment(orderId, vendorId);
+      if (response.success) {
+        await fetchOrderDetails();
+        if (response.data.allDelivered) {
+          setTimeout(() => {
+            setReviewModal({
+              visible: true,
+              items: response.data?.order?.items?.map((item: any) => ({
+                product: item.product,
+                productName: item.productName,
+                productImage: item.productImage,
+              })) || [],
+            });
+          }, 500);
+        } else {
+          Toast.show({ type: 'success', text1: 'Received!', text2: `${vendorName}'s shipment marked as received.` });
+        }
+      }
+    } catch (error: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: error.response?.data?.message || 'Failed to update shipment',
+      });
+    } finally {
+      setCompletingVendorId(null);
+    }
   };
 
   const openTrackingUrl = () => {
@@ -360,51 +404,198 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
           </View>
         )}
 
-        {/* Order Items */}
-        <View className="bg-white px-4 py-4 mt-3">
-          <Text className="text-base font-bold text-gray-900 mb-3">Order Items</Text>
-          {order.items.map((item, index) => {
-            const productId = typeof item.product === 'object' ? (item.product as any)?._id : item.product;
+        {/* Order Items — grouped by vendor when multi-vendor */}
+        {order.vendorShipments && order.vendorShipments.length > 1 ? (
+          order.vendorShipments.map((shipment, sIdx) => {
+            const shipmentVendorId = getVendorId(shipment.vendor);
+            const vendorItems = order.items.filter(
+              (item) => getVendorId(item.vendor) === shipmentVendorId
+            );
+            const shipmentStatus = shipment.status;
+            const isReceived = shipmentStatus === 'delivered';
+            const canMarkReceived =
+              !isReceived &&
+              shipmentStatus !== 'cancelled' &&
+              order.paymentStatus === 'completed' &&
+              !['cancelled', 'pending'].includes(order.status);
+            const isCompletingThis = completingVendorId === shipmentVendorId;
+
+            const shipStatusColor =
+              isReceived ? '#10B981' : shipmentStatus === 'shipped' ? '#3B82F6' : '#F59E0B';
+            const shipStatusLabel =
+              isReceived ? 'Received' : shipmentStatus === 'shipped' ? 'Shipped' : shipmentStatus === 'created' ? 'In Transit' : shipmentStatus.charAt(0).toUpperCase() + shipmentStatus.slice(1);
+
             return (
-              <TouchableOpacity
-                key={index}
-                className="flex-row items-center mb-4"
-                onPress={() => {
-                  if (productId) {
-                    navigation.navigate('ProductDetails', { productId });
-                  }
-                }}
-                activeOpacity={0.7}
-              >
-                <View className="w-16 h-16 bg-pink-50 rounded-xl overflow-hidden mr-3">
-                  {item.productImage ? (
-                    <Image
-                      source={{ uri: item.productImage }}
-                      className="w-full h-full"
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <View className="w-full h-full items-center justify-center">
-                      <Icon name="image-outline" size={24} color="#CC3366" />
+              <View key={sIdx} className="bg-white px-4 py-4 mt-3">
+                {/* Vendor header */}
+                <View className="flex-row items-center justify-between mb-3">
+                  <View className="flex-row items-center flex-1">
+                    <Icon name="storefront-outline" size={16} color="#CC3366" />
+                    <Text className="text-base font-bold text-gray-900 ml-2 flex-shrink" numberOfLines={1}>
+                      {shipment.vendorName}
+                    </Text>
+                  </View>
+                  <View className="flex-row items-center ml-2">
+                    <View
+                      className="px-2 py-0.5 rounded-full"
+                      style={{ backgroundColor: `${shipStatusColor}20` }}
+                    >
+                      <Text style={{ fontSize: 11, color: shipStatusColor, fontWeight: '700' }}>
+                        {shipStatusLabel}
+                      </Text>
                     </View>
+                  </View>
+                </View>
+
+                {/* Items for this vendor */}
+                {vendorItems.map((item, iIdx) => {
+                  const productId = typeof item.product === 'object' ? (item.product as any)?._id : item.product;
+                  const isDigitalItem = item.productType === 'digital';
+                  return (
+                    <View key={iIdx} className={`mb-3 ${iIdx > 0 ? 'pt-3 border-t border-gray-100' : ''}`}>
+                      <TouchableOpacity
+                        className="flex-row items-center"
+                        onPress={() => productId && navigation.navigate('ProductDetails', { productId })}
+                        activeOpacity={0.7}
+                      >
+                        <View className="w-14 h-14 bg-pink-50 rounded-xl overflow-hidden mr-3">
+                          {item.productImage ? (
+                            <Image source={{ uri: item.productImage }} className="w-full h-full" resizeMode="cover" />
+                          ) : (
+                            <View className="w-full h-full items-center justify-center">
+                              <Icon name="image-outline" size={22} color="#CC3366" />
+                            </View>
+                          )}
+                        </View>
+                        <View className="flex-1">
+                          <Text className="text-sm font-bold text-gray-900" numberOfLines={1}>{item.productName}</Text>
+                          <Text className="text-xs text-gray-500 mt-0.5">Qty: {item.quantity}</Text>
+                        </View>
+                        <Text className="text-sm font-bold text-gray-900">
+                          ₦{(item.price * item.quantity).toLocaleString()}
+                        </Text>
+                      </TouchableOpacity>
+                      {isDigitalItem && order.paymentStatus === 'completed' && (
+                        <TouchableOpacity
+                          onPress={() => navigation.navigate('MyDigitalProducts' as any)}
+                          className="mt-2 flex-row items-center bg-purple-50 py-1.5 px-3 rounded-lg self-start"
+                        >
+                          <Icon name="cloud-download" size={14} color="#8B5CF6" />
+                          <Text className="text-xs font-bold text-purple-700 ml-1">Download</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  );
+                })}
+
+                {/* Shipping cost for this vendor */}
+                <View className="flex-row justify-between pt-3 border-t border-gray-100 mt-1">
+                  <Text className="text-xs text-gray-500">Shipping from {shipment.vendorName}</Text>
+                  <Text className="text-xs font-semibold text-gray-700">
+                    {shipment.shippingCost > 0 ? `₦${shipment.shippingCost.toLocaleString()}` : 'Free'}
+                  </Text>
+                </View>
+
+                {/* Mark as Received button */}
+                {canMarkReceived && (
+                  <TouchableOpacity
+                    onPress={() => handleCompleteVendorShipment(shipmentVendorId, shipment.vendorName)}
+                    disabled={isCompletingThis}
+                    className="mt-3 rounded-xl overflow-hidden"
+                    style={{ backgroundColor: '#10B981' }}
+                    activeOpacity={0.8}
+                  >
+                    <View className="flex-row items-center justify-center py-3">
+                      {isCompletingThis ? (
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                      ) : (
+                        <>
+                          <Icon name="checkmark-circle" size={18} color="#FFFFFF" />
+                          <Text className="text-white font-bold text-sm ml-2">Mark as Received</Text>
+                        </>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                )}
+
+                {isReceived && (
+                  <View className="mt-3 flex-row items-center justify-center bg-green-50 rounded-xl py-2.5">
+                    <Icon name="checkmark-done-circle" size={18} color="#10B981" />
+                    <Text className="text-green-700 font-bold text-sm ml-2">Shipment Received</Text>
+                  </View>
+                )}
+              </View>
+            );
+          })
+        ) : (
+          <View className="bg-white px-4 py-4 mt-3">
+            <Text className="text-base font-bold text-gray-900 mb-3">Order Items</Text>
+            {order.items.map((item, index) => {
+              const productId = typeof item.product === 'object' ? (item.product as any)?._id : item.product;
+              const isDigitalItem = item.productType === 'digital';
+              return (
+                <View key={index} className={`mb-4 ${index > 0 ? 'pt-4 border-t border-gray-100' : ''}`}>
+                  <TouchableOpacity
+                    className="flex-row items-center"
+                    onPress={() => {
+                      if (productId) {
+                        navigation.navigate('ProductDetails', { productId });
+                      }
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View className="w-16 h-16 bg-pink-50 rounded-xl overflow-hidden mr-3">
+                      {item.productImage ? (
+                        <Image
+                          source={{ uri: item.productImage }}
+                          className="w-full h-full"
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <View className="w-full h-full items-center justify-center">
+                          <Icon name="image-outline" size={24} color="#CC3366" />
+                        </View>
+                      )}
+                    </View>
+                    <View className="flex-1">
+                      <View className="flex-row items-center">
+                        <Text className="text-sm font-bold text-gray-900 flex-shrink" numberOfLines={1}>
+                          {item.productName}
+                        </Text>
+                        <View
+                          className="ml-2 px-2 py-0.5 rounded-full"
+                          style={{ backgroundColor: isDigitalItem ? '#EDE9FE' : '#ECFDF5' }}
+                        >
+                          <Text style={{ fontSize: 10, color: isDigitalItem ? '#7C3AED' : '#059669', fontWeight: '600' }}>
+                            {isDigitalItem ? 'Digital' : 'Physical'}
+                          </Text>
+                        </View>
+                      </View>
+                      <Text className="text-xs text-gray-500 mt-1">Qty: {item.quantity}</Text>
+                    </View>
+                    <View className="flex-row items-center">
+                      <Text className="text-sm font-bold text-gray-900 mr-2">
+                        ₦{(item.price * item.quantity).toLocaleString()}
+                      </Text>
+                      <Icon name="chevron-forward" size={16} color="#9CA3AF" />
+                    </View>
+                  </TouchableOpacity>
+                  {/* Per-item download button for digital products */}
+                  {isDigitalItem && order.paymentStatus === 'completed' && (
+                    <TouchableOpacity
+                      onPress={() => navigation.navigate('MyDigitalProducts' as any)}
+                      className="mt-2 ml-19 flex-row items-center bg-purple-50 py-2 px-3 rounded-lg self-start"
+                      activeOpacity={0.7}
+                    >
+                      <Icon name="cloud-download" size={16} color="#8B5CF6" />
+                      <Text className="text-xs font-bold text-purple-700 ml-1.5">Download</Text>
+                    </TouchableOpacity>
                   )}
                 </View>
-                <View className="flex-1">
-                  <Text className="text-sm font-bold text-gray-900" numberOfLines={1}>
-                    {item.productName}
-                  </Text>
-                  <Text className="text-xs text-gray-500 mt-1">Qty: {item.quantity}</Text>
-                </View>
-                <View className="flex-row items-center">
-                  <Text className="text-sm font-bold text-gray-900 mr-2">
-                    ₦{(item.price * item.quantity).toLocaleString()}
-                  </Text>
-                  <Icon name="chevron-forward" size={16} color="#9CA3AF" />
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+              );
+            })}
+          </View>
+        )}
 
         {/* Delivery Address */}
         {order.shippingAddress && order.shippingAddress.city && (
@@ -425,18 +616,13 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
                 <Text className="text-sm text-gray-600">
                   {order.shippingAddress.country}
                 </Text>
-                {order.shippingAddress.phone && (
-                  <Text className="text-sm text-gray-600 mt-2">
-                    📞 {order.shippingAddress.phone}
-                  </Text>
-                )}
               </View>
             </View>
           </View>
         )}
 
         {/* Digital Product Delivery */}
-        {order.deliveryType === 'digital' && (
+        {(order.deliveryType === 'digital' || order.items.some((i: any) => i.productType === 'digital')) && (
           <View className="bg-white px-4 py-4 mt-3">
             <Text className="text-base font-bold text-gray-900 mb-3">Delivery Method</Text>
             <View className="bg-purple-50 rounded-xl p-4">
@@ -518,10 +704,21 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
             </View>
           )}
 
-          <View className="flex-row justify-between mb-2">
-            <Text className="text-sm text-gray-600">Shipping</Text>
-            <Text className="text-sm text-gray-900">₦{order.shippingCost.toLocaleString()}</Text>
-          </View>
+          {order.vendorShipments && order.vendorShipments.length > 1 ? (
+            order.vendorShipments.map((s, i) => (
+              <View key={i} className="flex-row justify-between mb-1">
+                <Text className="text-sm text-gray-500">Shipping ({s.vendorName})</Text>
+                <Text className="text-sm text-gray-900">
+                  {s.shippingCost > 0 ? `₦${s.shippingCost.toLocaleString()}` : 'Free'}
+                </Text>
+              </View>
+            ))
+          ) : (
+            <View className="flex-row justify-between mb-2">
+              <Text className="text-sm text-gray-600">Shipping</Text>
+              <Text className="text-sm text-gray-900">₦{order.shippingCost.toLocaleString()}</Text>
+            </View>
+          )}
 
           {order.tax > 0 && (
             <View className="flex-row justify-between mb-2">
@@ -544,9 +741,9 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
             <Text className="text-sm font-semibold text-gray-900 mt-1">
               {order.paymentMethod === 'paystack'
                 ? 'Card Payment'
-                : order.paymentMethod === 'wallet'
-                ? 'Wallet'
-                : 'Cash on Delivery'}
+                : order.paymentMethod === 'flutterwave'
+                ? 'Flutterwave'
+                : 'Wallet'}
             </Text>
             <Text className="text-xs text-gray-600 mt-2">Payment Status</Text>
             <Text
@@ -562,13 +759,19 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
             >
               {order.paymentStatus === 'completed' ? 'Paid' : order.paymentStatus.charAt(0).toUpperCase() + order.paymentStatus.slice(1)}
             </Text>
+            {(order.paymentStatus === 'pending' || order.paymentStatus === 'processing') && (
+              <View className="flex-row items-center mt-3 bg-yellow-50 rounded-lg p-2">
+                <Icon name="time-outline" size={14} color="#D97706" />
+                <Text className="text-xs text-yellow-700 ml-1.5 flex-1">Payment will be completed within 24 hours.</Text>
+              </View>
+            )}
           </View>
         </View>
 
         {/* Action Buttons */}
         <View className="px-4 py-6">
-          {/* Complete Order Button - for customer to confirm delivery (only before completed) */}
-          {order.status === 'in_transit' && (
+          {/* Complete Order Button — only for single-vendor orders (no per-vendor buttons shown) */}
+          {order.status === 'in_transit' && !(order.vendorShipments && order.vendorShipments.length > 1) && (
             <TouchableOpacity
               onPress={handleCompleteOrder}
               disabled={isCompleting}
@@ -614,7 +817,7 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
               )}
 
             {/* Download Digital Products */}
-            {order.deliveryType === 'digital' && order.paymentStatus === 'completed' && (
+            {(order.deliveryType === 'digital' || order.items.some((i: any) => i.productType === 'digital')) && order.paymentStatus === 'completed' && (
               <TouchableOpacity
                 onPress={() => navigation.navigate('MyDigitalProducts' as any)}
                 className="flex-1 bg-purple-500 py-3.5 rounded-xl"
@@ -626,31 +829,41 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
               </TouchableOpacity>
             )}
 
-            {/* Chat with Vendor */}
-            <TouchableOpacity
-              onPress={() => {
-                const firstVendor = order.items[0]?.vendor;
-                const vendorId = typeof firstVendor === 'object'
-                  ? (firstVendor as any)?._id
-                  : firstVendor;
-                const vendorName = typeof firstVendor === 'object'
-                  ? (firstVendor as any)?.businessName || (firstVendor as any)?.name || 'Vendor'
-                  : 'Vendor';
-                const orderDetails = `Hi, I have a question about my Order #${order.orderNumber}.\n\nItems: ${order.items.map((i: any) => i.productName).join(', ')}\nTotal: ₦${order.total?.toLocaleString()}\nStatus: ${order.status}`;
-                navigation.navigate('Chat', {
-                  receiverId: vendorId,
-                  receiverName: vendorName,
-                  initialMessage: orderDetails,
-                });
-              }}
-              className="flex-1 bg-pink-50 py-3.5 rounded-xl border border-pink-200"
-              activeOpacity={0.7}
-            >
-              <View className="flex-row items-center justify-center">
-                <Icon name="chatbubble-ellipses" size={18} color="#CC3366" />
-                <Text className="text-pink-600 font-bold text-sm ml-1.5">Chat</Text>
+            {/* Chat with Vendor - only available for active orders */}
+            {order.status !== 'delivered' && order.status !== 'completed' && order.status !== 'cancelled' ? (
+              <TouchableOpacity
+                onPress={() => {
+                  const firstVendor = order.items[0]?.vendor;
+                  const vendorId = typeof firstVendor === 'object'
+                    ? (firstVendor as any)?._id
+                    : firstVendor;
+                  const vendorName = typeof firstVendor === 'object'
+                    ? (firstVendor as any)?.businessName || (firstVendor as any)?.name || 'Vendor'
+                    : 'Vendor';
+                  const orderDetails = `Hi, I have a question about my Order #${order.orderNumber}.\n\nItems: ${order.items.map((i: any) => i.productName).join(', ')}\nTotal: ₦${order.total?.toLocaleString()}\nStatus: ${order.status}`;
+                  navigation.navigate('Chat', {
+                    receiverId: vendorId,
+                    receiverName: vendorName,
+                    initialMessage: orderDetails,
+                    isOrderChat: true,
+                  });
+                }}
+                className="flex-1 bg-pink-50 py-3.5 rounded-xl border border-pink-200"
+                activeOpacity={0.7}
+              >
+                <View className="flex-row items-center justify-center">
+                  <Icon name="chatbubble-ellipses" size={18} color="#CC3366" />
+                  <Text className="text-pink-600 font-bold text-sm ml-1.5">Chat</Text>
+                </View>
+              </TouchableOpacity>
+            ) : (
+              <View className="flex-1 bg-gray-100 py-3.5 rounded-xl border border-gray-200">
+                <View className="flex-row items-center justify-center">
+                  <Icon name="chatbubble-ellipses" size={18} color="#9CA3AF" />
+                  <Text className="text-gray-400 font-bold text-sm ml-1.5">Chat Closed</Text>
+                </View>
               </View>
-            </TouchableOpacity>
+            )}
           </View>
 
           {/* Row 2: Secondary actions */}
@@ -725,31 +938,7 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
 
             {/* Need Help */}
             <TouchableOpacity
-              onPress={() => {
-                Alert.alert(
-                  'Need Help?',
-                  'How would you like to reach us?',
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                      text: 'Chat with Support',
-                      onPress: () => navigation.navigate('Chat', {
-                        receiverId: supportUserId,
-                        receiverName: 'VendorSpot Support',
-                        initialMessage: `Hi, I need help with my Order #${order?.orderNumber || ''}.\n\nItems: ${order?.items.map((i: any) => i.productName).join(', ')}\nTotal: ₦${order?.total?.toLocaleString()}\nStatus: ${order?.status}`,
-                      }),
-                    },
-                    {
-                      text: 'Email Us',
-                      onPress: () => Linking.openURL('mailto:support@vendorspot.com?subject=Help with Order ' + (order?.orderNumber || '')),
-                    },
-                    {
-                      text: 'Call Us',
-                      onPress: () => Linking.openURL('tel:+2349000000000'),
-                    },
-                  ]
-                );
-              }}
+              onPress={() => setHelpModal(true)}
               className="flex-1 bg-gray-100 py-3.5 rounded-xl"
             >
               <View className="flex-row items-center justify-center">
@@ -817,7 +1006,102 @@ const OrderDetailsScreen = ({ route, navigation }: OrderDetailsScreenProps) => {
           </View>
         </View>
       </Modal>
-    
+
+      <AppModal
+        visible={completeOrderModal}
+        title="Complete Order"
+        message="Are you sure you want to confirm that you received this order completely in good condition? This action cannot be undone."
+        icon="checkmark-done-circle-outline"
+        iconColor="#10B981"
+        onClose={() => setCompleteOrderModal(false)}
+        buttons={[
+          { text: 'Cancel', style: 'cancel', onPress: () => setCompleteOrderModal(false) },
+          { text: 'Yes, Complete', style: 'default', onPress: confirmCompleteOrder },
+        ]}
+      />
+      <AppModal
+        visible={reviewModal.visible}
+        title="Leave a Review"
+        message="How was your experience with this order? Your feedback helps other shoppers!"
+        icon="star-outline"
+        iconColor="#F59E0B"
+        onClose={() => {
+          setReviewModal({ visible: false, items: [] });
+          Toast.show({ type: 'success', text1: 'Order Completed!', text2: 'Thank you for confirming delivery.' });
+        }}
+        buttons={[
+          {
+            text: 'Maybe Later',
+            style: 'cancel',
+            onPress: () => {
+              setReviewModal({ visible: false, items: [] });
+              Toast.show({ type: 'success', text1: 'Order Completed!', text2: 'Thank you for confirming delivery.' });
+            },
+          },
+          {
+            text: 'Write Review',
+            style: 'default',
+            onPress: () => {
+              const items = reviewModal.items;
+              setReviewModal({ visible: false, items: [] });
+              navigation.navigate('WriteReview' as any, { orderId, items });
+            },
+          },
+        ]}
+      />
+      <AppModal
+        visible={vendorShipmentModal.visible}
+        title="Confirm Receipt"
+        message={`Have you received all items from ${vendorShipmentModal.vendorName}? This cannot be undone.`}
+        icon="checkmark-circle-outline"
+        iconColor="#10B981"
+        onClose={() => setVendorShipmentModal({ visible: false, vendorId: '', vendorName: '' })}
+        buttons={[
+          { text: 'Not Yet', style: 'cancel', onPress: () => setVendorShipmentModal({ visible: false, vendorId: '', vendorName: '' }) },
+          { text: 'Yes, Received', style: 'default', onPress: confirmCompleteVendorShipment },
+        ]}
+      />
+      <AppModal
+        visible={helpModal}
+        title="Need Help?"
+        message="How would you like to reach us?"
+        icon="help-circle-outline"
+        iconColor="#CC3366"
+        onClose={() => setHelpModal(false)}
+        buttons={[
+          {
+            text: 'Chat with Support',
+            style: 'default',
+            onPress: () => {
+              setHelpModal(false);
+              navigation.navigate('Chat', {
+                receiverId: supportUserId,
+                receiverName: 'VendorSpot Support',
+                initialMessage: `Hi, I need help with my Order #${order?.orderNumber || ''}.\n\nItems: ${order?.items.map((i: any) => i.productName).join(', ')}\nTotal: ₦${order?.total?.toLocaleString()}\nStatus: ${order?.status}`,
+                isOrderChat: true,
+              });
+            },
+          },
+          {
+            text: 'Email Us',
+            style: 'default',
+            onPress: () => {
+              setHelpModal(false);
+              Linking.openURL('mailto:support@vendorspotng.com?subject=Help with Order ' + (order?.orderNumber || ''));
+            },
+          },
+          {
+            text: 'Call Us',
+            style: 'default',
+            onPress: () => {
+              setHelpModal(false);
+              Linking.openURL('tel:+2347045882161');
+            },
+          },
+          { text: 'Cancel', style: 'cancel', onPress: () => setHelpModal(false) },
+        ]}
+      />
+
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

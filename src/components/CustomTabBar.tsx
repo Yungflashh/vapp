@@ -22,36 +22,34 @@ const CustomTabBar = ({ state, descriptors, navigation, isVendor = false }: Cust
     if (isVendor) {
       switch (routeName) {
         case 'Home':
-          return <Icon name="home" size={size} color={color} />;
+          return <Icon name={isFocused ? "home" : "home-outline"} size={size} color={color} />;
         case 'Dashboard':
-          return <MaterialIcon name="chart-box-outline" size={size} color={color} />;
-        case 'Products':
-          return <MaterialIcon name="package-variant" size={size} color={color} />;
+          return <Icon name={isFocused ? "grid" : "grid-outline"} size={size} color={color} />;
         case 'VendorOrders':
-          return <MaterialIcon name="clipboard-text-outline" size={size} color={color} />;
+          return <MaterialIcon name={isFocused ? "clipboard-text" : "clipboard-text-outline"} size={size} color={color} />;
         case 'Messages':
-          return <MaterialIcon name="message-outline" size={size} color={color} />;
+          return <MaterialIcon name={isFocused ? "message-text" : "message-outline"} size={size} color={color} />;
         case 'Profile':
-          return <Icon name="person-outline" size={size} color={color} />;
+          return <Icon name={isFocused ? "person" : "person-outline"} size={size} color={color} />;
         default:
-          return <Icon name="home" size={size} color={color} />;
+          return <Icon name={isFocused ? "home" : "home-outline"} size={size} color={color} />;
       }
     }
 
     // Customer icons (original)
     switch (routeName) {
       case 'Home':
-        return <Icon name="home" size={size} color={color} />;
+        return <Icon name={isFocused ? "home" : "home-outline"} size={size} color={color} />;
       case 'Orders':
-        return <Icon name="receipt-outline" size={size} color={color} />;
+        return <Icon name={isFocused ? "receipt" : "receipt-outline"} size={size} color={color} />;
       case 'Wishlist':
-        return <Icon name="heart-outline" size={size} color={color} />;
+        return <Icon name={isFocused ? "heart" : "heart-outline"} size={size} color={color} />;
       case 'Messages':
-        return <MaterialIcon name="message-outline" size={size} color={color} />;
+        return <MaterialIcon name={isFocused ? "message-text" : "message-outline"} size={size} color={color} />;
       case 'Profile':
-        return <Icon name="person-outline" size={size} color={color} />;
+        return <Icon name={isFocused ? "person" : "person-outline"} size={size} color={color} />;
       default:
-        return <Icon name="home" size={size} color={color} />;
+        return <Icon name={isFocused ? "home" : "home-outline"} size={size} color={color} />;
     }
   };
 
@@ -63,8 +61,6 @@ const CustomTabBar = ({ state, descriptors, navigation, isVendor = false }: Cust
           return 'Home';
         case 'Dashboard':
           return 'Dashboard';
-        case 'Products':
-          return 'Products';
         case 'VendorOrders':
           return 'Orders';
         case 'Messages':

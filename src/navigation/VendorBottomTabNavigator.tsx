@@ -4,13 +4,11 @@ import ConversationsScreen from '@/screens/ConversationsScreen';
 import CustomTabBar from '@/components/CustomTabBar';
 import ProfileScreen from '@/screens/vendor/VendorProfileScreen';
 import VendorDashboardScreen from '@/screens/vendor/VendorDashboardScreen';
-import VendorProductsScreen from '@/screens/vendor/VendorProductScreen';
 import VendorOrdersScreen from '@/screens/vendor/VendorOrdersScreen';
 
 export type VendorBottomTabParamList = {
   Home: undefined;
   Dashboard: undefined;
-  Products: undefined;
   VendorOrders: undefined;
   Messages: undefined;
   Profile: undefined;
@@ -28,7 +26,6 @@ function VendorBottomTabNavigator() {
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Dashboard" component={VendorDashboardScreen} />
-      <Tab.Screen name="Products" component={VendorProductsScreen} />
       <Tab.Screen name="VendorOrders" component={VendorOrdersScreen} />
       <Tab.Screen name="Messages" component={ConversationsScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
